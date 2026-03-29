@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { hexKey, HexTile } from '../types/game';
-import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
+import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS, FONT, SPACE, RADIUS } from '../constants/theme';
 import {
   TERRAIN_COLORS, BUILDING_ICONS, UNIT_ICONS,
   MAX_BUILDING_LEVEL, LEVEL_NAMES,
@@ -298,19 +298,25 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    backgroundColor: COLORS.primaryDark,
+    backgroundColor: COLORS.actionBuild,
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
   actionBtnTrain: {
-    backgroundColor: '#2D5A27',
+    backgroundColor: COLORS.actionTrain,
+    borderWidth: 1,
+    borderColor: COLORS.actionTrainBorder,
   },
   actionBtnUpgrade: {
-    backgroundColor: '#5A4A2A',
+    backgroundColor: COLORS.actionUpgrade,
+    borderWidth: 1,
+    borderColor: COLORS.actionUpgradeBorder,
   },
   actionBtnMove: {
-    backgroundColor: '#4A5A8A',
+    backgroundColor: COLORS.actionMove,
+    borderWidth: 1,
+    borderColor: COLORS.actionMoveBorder,
   },
   upgradeCostRow: {
     flexDirection: 'row',
