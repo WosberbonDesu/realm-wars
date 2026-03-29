@@ -66,6 +66,22 @@ export default function BattleResultModal({ visible, result, onClose }: Props) {
             </View>
           </View>
 
+          {/* Tetiklenen yetenekler */}
+          {result.triggeredAbilities && result.triggeredAbilities.length > 0 && (
+            <View style={styles.abilitiesContainer}>
+              {result.triggeredAbilities.map((ab, i) => (
+                <Text key={i} style={styles.abilityText}>{ab.text}</Text>
+              ))}
+            </View>
+          )}
+
+          {/* Bina hasari */}
+          {result.buildingDamage > 0 && (
+            <Text style={styles.buildingDmgText}>
+              Bina hasari: {result.buildingDamage} HP
+            </Text>
+          )}
+
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <Text style={styles.closeBtnText}>Tamam</Text>
           </TouchableOpacity>
@@ -135,6 +151,25 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     backgroundColor: COLORS.border,
+  },
+  abilitiesContainer: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    gap: 4,
+  },
+  abilityText: {
+    color: COLORS.gold,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  buildingDmgText: {
+    color: COLORS.red,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 12,
   },
   closeBtn: {
     backgroundColor: COLORS.primary,

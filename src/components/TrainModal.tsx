@@ -7,6 +7,7 @@ import { UnitType, Resources } from '../types/game';
 import { BASE_UNITS } from '../constants/tech';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { UNIT_STATS, UNIT_ICONS } from '../constants/game';
+import { UNIT_ABILITIES } from '../constants/abilities';
 
 interface Props {
   visible: boolean;
@@ -101,6 +102,15 @@ export default function TrainModal({ visible, onClose }: Props) {
                       <Text style={styles.itemDesc}>{UNIT_DESC[type]}</Text>
                     </View>
                   </View>
+
+                  {/* Yetenek */}
+                  {UNIT_ABILITIES[type] && (
+                    <View style={styles.abilityRow}>
+                      <Text style={styles.abilityIcon}>{UNIT_ABILITIES[type].icon}</Text>
+                      <Text style={styles.abilityName}>{UNIT_ABILITIES[type].name}: </Text>
+                      <Text style={styles.abilityDesc}>{UNIT_ABILITIES[type].description}</Text>
+                    </View>
+                  )}
 
                   {/* Statlar */}
                   <View style={styles.statsRow}>
@@ -227,6 +237,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
+  abilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2e',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginBottom: 6,
+    flexWrap: 'wrap',
+  },
+  abilityIcon: { fontSize: 12 },
+  abilityName: { color: COLORS.gold, fontSize: 10, fontWeight: '700' },
+  abilityDesc: { color: COLORS.textMuted, fontSize: 10 },
   statsRow: {
     flexDirection: 'row',
     gap: 14,

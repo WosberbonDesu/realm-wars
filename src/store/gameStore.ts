@@ -517,7 +517,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Hedefte düşman ordusu var mı?
     if (newToTile.army && newToTile.army.ownerId !== state.currentPlayerId) {
       // SAVAŞ!
-      battleResult = simulateBattle(fromTile.army, newToTile.army, newToTile.terrain);
+      battleResult = simulateBattle(fromTile.army, newToTile.army, newToTile.terrain, newToTile.building);
 
       if (battleResult.winner === 'attacker') {
         // Saldırgan kazandı → hex'i ele geçir
@@ -532,9 +532,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const oldOwner = newToTile.ownerId;
         newToTile.ownerId = state.currentPlayerId;
 
-        // Bina yıkılsın
+        // Bina hasar alsın veya yıkılsın
         if (newToTile.building && newToTile.building.ownerId !== state.currentPlayerId) {
-          newToTile.building = null;
+          if (battleResult.buildingDamage > 0) {
+            const newHp = newToTile.building.health - battleResult.buildingDamage;
+            if (newHp <= 0) {
+              newToTile.building = null;
+            } else {
+              newToTile.building = { ...newToTile.building, health: newHp };
+            }
+          } else {
+            newToTile.building = null;
+          }
         }
 
         // Oyuncu territory güncelle
