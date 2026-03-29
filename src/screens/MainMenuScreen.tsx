@@ -4,13 +4,14 @@ import {
 } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
-import { hasSave, getSaveInfo } from '../services/saveService';
+import { hasSave, getSaveInfo, loadSettings } from '../services/saveService';
 
 interface Props {
   onStartGame: () => void;
+  onSettings: () => void;
 }
 
-export default function MainMenuScreen({ onStartGame }: Props) {
+export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
   const [playerName, setPlayerName] = useState('Komutan');
   const [botCount, setBotCount] = useState(2);
   const [savedExists, setSavedExists] = useState(false);
@@ -131,7 +132,7 @@ export default function MainMenuScreen({ onStartGame }: Props) {
 
         <TouchableOpacity
           style={styles.menuButtonSecondary}
-          onPress={() => {/* TODO: settings */}}
+          onPress={onSettings}
         >
           <Text style={styles.menuButtonSecondaryText}>Ayarlar</Text>
         </TouchableOpacity>
