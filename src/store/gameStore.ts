@@ -100,6 +100,10 @@ export interface GameActions {
 
   // Gelir hesapla
   calculateIncome: (playerId: string) => Resources;
+
+  // Aksiyon logu
+  actionLog: { id: string; text: string; color: string; icon: string }[];
+  clearActionLog: () => void;
 }
 
 export type GameStore = GameState & GameActions;
@@ -118,6 +122,7 @@ const initialState: GameState = {
   moveMode: false,
   moveFrom: null,
   moveTargets: [],
+  actionLog: [],
 };
 
 // ===== STORE =====
@@ -233,6 +238,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       moveMode: false,
       moveFrom: null,
       moveTargets: [],
+      actionLog: [],
     });
 
     // İnsan oyuncu için görünürlük aç
@@ -625,6 +631,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ moveMode: false, moveFrom: null, moveTargets: [] });
   },
 
+  // ─── AKSIYON LOGU ───
+  actionLog: [],
+  clearActionLog: () => set({ actionLog: [] }),
+
   // ─── SAVE / LOAD ───
   saveCurrentGame: async () => {
     const state = get();
@@ -708,19 +718,53 @@ function executeBotTurn(
   // Önce bot'un kaynaklarını topla
   collectResources(state, set);
 
+  const logs: { id: string; text: string; color: string; icon: string }[] = [];
+  let logId = 0;
+
   const actions: BotActions = {
     build: (q, r, type) => {
       get().buildStructure({ q, r }, type);
+      logs.push({
+        id: `${bot.id}-${logId++}`,
+        text: `${bot.name} ${type} insa etti`,
+        color: bot.color,
+        icon: '🏗️',
+      });
     },
     train: (castleQ, castleR, type, count) => {
       get().trainUnit({ q: castleQ, r: castleR }, type, count);
+      logs.push({
+        id: `${bot.id}-${logId++}`,
+        text: `${bot.name} ${count}x ${type} egitti`,
+        color: bot.color,
+        icon: '⚔️',
+      });
     },
     moveArmy: (fromQ, fromR, toQ, toR) => {
-      get().moveArmy({ q: fromQ, r: fromR }, { q: toQ, r: toR });
+      const result = get().moveArmy({ q: fromQ, r: fromR }, { q: toQ, r: toR });
+      if (result) {
+        logs.push({
+          id: `${bot.id}-${logId++}`,
+          text: `${bot.name} saldirdi! ${result.winner === 'attacker' ? 'Kazandi' : 'Kaybetti'}`,
+          color: bot.color,
+          icon: '💥',
+        });
+      } else {
+        logs.push({
+          id: `${bot.id}-${logId++}`,
+          text: `${bot.name} ordusunu tasidi`,
+          color: bot.color,
+          icon: '🚩',
+        });
+      }
     },
   };
 
   botTakeTurn(get(), bot, actions);
+
+  // Logları mevcut loglara ekle
+  const currentLogs = get().actionLog;
+  set({ actionLog: [...currentLogs, ...logs] });
 }
 
 // ===== OYUN BİTTİ Mİ KONTROL =====

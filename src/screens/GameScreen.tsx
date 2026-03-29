@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
@@ -9,6 +9,8 @@ import BuildModal from '../components/BuildModal';
 import TrainModal from '../components/TrainModal';
 import BattleResultModal from '../components/BattleResultModal';
 import Minimap from '../components/Minimap';
+import TurnBanner from '../components/TurnBanner';
+import ActionLog from '../components/ActionLog';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 
@@ -32,8 +34,23 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const moveMode = useGameStore(s => s.moveMode);
   const saveCurrentGame = useGameStore(s => s.saveCurrentGame);
   const calculateIncome = useGameStore(s => s.calculateIncome);
+  const actionLog = useGameStore(s => s.actionLog);
+  const clearActionLog = useGameStore(s => s.clearActionLog);
 
   const mapRef = useRef<HexMapRef>(null);
+  const [showTurnBanner, setShowTurnBanner] = useState(false);
+  const prevTurn = useRef(turn);
+
+  // Tur degistiginde banner goster
+  useEffect(() => {
+    if (turn !== prevTurn.current) {
+      prevTurn.current = turn;
+      setShowTurnBanner(true);
+      // Logları 5 saniye sonra temizle
+      const timer = setTimeout(() => clearActionLog(), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [turn]);
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
 
@@ -100,6 +117,18 @@ export default function GameScreen({ onBackToMenu }: Props) {
           }}
         />
         <Minimap onTapHex={(q, r) => mapRef.current?.focusOnHex(q, r)} />
+
+        {/* Tur gecis banner */}
+        <TurnBanner
+          turn={turn}
+          playerName={currentPlayer?.name ?? ''}
+          playerColor={currentPlayer?.color ?? COLORS.primary}
+          visible={showTurnBanner}
+          onFinish={() => setShowTurnBanner(false)}
+        />
+
+        {/* Bot eylem loglari */}
+        {actionLog.length > 0 && <ActionLog entries={actionLog} />}
       </View>
 
       {/* Hex bilgi paneli */}

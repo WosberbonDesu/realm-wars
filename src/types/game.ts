@@ -101,6 +101,7 @@ export interface GameState {
   moveMode: boolean;
   moveFrom: HexCoord | null;
   moveTargets: HexCoord[];
+  actionLog: { id: string; text: string; color: string; icon: string }[];
 }
 
 export enum GamePhase {
