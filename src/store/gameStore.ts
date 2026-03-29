@@ -23,6 +23,11 @@ import { rollEvent, applyEvent } from '../engine/events';
 import { GameEvent } from '../constants/events';
 import { HEROES, HeroId } from '../constants/heroes';
 import {
+  RelationType, DiplomacyAction,
+  NON_AGGRESSION_DURATION, ALLIANCE_DURATION, PROPOSAL_EXPIRE_TURNS,
+  BOT_ACCEPT_NON_AGGRESSION_CHANCE, BOT_ACCEPT_ALLIANCE_CHANCE,
+} from '../constants/diplomacy';
+import {
   VictoryType, ECONOMIC_GOLD_THRESHOLD,
   ECONOMIC_TERRITORY_THRESHOLD, DOMINATION_TERRITORY_PERCENT,
 } from '../constants/victory';
@@ -128,6 +133,15 @@ export interface GameActions {
   // Kahramanlar
   hireHero: (heroId: HeroId) => boolean;
   assignHero: (heroId: string, hexCoord: HexCoord | null) => void;
+
+  // Diplomasi
+  proposeNonAggression: (targetId: string) => void;
+  proposeAlliance: (targetId: string) => void;
+  declareWar: (targetId: string) => void;
+  offerTribute: (targetId: string, tribute: Partial<Resources>) => void;
+  acceptProposal: (proposalId: string) => void;
+  rejectProposal: (proposalId: string) => void;
+  getRelation: (playerId: string, targetId: string) => string;
 }
 
 export type GameStore = GameState & GameActions;
@@ -149,6 +163,8 @@ const initialState: GameState = {
   actionLog: [],
   pendingEvent: null,
   victoryInfo: null,
+  relations: [],
+  proposals: [],
 };
 
 // ===== STORE =====
@@ -273,6 +289,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       actionLog: [],
       pendingEvent: null,
       victoryInfo: null,
+      relations: [],
+      proposals: [],
     });
 
     // İnsan oyuncu için görünürlük aç
@@ -609,7 +627,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // 1.6 Rastgele olay
     triggerRandomEvent(get, set);
 
-    // 1.7 Zafer kontrolu
+    // 1.7 Diplomasi sureleri
+    tickDiplomacy(get, set);
+
+    // 1.8 Zafer kontrolu
     checkGameOver(get, set);
     if (get().phase === GamePhase.GameOver) return;
 
@@ -895,7 +916,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const player = state.players.find(p => p.id === state.currentPlayerId);
     if (!player) return;
 
-    // Hedef hex'te ordu var mı kontrol et
     if (hexCoord) {
       const key = hexKey(hexCoord.q, hexCoord.r);
       const tile = state.map.get(key);
@@ -915,6 +935,122 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : p
     );
     set({ players: newPlayers });
+  },
+
+  // ─── DİPLOMASİ ───
+  proposeNonAggression: (targetId: string) => {
+    const state = get();
+    const fromId = state.currentPlayerId;
+    const target = state.players.find(p => p.id === targetId);
+    if (!target) return;
+
+    // Bot ise hemen karar ver
+    if (target.isBot) {
+      if (Math.random() < BOT_ACCEPT_NON_AGGRESSION_CHANCE) {
+        const newRel = { playerId: fromId, targetId, type: RelationType.NonAggression, turnsRemaining: NON_AGGRESSION_DURATION };
+        const newRel2 = { playerId: targetId, targetId: fromId, type: RelationType.NonAggression, turnsRemaining: NON_AGGRESSION_DURATION };
+        set({
+          relations: [...state.relations.filter(r => !((r.playerId === fromId && r.targetId === targetId) || (r.playerId === targetId && r.targetId === fromId))), newRel, newRel2],
+          actionLog: [...state.actionLog, { id: `dip-${Date.now()}`, text: `${target.name} saldirmazlik paktini kabul etti!`, color: '#4AD97A', icon: '🤝' }],
+        });
+      } else {
+        set({ actionLog: [...state.actionLog, { id: `dip-${Date.now()}`, text: `${target.name} teklifinizi reddetti.`, color: '#D94A4A', icon: '❌' }] });
+      }
+    } else {
+      // İnsan oyuncuya teklif
+      const proposal = { id: `prop-${Date.now()}`, fromId, toId: targetId, action: DiplomacyAction.ProposeNonAggression, turnsLeft: PROPOSAL_EXPIRE_TURNS };
+      set({ proposals: [...state.proposals, proposal] });
+    }
+  },
+
+  proposeAlliance: (targetId: string) => {
+    const state = get();
+    const fromId = state.currentPlayerId;
+    const target = state.players.find(p => p.id === targetId);
+    if (!target) return;
+
+    // Önce saldırmazlık olmalı
+    const hasNonAgg = state.relations.some(r =>
+      r.playerId === fromId && r.targetId === targetId && r.type === RelationType.NonAggression
+    );
+    if (!hasNonAgg) return;
+
+    if (target.isBot) {
+      if (Math.random() < BOT_ACCEPT_ALLIANCE_CHANCE) {
+        const newRel = { playerId: fromId, targetId, type: RelationType.Alliance, turnsRemaining: ALLIANCE_DURATION };
+        const newRel2 = { playerId: targetId, targetId: fromId, type: RelationType.Alliance, turnsRemaining: ALLIANCE_DURATION };
+        set({
+          relations: [...state.relations.filter(r => !((r.playerId === fromId && r.targetId === targetId) || (r.playerId === targetId && r.targetId === fromId))), newRel, newRel2],
+          actionLog: [...state.actionLog, { id: `dip-${Date.now()}`, text: `${target.name} ittifaki kabul etti!`, color: '#FFD700', icon: '⭐' }],
+        });
+      } else {
+        set({ actionLog: [...state.actionLog, { id: `dip-${Date.now()}`, text: `${target.name} ittifak teklifini reddetti.`, color: '#D94A4A', icon: '❌' }] });
+      }
+    } else {
+      const proposal = { id: `prop-${Date.now()}`, fromId, toId: targetId, action: DiplomacyAction.ProposeAlliance, turnsLeft: PROPOSAL_EXPIRE_TURNS };
+      set({ proposals: [...state.proposals, proposal] });
+    }
+  },
+
+  declareWar: (targetId: string) => {
+    const state = get();
+    const fromId = state.currentPlayerId;
+    const fromPlayer = state.players.find(p => p.id === fromId);
+    const target = state.players.find(p => p.id === targetId);
+
+    const newRel = { playerId: fromId, targetId, type: RelationType.War, turnsRemaining: 0 };
+    const newRel2 = { playerId: targetId, targetId: fromId, type: RelationType.War, turnsRemaining: 0 };
+    set({
+      relations: [...state.relations.filter(r => !((r.playerId === fromId && r.targetId === targetId) || (r.playerId === targetId && r.targetId === fromId))), newRel, newRel2],
+      actionLog: [...state.actionLog, { id: `dip-${Date.now()}`, text: `${fromPlayer?.name} ${target?.name}'a savas ilan etti!`, color: '#D94A4A', icon: '⚔️' }],
+    });
+  },
+
+  offerTribute: (targetId: string, tribute: Partial<Resources>) => {
+    const state = get();
+    const player = state.players.find(p => p.id === state.currentPlayerId);
+    if (!player || !canAfford(player.resources, tribute)) return;
+
+    // Kaynağı düş ve hedef oyuncuya ver
+    const newPlayers = state.players.map(p => {
+      if (p.id === player.id) return { ...p, resources: subtractResources(p.resources, tribute) };
+      if (p.id === targetId) return { ...p, resources: addResources(p.resources, tribute) };
+      return p;
+    });
+
+    const target = state.players.find(p => p.id === targetId);
+    set({
+      players: newPlayers,
+      actionLog: [...state.actionLog, { id: `dip-${Date.now()}`, text: `${target?.name}'a harac gonderildi.`, color: '#D4A843', icon: '📦' }],
+    });
+  },
+
+  acceptProposal: (proposalId: string) => {
+    const state = get();
+    const proposal = state.proposals.find(p => p.id === proposalId);
+    if (!proposal) return;
+
+    const duration = proposal.action === DiplomacyAction.ProposeAlliance ? ALLIANCE_DURATION : NON_AGGRESSION_DURATION;
+    const relType = proposal.action === DiplomacyAction.ProposeAlliance ? RelationType.Alliance : RelationType.NonAggression;
+
+    const newRel = { playerId: proposal.fromId, targetId: proposal.toId, type: relType, turnsRemaining: duration };
+    const newRel2 = { playerId: proposal.toId, targetId: proposal.fromId, type: relType, turnsRemaining: duration };
+
+    set({
+      relations: [...state.relations.filter(r => !((r.playerId === proposal.fromId && r.targetId === proposal.toId) || (r.playerId === proposal.toId && r.targetId === proposal.fromId))), newRel, newRel2],
+      proposals: state.proposals.filter(p => p.id !== proposalId),
+    });
+  },
+
+  rejectProposal: (proposalId: string) => {
+    const state = get();
+    set({ proposals: state.proposals.filter(p => p.id !== proposalId) });
+  },
+
+  getRelation: (playerId: string, targetId: string): string => {
+    const state = get();
+    const rel = state.relations.find(r => r.playerId === playerId && r.targetId === targetId);
+    return rel?.type ?? RelationType.Neutral;
   },
 }));
 
@@ -1065,6 +1201,36 @@ function executeBotTurn(
 }
 
 // ===== OYUN BİTTİ Mİ KONTROL =====
+
+// ===== DİPLOMASİ SÜRE =====
+
+function tickDiplomacy(
+  get: () => GameStore,
+  set: (partial: Partial<GameState>) => void
+) {
+  const state = get();
+
+  // İlişki sürelerini ilerlet
+  const updatedRelations = state.relations
+    .map(r => {
+      if (r.turnsRemaining <= 0) return r; // süresiz
+      return { ...r, turnsRemaining: r.turnsRemaining - 1 };
+    })
+    .filter(r => {
+      // Süresi biten ilişkileri kaldır (neutral'a dön)
+      if (r.turnsRemaining === 0 && r.type !== RelationType.War) return false;
+      return true;
+    });
+
+  // Teklif sürelerini ilerlet
+  const updatedProposals = state.proposals
+    .map(p => ({ ...p, turnsLeft: p.turnsLeft - 1 }))
+    .filter(p => p.turnsLeft > 0);
+
+  if (updatedRelations.length !== state.relations.length || updatedProposals.length !== state.proposals.length) {
+    set({ relations: updatedRelations, proposals: updatedProposals });
+  }
+}
 
 function checkGameOver(
   get: () => GameStore,

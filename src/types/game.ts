@@ -134,6 +134,8 @@ export interface GameState {
   actionLog: { id: string; text: string; color: string; icon: string }[];
   pendingEvent: { type: string; name: string; icon: string; positive: boolean } | null;
   victoryInfo: { winnerId: string; victoryType: string } | null;
+  relations: { playerId: string; targetId: string; type: string; turnsRemaining: number }[];
+  proposals: { id: string; fromId: string; toId: string; action: string; tribute?: Partial<Resources>; turnsLeft: number }[];
 }
 
 export enum GamePhase {

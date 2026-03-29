@@ -16,6 +16,7 @@ import ResourceBar from '../components/ResourceBar';
 import TechTreeModal from '../components/TechTreeModal';
 import EventModal from '../components/EventModal';
 import HeroModal from '../components/HeroModal';
+import DiplomacyModal from '../components/DiplomacyModal';
 import VictoryProgress from '../components/VictoryProgress';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
@@ -40,6 +41,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const [techModalVisible, setTechModalVisible] = useState(false);
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [heroModalVisible, setHeroModalVisible] = useState(false);
+  const [diplomacyModalVisible, setDiplomacyModalVisible] = useState(false);
   const [victoryExpanded, setVictoryExpanded] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const pendingEvent = useGameStore(s => s.pendingEvent);
@@ -159,6 +161,9 @@ export default function GameScreen({ onBackToMenu }: Props) {
         <TouchableOpacity onPress={() => setHeroModalVisible(true)}>
           <Text style={styles.heroText}>Kahramanlar</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => setDiplomacyModalVisible(true)}>
+          <Text style={styles.diploText}>Diplomasi</Text>
+        </TouchableOpacity>
         <Text style={styles.turnText}>Tur {turn}</Text>
         <View style={styles.playerBadge}>
           <View style={[styles.playerDot, { backgroundColor: currentPlayer?.color }]} />
@@ -253,6 +258,10 @@ export default function GameScreen({ onBackToMenu }: Props) {
         visible={heroModalVisible}
         onClose={() => setHeroModalVisible(false)}
       />
+      <DiplomacyModal
+        visible={diplomacyModalVisible}
+        onClose={() => setDiplomacyModalVisible(false)}
+      />
     </View>
   );
 }
@@ -290,6 +299,11 @@ const styles = StyleSheet.create({
   },
   heroText: {
     color: '#D9A84A',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  diploText: {
+    color: '#8B4AD9',
     fontSize: 13,
     fontWeight: '600',
   },
