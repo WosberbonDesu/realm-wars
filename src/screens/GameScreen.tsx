@@ -14,8 +14,10 @@ import ActionLog from '../components/ActionLog';
 import AnimatedButton from '../components/AnimatedButton';
 import ResourceBar from '../components/ResourceBar';
 import TechTreeModal from '../components/TechTreeModal';
+import EventModal from '../components/EventModal';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
+import { GAME_EVENTS, GameEvent } from '../constants/events';
 
 interface Props {
   onBackToMenu: () => void;
@@ -33,6 +35,9 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const [battleResult, setBattleResult] = useState<BattleResult | null>(null);
   const [battleModalVisible, setBattleModalVisible] = useState(false);
   const [techModalVisible, setTechModalVisible] = useState(false);
+  const [eventModalVisible, setEventModalVisible] = useState(false);
+  const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
+  const pendingEvent = useGameStore(s => s.pendingEvent);
 
   const enterMoveMode = useGameStore(s => s.enterMoveMode);
   const moveMode = useGameStore(s => s.moveMode);
@@ -50,11 +55,22 @@ export default function GameScreen({ onBackToMenu }: Props) {
     if (turn !== prevTurn.current) {
       prevTurn.current = turn;
       setShowTurnBanner(true);
-      // Logları 5 saniye sonra temizle
       const timer = setTimeout(() => clearActionLog(), 5000);
       return () => clearTimeout(timer);
     }
   }, [turn]);
+
+  // Olay geldiginde modal goster
+  useEffect(() => {
+    if (pendingEvent) {
+      const event = GAME_EVENTS[pendingEvent.type as keyof typeof GAME_EVENTS];
+      if (event) {
+        setCurrentEvent(event);
+        setEventModalVisible(true);
+      }
+      useGameStore.setState({ pendingEvent: null });
+    }
+  }, [pendingEvent]);
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
 
@@ -192,6 +208,11 @@ export default function GameScreen({ onBackToMenu }: Props) {
       <TechTreeModal
         visible={techModalVisible}
         onClose={() => setTechModalVisible(false)}
+      />
+      <EventModal
+        visible={eventModalVisible}
+        event={currentEvent}
+        onClose={() => setEventModalVisible(false)}
       />
     </View>
   );

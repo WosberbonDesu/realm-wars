@@ -19,6 +19,8 @@ import {
 import { TERRAIN_BUILDABLE } from '../constants/terrain';
 import { saveGame, loadGame } from '../services/saveService';
 import { TECH_TREE, BASE_UNITS } from '../constants/tech';
+import { rollEvent, applyEvent } from '../engine/events';
+import { GameEvent } from '../constants/events';
 
 // ===== HELPER FUNCTIONS =====
 
@@ -136,6 +138,7 @@ const initialState: GameState = {
   moveFrom: null,
   moveTargets: [],
   actionLog: [],
+  pendingEvent: null,
 };
 
 // ===== STORE =====
@@ -256,6 +259,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       moveFrom: null,
       moveTargets: [],
       actionLog: [],
+      pendingEvent: null,
     });
 
     // İnsan oyuncu için görünürlük aç
@@ -588,6 +592,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // 1.5 Araştırma ilerlet
     tickResearch(get, set);
+
+    // 1.6 Rastgele olay
+    triggerRandomEvent(get, set);
 
     // 2. Sıradaki oyuncuyu bul
     const currentIndex = state.players.findIndex(p => p.id === state.currentPlayerId);
@@ -990,4 +997,55 @@ function checkGameOver(
   if (alivePlayers.length <= 1) {
     set({ phase: GamePhase.GameOver });
   }
+}
+
+// ===== RASTGELE OLAY =====
+
+function triggerRandomEvent(
+  get: () => GameStore,
+  set: (partial: Partial<GameState>) => void
+) {
+  const state = get();
+  const player = state.players.find(p => p.id === state.currentPlayerId);
+  if (!player || player.isBot) return; // Sadece insan oyuncuya olay gelsin
+
+  const event = rollEvent();
+  if (!event) return;
+
+  // Oyuncunun ordularını topla (unit_loss için)
+  const armyTiles: { key: string; army: import('../types/game').Army }[] = [];
+  for (const coord of player.territory) {
+    const k = hexKey(coord.q, coord.r);
+    const tile = state.map.get(k);
+    if (tile?.army && tile.army.ownerId === player.id) {
+      armyTiles.push({ key: k, army: tile.army });
+    }
+  }
+
+  const { updatedPlayer, updatedArmies } = applyEvent(player, event, armyTiles);
+
+  // Oyuncuyu güncelle
+  const newPlayers = state.players.map(p =>
+    p.id === player.id ? updatedPlayer : p
+  );
+
+  // Orduları güncelle
+  const newMap = new Map(state.map);
+  for (const { key: k, army } of updatedArmies) {
+    const tile = newMap.get(k);
+    if (tile) {
+      newMap.set(k, { ...tile, army });
+    }
+  }
+
+  set({
+    players: newPlayers,
+    map: updatedArmies.length > 0 ? newMap : state.map,
+    pendingEvent: {
+      type: event.type,
+      name: event.name,
+      icon: event.icon,
+      positive: event.positive,
+    },
+  });
 }

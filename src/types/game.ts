@@ -123,6 +123,7 @@ export interface GameState {
   moveFrom: HexCoord | null;
   moveTargets: HexCoord[];
   actionLog: { id: string; text: string; color: string; icon: string }[];
+  pendingEvent: { type: string; name: string; icon: string; positive: boolean } | null;
 }
 
 export enum GamePhase {
