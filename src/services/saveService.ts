@@ -1,28 +1,85 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  GameState, GamePhase, HexTile, HexCoord, Player, Resources,
+  hexKey,
+} from '../types/game';
 
 const SAVE_KEY = '@realm_wars_save';
 const SETTINGS_KEY = '@realm_wars_settings';
 
+// ===== SERIALIZATION =====
+// Map<string, HexTile> JSON'a cevirilemiyor, ozel serialize/deserialize lazim
+
+interface SerializedGameState {
+  mapEntries: [string, HexTile][];
+  mapRadius: number;
+  players: Player[];
+  currentPlayerId: string;
+  turn: number;
+  phase: GamePhase;
+  selectedHex: HexCoord | null;
+  isPaused: boolean;
+  moveMode: boolean;
+  moveFrom: HexCoord | null;
+  moveTargets: HexCoord[];
+}
+
+export function serializeState(state: GameState): SerializedGameState {
+  return {
+    mapEntries: Array.from(state.map.entries()),
+    mapRadius: state.mapRadius,
+    players: state.players,
+    currentPlayerId: state.currentPlayerId,
+    turn: state.turn,
+    phase: state.phase,
+    selectedHex: state.selectedHex,
+    isPaused: false,
+    moveMode: false,
+    moveFrom: null,
+    moveTargets: [],
+  };
+}
+
+export function deserializeState(data: SerializedGameState): GameState {
+  return {
+    map: new Map(data.mapEntries),
+    mapRadius: data.mapRadius,
+    players: data.players,
+    currentPlayerId: data.currentPlayerId,
+    turn: data.turn,
+    phase: data.phase,
+    selectedHex: null,
+    isPaused: false,
+    moveMode: false,
+    moveFrom: null,
+    moveTargets: [],
+  };
+}
+
+// ===== SAVE / LOAD =====
+
 export interface SaveData {
   version: number;
   timestamp: number;
-  state: Record<string, unknown>;
+  state: SerializedGameState;
 }
 
-export async function saveGame(state: Record<string, unknown>): Promise<void> {
+export async function saveGame(state: GameState): Promise<void> {
   const data: SaveData = {
     version: 1,
     timestamp: Date.now(),
-    state,
+    state: serializeState(state),
   };
   await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(data));
 }
 
-export async function loadGame(): Promise<SaveData | null> {
+export async function loadGame(): Promise<GameState | null> {
   const raw = await AsyncStorage.getItem(SAVE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as SaveData;
+    const data = JSON.parse(raw) as SaveData;
+    if (data.version !== 1) return null;
+    return deserializeState(data.state);
   } catch {
     return null;
   }
@@ -35,6 +92,22 @@ export async function deleteSave(): Promise<void> {
 export async function hasSave(): Promise<boolean> {
   const raw = await AsyncStorage.getItem(SAVE_KEY);
   return raw !== null;
+}
+
+export async function getSaveInfo(): Promise<{ timestamp: number; turn: number; playerName: string } | null> {
+  const raw = await AsyncStorage.getItem(SAVE_KEY);
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw) as SaveData;
+    const humanPlayer = data.state.players.find(p => !p.isBot);
+    return {
+      timestamp: data.timestamp,
+      turn: data.state.turn,
+      playerName: humanPlayer?.name ?? 'Bilinmeyen',
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function saveSettings(settings: Record<string, unknown>): Promise<void> {

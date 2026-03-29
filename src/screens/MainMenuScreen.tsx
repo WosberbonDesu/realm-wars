@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
-import { hasSave } from '../services/saveService';
+import { hasSave, getSaveInfo } from '../services/saveService';
 
 interface Props {
   onStartGame: () => void;
@@ -14,16 +14,26 @@ export default function MainMenuScreen({ onStartGame }: Props) {
   const [playerName, setPlayerName] = useState('Komutan');
   const [botCount, setBotCount] = useState(2);
   const [savedExists, setSavedExists] = useState(false);
+  const [saveInfo, setSaveInfo] = useState<{ turn: number; playerName: string } | null>(null);
   const [showSetup, setShowSetup] = useState(false);
 
   const initGame = useGameStore(s => s.initGame);
+  const loadSavedGame = useGameStore(s => s.loadSavedGame);
 
   useEffect(() => {
     hasSave().then(setSavedExists);
+    getSaveInfo().then(info => {
+      if (info) setSaveInfo(info);
+    });
   }, []);
 
   const handleNewGame = () => {
     setShowSetup(true);
+  };
+
+  const handleContinue = async () => {
+    const success = await loadSavedGame();
+    if (success) onStartGame();
   };
 
   const handleStartGame = () => {
@@ -103,7 +113,7 @@ export default function MainMenuScreen({ onStartGame }: Props) {
 
         <TouchableOpacity
           style={[styles.menuButton, !savedExists && styles.menuButtonDisabled]}
-          onPress={() => {/* TODO: loadGame */}}
+          onPress={handleContinue}
           disabled={!savedExists}
         >
           <Text style={[
@@ -112,6 +122,11 @@ export default function MainMenuScreen({ onStartGame }: Props) {
           ]}>
             Devam Et
           </Text>
+          {saveInfo && savedExists && (
+            <Text style={styles.saveInfoText}>
+              {saveInfo.playerName} - Tur {saveInfo.turn}
+            </Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -182,6 +197,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bgLight,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  saveInfoText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 4,
   },
   menuButtonTextDisabled: {
     color: COLORS.textMuted,

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
+import { Resources } from '../types/game';
 import HexMapRenderer from '../components/HexMapRenderer';
 import HexInfoPanel from '../components/HexInfoPanel';
 import BuildModal from '../components/BuildModal';
@@ -28,8 +29,21 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
   const enterMoveMode = useGameStore(s => s.enterMoveMode);
   const moveMode = useGameStore(s => s.moveMode);
+  const saveCurrentGame = useGameStore(s => s.saveCurrentGame);
+  const calculateIncome = useGameStore(s => s.calculateIncome);
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
+
+  // Gelir hesapla
+  const income = useMemo(() => {
+    if (!currentPlayerId) return null;
+    return calculateIncome(currentPlayerId);
+  }, [currentPlayerId, players, calculateIncome]);
+
+  const handleSave = async () => {
+    await saveCurrentGame();
+    Alert.alert('Kaydedildi', 'Oyun basariyla kaydedildi.');
+  };
 
   // Oyun bitti mi
   if (phase === GamePhase.GameOver) {
@@ -53,6 +67,9 @@ export default function GameScreen({ onBackToMenu }: Props) {
       <View style={styles.topBar}>
         <TouchableOpacity onPress={onBackToMenu}>
           <Text style={styles.backText}>Menu</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleSave}>
+          <Text style={styles.saveText}>Kaydet</Text>
         </TouchableOpacity>
         <Text style={styles.turnText}>Tur {turn}</Text>
         <View style={styles.playerBadge}>
@@ -95,6 +112,9 @@ export default function GameScreen({ onBackToMenu }: Props) {
                 <Text style={[styles.resText, { color: RESOURCE_COLORS[res] }]}>
                   {currentPlayer.resources[res]}
                 </Text>
+                {income && income[res] > 0 && (
+                  <Text style={styles.incomeText}>+{income[res]}</Text>
+                )}
               </View>
             ))}
           </View>
@@ -146,6 +166,11 @@ const styles = StyleSheet.create({
   backText: {
     color: COLORS.textSecondary,
     fontSize: 14,
+  },
+  saveText: {
+    color: COLORS.gold,
+    fontSize: 13,
+    fontWeight: '600',
   },
   turnText: {
     color: COLORS.gold,
@@ -202,6 +227,11 @@ const styles = StyleSheet.create({
   },
   resText: {
     fontSize: 12,
+    fontWeight: '700',
+  },
+  incomeText: {
+    color: COLORS.green,
+    fontSize: 9,
     fontWeight: '700',
   },
   endTurnButton: {

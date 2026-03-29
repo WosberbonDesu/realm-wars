@@ -14,6 +14,7 @@ import {
   UNIT_STATS, VISIBILITY_RANGE, SCOUT_VISIBILITY_RANGE,
 } from '../constants/game';
 import { TERRAIN_BUILDABLE } from '../constants/terrain';
+import { saveGame, loadGame } from '../services/saveService';
 
 // ===== HELPER FUNCTIONS =====
 
@@ -92,6 +93,13 @@ export interface GameActions {
   // Ordu hareketi modu
   enterMoveMode: (from: HexCoord) => void;
   exitMoveMode: () => void;
+
+  // Save/Load
+  saveCurrentGame: () => Promise<void>;
+  loadSavedGame: () => Promise<boolean>;
+
+  // Gelir hesapla
+  calculateIncome: (playerId: string) => Resources;
 }
 
 export type GameStore = GameState & GameActions;
@@ -615,6 +623,41 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   exitMoveMode: () => {
     set({ moveMode: false, moveFrom: null, moveTargets: [] });
+  },
+
+  // ─── SAVE / LOAD ───
+  saveCurrentGame: async () => {
+    const state = get();
+    await saveGame(state);
+  },
+
+  loadSavedGame: async (): Promise<boolean> => {
+    const loaded = await loadGame();
+    if (!loaded) return false;
+    set(loaded);
+    // Gorunurluk guncelle
+    get().updateVisibility(loaded.currentPlayerId);
+    return true;
+  },
+
+  // ─── GELİR HESAPLA ───
+  calculateIncome: (playerId: string): Resources => {
+    const state = get();
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return { gold: 0, iron: 0, food: 0, wood: 0, stone: 0 };
+
+    const income: Resources = { gold: 0, iron: 0, food: 0, wood: 0, stone: 0 };
+    for (const coord of player.territory) {
+      const tile = state.map.get(hexKey(coord.q, coord.r));
+      if (tile?.building && tile.building.ownerId === playerId) {
+        income.gold += tile.building.productionPerTick.gold ?? 0;
+        income.iron += tile.building.productionPerTick.iron ?? 0;
+        income.food += tile.building.productionPerTick.food ?? 0;
+        income.wood += tile.building.productionPerTick.wood ?? 0;
+        income.stone += tile.building.productionPerTick.stone ?? 0;
+      }
+    }
+    return income;
   },
 }));
 
