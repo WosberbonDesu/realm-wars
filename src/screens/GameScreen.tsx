@@ -29,6 +29,7 @@ import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
 import { playSound } from '../services/soundService';
 import { useI18n } from '../i18n/useI18n';
+import { useSettings } from '../services/useSettings';
 
 interface Props {
   onBackToMenu: () => void;
@@ -36,6 +37,7 @@ interface Props {
 
 export default function GameScreen({ onBackToMenu }: Props) {
   const { t } = useI18n();
+  const settings = useSettings();
   const turn = useGameStore(s => s.turn);
   const phase = useGameStore(s => s.phase);
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
@@ -181,6 +183,8 @@ export default function GameScreen({ onBackToMenu }: Props) {
       <View style={styles.mapContainer}>
         <HexMapRenderer
           ref={mapRef}
+          showGrid={settings.showGrid}
+          showFogOfWar={settings.showFogOfWar}
           onBattleResult={(result) => {
             setBattleResult(result);
             setBattleModalVisible(true);

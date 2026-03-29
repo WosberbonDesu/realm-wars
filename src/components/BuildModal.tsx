@@ -9,23 +9,15 @@ import {
   BUILDING_ICONS, BUILDING_COSTS, BUILDING_HEALTH, BUILDING_PRODUCTION,
 } from '../constants/game';
 import { TERRAIN_BUILDABLE } from '../constants/terrain';
+import { useI18n } from '../i18n/useI18n';
 
 interface Props {
   visible: boolean;
   onClose: (built?: boolean) => void;
 }
 
-const BUILDING_NAMES: Record<BuildingType, string> = {
-  [BuildingType.Castle]: 'Kale',
-  [BuildingType.Barracks]: 'Kisla',
-  [BuildingType.Mine]: 'Maden',
-  [BuildingType.Farm]: 'Ciftlik',
-  [BuildingType.Lumbermill]: 'Kereste',
-  [BuildingType.Tower]: 'Kule',
-  [BuildingType.Market]: 'Pazar',
-};
-
 export default function BuildModal({ visible, onClose }: Props) {
+  const { t } = useI18n();
   const selectedHex = useGameStore(s => s.selectedHex);
   const getBuildableTypes = useGameStore(s => s.getBuildableTypes);
   const buildStructure = useGameStore(s => s.buildStructure);
@@ -59,15 +51,15 @@ export default function BuildModal({ visible, onClose }: Props) {
       <View style={styles.overlay}>
         <View style={styles.panel}>
           <View style={styles.header}>
-            <Text style={styles.title}>Bina Kur</Text>
+            <Text style={styles.title}>{t('build.title')}</Text>
             <TouchableOpacity onPress={() => onClose()}>
-              <Text style={styles.closeText}>Kapat</Text>
+              <Text style={styles.closeText}>{t('build.close')}</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.list}>
             {buildable.length === 0 ? (
-              <Text style={styles.emptyText}>Bu hex'e bina kurulamaz</Text>
+              <Text style={styles.emptyText}>{t('build.cantBuild')}</Text>
             ) : (
               buildable.map(type => {
                 const cost = BUILDING_COSTS[type];
@@ -83,7 +75,7 @@ export default function BuildModal({ visible, onClose }: Props) {
                   >
                     <Text style={styles.itemIcon}>{BUILDING_ICONS[type]}</Text>
                     <View style={styles.itemInfo}>
-                      <Text style={styles.itemName}>{BUILDING_NAMES[type]}</Text>
+                      <Text style={styles.itemName}>{t(`building.${type}`)}</Text>
 
                       {/* Maliyet */}
                       <View style={styles.costRow}>
@@ -106,10 +98,10 @@ export default function BuildModal({ visible, onClose }: Props) {
                       {/* Uretim */}
                       {Object.keys(production).length > 0 && (
                         <View style={styles.prodRow}>
-                          <Text style={styles.prodLabel}>Uretim: </Text>
+                          <Text style={styles.prodLabel}>{t('build.production')} </Text>
                           {Object.entries(production).map(([res, val]) => (
                             <Text key={res} style={styles.prodText}>
-                              {RESOURCE_ICONS[res as keyof typeof RESOURCE_ICONS]} +{val}/tur
+                              {RESOURCE_ICONS[res as keyof typeof RESOURCE_ICONS]} {t('build.perTurn', { val: val as number })}
                             </Text>
                           ))}
                         </View>

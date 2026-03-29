@@ -8,6 +8,7 @@ import {
   MAX_BUILDING_LEVEL, LEVEL_NAMES,
 } from '../constants/game';
 import { TERRAIN_NAMES, TERRAIN_DEFENSE_BONUS } from '../constants/terrain';
+import { useI18n } from '../i18n/useI18n';
 
 interface Props {
   onBuild: () => void;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
+  const { t } = useI18n();
   const selectedHex = useGameStore(s => s.selectedHex);
   const map = useGameStore(s => s.map);
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
@@ -77,7 +79,7 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
                 </Text>
               )}
               {tile.building.level >= MAX_BUILDING_LEVEL && (
-                <Text style={styles.maxBadge}>MAX</Text>
+                <Text style={styles.maxBadge}>{t('hex.max')}</Text>
               )}
             </View>
             <View style={styles.healthBar}>
@@ -103,7 +105,7 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
       {/* Ordu */}
       {tile.army && (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Ordu</Text>
+          <Text style={styles.sectionLabel}>{t('hex.army')}</Text>
           <View style={styles.unitList}>
             {tile.army.units.map((unit, i) => (
               <View key={i} style={styles.unitRow}>
@@ -112,7 +114,7 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
               </View>
             ))}
           </View>
-          <Text style={styles.powerText}>Guc: {tile.army.totalPower}</Text>
+          <Text style={styles.powerText}>{t('hex.power', { val: tile.army.totalPower })}</Text>
         </View>
       )}
 
@@ -133,12 +135,12 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
         <View style={styles.actions}>
           {canBuild && (
             <TouchableOpacity style={styles.actionBtn} onPress={onBuild}>
-              <Text style={styles.actionText}>Bina Kur</Text>
+              <Text style={styles.actionText}>{t('hex.build')}</Text>
             </TouchableOpacity>
           )}
           {canTrain && (
             <TouchableOpacity style={[styles.actionBtn, styles.actionBtnTrain]} onPress={onTrain}>
-              <Text style={styles.actionText}>Birim Egit</Text>
+              <Text style={styles.actionText}>{t('hex.train')}</Text>
             </TouchableOpacity>
           )}
           {canUpgrade && (
@@ -146,7 +148,7 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
               style={[styles.actionBtn, styles.actionBtnUpgrade]}
               onPress={() => upgradeBuilding(selectedHex)}
             >
-              <Text style={styles.actionText}>Yukselt</Text>
+              <Text style={styles.actionText}>{t('hex.upgrade')}</Text>
               <View style={styles.upgradeCostRow}>
                 {Object.entries(upgradeCost!).map(([res, val]) => (
                   <Text key={res} style={styles.upgradeCostText}>
@@ -158,7 +160,7 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
           )}
           {canMove && (
             <TouchableOpacity style={[styles.actionBtn, styles.actionBtnMove]} onPress={onMove}>
-              <Text style={styles.actionText}>Ordu Tasi</Text>
+              <Text style={styles.actionText}>{t('hex.move')}</Text>
             </TouchableOpacity>
           )}
         </View>

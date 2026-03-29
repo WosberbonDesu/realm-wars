@@ -204,9 +204,13 @@ export interface HexMapRef {
 
 interface Props {
   onBattleResult?: (result: import('../engine/combat').BattleResult) => void;
+  showGrid?: boolean;
+  showFogOfWar?: boolean;
 }
 
-const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({ onBattleResult }, ref) {
+const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
+  onBattleResult, showGrid = true, showFogOfWar = true,
+}, ref) {
   const map = useGameStore(s => s.map);
   const selectedHex = useGameStore(s => s.selectedHex);
   const selectHex = useGameStore(s => s.selectHex);
@@ -313,29 +317,31 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({ on
     for (const p of players) playerColorMap.set(p.id, p.color);
 
     for (const [key, tile] of map) {
-      if (!tile.explored && !tile.visible) continue;
+      const isVisible = showFogOfWar ? tile.visible : true;
+      const isExplored = showFogOfWar ? tile.explored : true;
+      if (!isExplored && !isVisible) continue;
 
       const { x: cx, y: cy } = hexToPixel(tile.coord.q, tile.coord.r);
       const palette = TERRAIN_PALETTE[tile.terrain];
-      const isExploredOnly = !tile.visible && tile.explored;
+      const isExploredOnly = !isVisible && isExplored;
 
       const isMoveTarget = moveMode && moveTargets.some(t => t.q === tile.coord.q && t.r === tile.coord.r);
       const isAttackTarget = isMoveTarget && tile.army !== null && tile.army.ownerId !== currentPlayerId;
       const isSelected = !!(selectedHex && selectedHex.q === tile.coord.q && selectedHex.r === tile.coord.r);
 
       const ownerColor = tile.ownerId ? (playerColorMap.get(tile.ownerId) ?? null) : null;
-      const buildingIcon = tile.building && tile.visible ? BUILDING_ICONS[tile.building.type] : null;
+      const buildingIcon = tile.building && isVisible ? BUILDING_ICONS[tile.building.type] : null;
 
       let armyIcon: string | null = null;
       let armyCount = 0;
-      if (tile.army && tile.visible) {
+      if (tile.army && isVisible) {
         const mainUnit = tile.army.units.reduce((best, u) => u.count > best.count ? u : best, tile.army.units[0]);
         armyIcon = UNIT_ICONS[mainUnit.type];
         armyCount = tile.army.units.reduce((s, u) => s + u.count, 0);
       }
 
       // Terrain dekorasyonlari (sadece gorunur hex'ler icin)
-      const decorations = tile.visible
+      const decorations = isVisible
         ? getTerrainDecorations(tile.terrain, cx, cy, tile.coord.q, tile.coord.r)
         : [];
 
@@ -350,6 +356,7 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({ on
 
   // Fog hexleri
   const fogHexPaths = useMemo(() => {
+    if (!showFogOfWar) return [];
     const paths: ReturnType<typeof Skia.Path.Make>[] = [];
     for (const [, tile] of map) {
       if (!tile.explored && !tile.visible) {
@@ -358,7 +365,7 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({ on
       }
     }
     return paths;
-  }, [map]);
+  }, [map, showFogOfWar]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -431,7 +438,7 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({ on
                   ))}
 
                   {/* 4. Sahiplik overlay + kenar */}
-                  {hex.ownerColor && tile.visible && (
+                  {hex.ownerColor && (showFogOfWar ? tile.visible : true) && (
                     <>
                       <Path
                         path={outerPath}
@@ -488,7 +495,7 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({ on
                   )}
 
                   {/* 7. Ince hex grid cizgisi */}
-                  {!hex.isSelected && !hex.isMoveTarget && (
+                  {showGrid && !hex.isSelected && !hex.isMoveTarget && (
                     <Path
                       path={outerPath}
                       color={isExploredOnly ? '#1A2A3A40' : '#00000020'}

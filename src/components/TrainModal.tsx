@@ -8,29 +8,15 @@ import { BASE_UNITS } from '../constants/tech';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { UNIT_STATS, UNIT_ICONS } from '../constants/game';
 import { UNIT_ABILITIES } from '../constants/abilities';
+import { useI18n } from '../i18n/useI18n';
 
 interface Props {
   visible: boolean;
   onClose: (trained?: boolean) => void;
 }
 
-const UNIT_NAMES: Record<UnitType, string> = {
-  [UnitType.Warrior]: 'Savasci',
-  [UnitType.Archer]: 'Okcu',
-  [UnitType.Cavalry]: 'Suvari',
-  [UnitType.Catapult]: 'Mancnik',
-  [UnitType.Scout]: 'Kasif',
-};
-
-const UNIT_DESC: Record<UnitType, string> = {
-  [UnitType.Warrior]: 'Dengeli piyade birimi',
-  [UnitType.Archer]: 'Yuksek saldiri, dusuk savunma',
-  [UnitType.Cavalry]: 'Hizli ve guclu',
-  [UnitType.Catapult]: 'Bina yikici, yavas',
-  [UnitType.Scout]: 'Genis gorus alani',
-};
-
 export default function TrainModal({ visible, onClose }: Props) {
+  const { t } = useI18n();
   const selectedHex = useGameStore(s => s.selectedHex);
   const trainUnit = useGameStore(s => s.trainUnit);
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
@@ -81,9 +67,9 @@ export default function TrainModal({ visible, onClose }: Props) {
       <View style={styles.overlay}>
         <View style={styles.panel}>
           <View style={styles.header}>
-            <Text style={styles.title}>Birim Egit</Text>
+            <Text style={styles.title}>{t('train.title')}</Text>
             <TouchableOpacity onPress={() => onClose()}>
-              <Text style={styles.closeText}>Kapat</Text>
+              <Text style={styles.closeText}>{t('train.close')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -98,8 +84,8 @@ export default function TrainModal({ visible, onClose }: Props) {
                   <View style={styles.itemTop}>
                     <Text style={styles.itemIcon}>{UNIT_ICONS[type]}</Text>
                     <View style={styles.itemInfo}>
-                      <Text style={styles.itemName}>{UNIT_NAMES[type]}</Text>
-                      <Text style={styles.itemDesc}>{UNIT_DESC[type]}</Text>
+                      <Text style={styles.itemName}>{t(`unit.${type}`)}</Text>
+                      <Text style={styles.itemDesc}>{t(`unit.${type}.desc`)}</Text>
                     </View>
                   </View>
 
@@ -158,7 +144,7 @@ export default function TrainModal({ visible, onClose }: Props) {
                       onPress={() => handleTrain(type)}
                       disabled={!affordable}
                     >
-                      <Text style={styles.trainBtnText}>Egit</Text>
+                      <Text style={styles.trainBtnText}>{t('train.train')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

@@ -1,6 +1,13 @@
 import { Army, Unit, HexTerrain, UnitType, Building } from '../types/game';
 import { UNIT_ABILITIES } from '../constants/abilities';
 
+export interface HeroCombatBonus {
+  attackBonus: number;   // flat +ATK per unit
+  defenseBonus: number;  // flat +DEF per unit
+  attackMult: number;    // e.g. 0.2 = +20% attack
+  defenseMult: number;   // e.g. 0.25 = +25% defense
+}
+
 export interface AbilityTrigger {
   unitType: UnitType;
   abilityName: string;
@@ -29,6 +36,7 @@ const TERRAIN_DEFENSE_BONUS: Partial<Record<HexTerrain, number>> = {
 export function calculateArmyPower(
   army: Army,
   isAttacker: boolean,
+  heroBonus?: HeroCombatBonus,
 ): { attack: number; defense: number } {
   let totalAttack = 0;
   let totalDefense = 0;
@@ -37,21 +45,24 @@ export function calculateArmyPower(
     let unitAttack = unit.attack * unit.count;
     let unitDefense = unit.defense * unit.count;
 
+    // Hero flat bonuses (per unit)
+    if (heroBonus) {
+      unitAttack += heroBonus.attackBonus * unit.count;
+      unitDefense += heroBonus.defenseBonus * unit.count;
+    }
+
     const ability = UNIT_ABILITIES[unit.type];
     if (ability) {
       switch (ability.effect.kind) {
         case 'charge_bonus':
-          // Süvari şarjı: saldırırken bonus
           if (isAttacker) {
             unitAttack += ability.effect.bonusAttack * unit.count;
           }
           break;
         case 'first_strike':
-          // Okçu ilk atış: saldırı çarpanı
           unitAttack = Math.ceil(unitAttack * ability.effect.damageMultiplier);
           break;
         case 'ambush':
-          // Scout pusu: saldırırken bonus
           if (isAttacker) {
             unitAttack += ability.effect.bonusAttack * unit.count;
           }
@@ -61,6 +72,12 @@ export function calculateArmyPower(
 
     totalAttack += unitAttack;
     totalDefense += unitDefense;
+  }
+
+  // Hero multiplier bonuses (applied to total)
+  if (heroBonus) {
+    totalAttack = Math.ceil(totalAttack * (1 + heroBonus.attackMult));
+    totalDefense = Math.ceil(totalDefense * (1 + heroBonus.defenseMult));
   }
 
   return { attack: totalAttack, defense: totalDefense };
@@ -174,40 +191,32 @@ export function simulateBattle(
   defender: Army,
   terrain: HexTerrain,
   defenderBuilding?: Building | null,
+  attackerHero?: HeroCombatBonus,
+  defenderHero?: HeroCombatBonus,
 ): BattleResult {
-  // Yetenek bonuslariyla guc hesapla
-  const atkStats = calculateArmyPower(attacker, true);
-  const defStats = calculateArmyPower(defender, false);
+  // Yetenek + kahraman bonuslariyla guc hesapla
+  const atkStats = calculateArmyPower(attacker, true, attackerHero);
+  const defStats = calculateArmyPower(defender, false, defenderHero);
 
-  // Terrain bonusu savunmacıya
+  // Terrain bonusu savunmaciya
   const terrainBonus = TERRAIN_DEFENSE_BONUS[terrain] || 0;
   const adjustedDefense = defStats.defense * (1 + terrainBonus);
 
-  // Savunmacı hasar azaltma (Warrior kalkan duvarı)
+  // Warrior kalkan duvari: savunmaciya gelen hasari azaltir
   const defReduction = calculateDamageReduction(defender);
-  // Saldırgan kaçınma (Scout pusu)
+  // Scout pusu: saldirgana gelen hasari azaltir (kacinma)
   const atkDodge = calculateDodgeChance(attacker);
 
-  // Güç oranı
+  // Guc orani
   const attackRatio = atkStats.attack / (adjustedDefense + 1);
   const defenseRatio = adjustedDefense / (atkStats.attack + 1);
 
-  // Kayıp hesapla
+  // Kayip hesapla
   const randomFactor = 0.8 + Math.random() * 0.4;
-  let attackerLossRate = Math.min(0.9, defenseRatio * 0.4 * randomFactor);
-  let defenderLossRate = Math.min(0.9, attackRatio * 0.4 * randomFactor);
-
-  // Yetenek etkileri
-  attackerLossRate *= (1 - atkDodge);    // Scout kaçınma
-  defenderLossRate *= (1 - defReduction); // burayı düzelt: aslında saldırgan kayıp azalır değil, savunmacı hasar azaltır
-  // Düzeltme: defReduction savunmacının aldığı hasarı değil, saldırganın aldığını azaltır
-  // Warrior kalkan duvarı savunma pozisyonunda etkili
-  attackerLossRate *= (1 - defReduction); // Warrior'lar savunurken saldırganın kaybını azaltmaz
-  // Tekrar düşünelim: defReduction savunmacı ordusundaki warrior'ların savunma bonusu
-  // Saldırgana gelen hasarı azaltmaz, savunmacıya gelen hasarı azaltır
-  // Yani:
-  attackerLossRate = Math.min(0.9, defenseRatio * 0.4 * randomFactor * (1 - atkDodge));
-  defenderLossRate = Math.min(0.9, attackRatio * 0.4 * randomFactor * (1 - defReduction));
+  // atkDodge: saldirgana gelen hasari azaltir (scout kacinma)
+  const attackerLossRate = Math.min(0.9, defenseRatio * 0.4 * randomFactor * (1 - atkDodge));
+  // defReduction: savunmaciya gelen hasari azaltir (warrior kalkan)
+  const defenderLossRate = Math.min(0.9, attackRatio * 0.4 * randomFactor * (1 - defReduction));
 
   const attackerSurvivors = applyLosses(attacker.units, attackerLossRate);
   const defenderSurvivors = applyLosses(defender.units, defenderLossRate);

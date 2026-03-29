@@ -6,7 +6,7 @@ import {
   hexKey,
 } from '../types/game';
 import { generateMap, findStartPositions } from '../engine/mapGenerator';
-import { simulateBattle, BattleResult } from '../engine/combat';
+import { simulateBattle, BattleResult, HeroCombatBonus } from '../engine/combat';
 import { botTakeTurn, BotActions } from '../engine/botAI';
 import { hexesInRange, getNeighbors } from '../engine/hexUtils';
 import {
@@ -74,6 +74,43 @@ function addResources(base: Resources, add: Partial<Resources>): Resources {
 
 function calculateTotalPower(units: Unit[]): number {
   return units.reduce((sum, u) => sum + (u.attack + u.defense) * u.count, 0);
+}
+
+/** Get hero combat bonus for an army at the given hex */
+function getHeroBonusForArmy(
+  players: Player[],
+  ownerId: string,
+  hexCoord: HexCoord,
+): HeroCombatBonus | undefined {
+  const player = players.find(p => p.id === ownerId);
+  if (!player) return undefined;
+
+  for (const heroState of player.heroes) {
+    if (
+      heroState.assignedArmyHex &&
+      heroState.assignedArmyHex.q === hexCoord.q &&
+      heroState.assignedArmyHex.r === hexCoord.r &&
+      !heroState.isDisabled
+    ) {
+      const heroDef = HEROES[heroState.heroId as HeroId];
+      if (!heroDef) continue;
+
+      let attackMult = 0;
+      let defenseMult = 0;
+      for (const passive of heroDef.passives) {
+        if (passive.type === 'attack_mult') attackMult += passive.value;
+        if (passive.type === 'defense_mult') defenseMult += passive.value;
+      }
+
+      return {
+        attackBonus: heroDef.attackBonus,
+        defenseBonus: heroDef.defenseBonus,
+        attackMult,
+        defenseMult,
+      };
+    }
+  }
+  return undefined;
 }
 
 // ===== STORE ACTIONS INTERFACE =====
@@ -533,7 +570,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Hedefte düşman ordusu var mı?
     if (newToTile.army && newToTile.army.ownerId !== state.currentPlayerId) {
       // SAVAŞ!
-      battleResult = simulateBattle(fromTile.army, newToTile.army, newToTile.terrain, newToTile.building);
+      const atkHero = getHeroBonusForArmy(state.players, state.currentPlayerId, from);
+      const defHero = getHeroBonusForArmy(state.players, newToTile.army.ownerId, to);
+      battleResult = simulateBattle(fromTile.army, newToTile.army, newToTile.terrain, newToTile.building, atkHero, defHero);
 
       if (battleResult.winner === 'attacker') {
         // Saldırgan kazandı → hex'i ele geçir
