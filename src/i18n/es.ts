@@ -1,0 +1,279 @@
+/** Spanish language pack */
+export const es: Record<string, string> = {
+  // ── MENU ──
+  'menu.title': 'REALM WARS',
+  'menu.subtitle': 'Guerra de Reinos',
+  'menu.newGame': 'Nueva Partida',
+  'menu.continue': 'Continuar',
+  'menu.settings': 'Ajustes',
+  'menu.back': 'Atras',
+  'menu.version': 'v1.0.0',
+
+  // ── SETUP ──
+  'setup.title': 'Nueva Partida',
+  'setup.playerName': 'Nombre del Comandante',
+  'setup.playerNamePlaceholder': 'Introduce tu nombre...',
+  'setup.botCount': 'Numero de Rivales',
+  'setup.mapSize': 'Tamano del Mapa',
+  'setup.mapSmall': 'Pequeno',
+  'setup.mapMedium': 'Mediano',
+  'setup.mapLarge': 'Grande',
+  'setup.difficulty': 'Dificultad',
+  'setup.easy': 'Facil',
+  'setup.normal': 'Normal',
+  'setup.hard': 'Dificil',
+  'setup.easyDesc': 'Para principiantes',
+  'setup.normalDesc': 'Aventura equilibrada',
+  'setup.hardDesc': 'Para veteranos',
+  'setup.seedLabel': 'Codigo de Mapa (Opcional)',
+  'setup.seedPlaceholder': 'Vacio = aleatorio',
+  'setup.seedHint': 'Los jugadores con el mismo codigo obtienen el mismo mapa.',
+  'setup.paste': 'Pegar',
+  'setup.start': 'Iniciar Campana',
+  'setup.invalidSeed': 'Seed Invalido',
+  'setup.invalidSeedMsg': 'El seed debe ser un numero positivo.',
+
+  // ── GAME SCREEN ──
+  'game.endTurn': 'Terminar Turno',
+  'game.moveHint': 'Toca el hex objetivo',
+  'game.save': 'Guardar',
+  'game.research': 'Investigar',
+  'game.hero': 'Heroe',
+  'game.diplo': 'Diplo',
+  'game.exitTitle': 'Salir del Juego',
+  'game.exitMsg': 'Se perdera el progreso no guardado. ¿Seguro?',
+  'game.cancel': 'Cancelar',
+  'game.saveAndExit': 'Guardar y Salir',
+  'game.exit': 'Salir',
+  'game.saved': 'Guardado',
+  'game.savedMsg': 'Partida guardada correctamente.',
+
+  // ── TOOLBAR ──
+  'toolbar.turn': 'TURNO',
+  'toolbar.seed': 'SEED',
+  'toolbar.seedCopied': 'Copiado',
+  'toolbar.seedCopiedMsg': 'Codigo de mapa ({seed}) copiado al portapapeles.',
+
+  // ── TURN BANNER ──
+  'turn.label': 'Turno {n}',
+
+  // ── FEEDBACK ──
+  'feedback.victory': '¡Victoria!',
+  'feedback.defeat': '¡Derrota!',
+  'feedback.built': '¡Edificio construido!',
+  'feedback.trained': '¡Unidad entrenada!',
+
+  // ── BUILD MODAL ──
+  'build.title': 'Construir',
+  'build.close': 'Cerrar',
+  'build.cantBuild': 'No se puede construir aqui',
+  'build.production': 'Produccion:',
+  'build.perTurn': '+{val}/turno',
+
+  // ── BUILDING NAMES ──
+  'building.castle': 'Castillo',
+  'building.barracks': 'Cuartel',
+  'building.mine': 'Mina',
+  'building.farm': 'Granja',
+  'building.lumbermill': 'Aserradero',
+  'building.tower': 'Torre',
+  'building.market': 'Mercado',
+
+  // ── TRAIN MODAL ──
+  'train.title': 'Entrenar Unidad',
+  'train.close': 'Cerrar',
+  'train.train': 'Entrenar',
+
+  // ── UNIT NAMES ──
+  'unit.warrior': 'Guerrero',
+  'unit.archer': 'Arquero',
+  'unit.cavalry': 'Caballeria',
+  'unit.catapult': 'Catapulta',
+  'unit.scout': 'Explorador',
+
+  // ── UNIT DESCRIPTIONS ──
+  'unit.warrior.desc': 'Infanteria equilibrada',
+  'unit.archer.desc': 'Alto ataque, baja defensa',
+  'unit.cavalry.desc': 'Rapida y poderosa',
+  'unit.catapult.desc': 'Destruye edificios, lenta',
+  'unit.scout.desc': 'Gran rango de vision',
+
+  // ── HEX INFO ──
+  'hex.army': 'Ejercito',
+  'hex.power': 'Fuerza: {val}',
+  'hex.build': 'Construir',
+  'hex.train': 'Entrenar',
+  'hex.upgrade': 'Mejorar',
+  'hex.move': 'Mover Ejercito',
+  'hex.max': 'MAX',
+  'hex.defense': '% def',
+
+  // ── TECH TREE ──
+  'tech.title': 'Arbol Tecnologico',
+  'tech.close': 'Cerrar',
+  'tech.level': 'Nivel {n}',
+  'tech.done': 'Completado',
+  'tech.turns': '{n} turnos',
+  'tech.remaining': '{n} turnos restantes',
+
+  // ── HERO ──
+  'hero.title': 'Heroes',
+  'hero.close': 'Cerrar',
+  'hero.myHeroes': 'Mis Heroes',
+  'hero.unassign': 'Retirar',
+  'hero.assign': 'Asignar',
+  'hero.hire': 'Contratar',
+  'hero.owned': 'Propio',
+  'hero.cooldown': '{n} turnos',
+
+  // ── DIPLOMACY ──
+  'diplo.title': 'Diplomacia',
+  'diplo.close': 'Cerrar',
+  'diplo.proposals': 'Propuestas Entrantes',
+  'diplo.alliance': 'Alianza',
+  'diplo.nonAggression': 'No Agresion',
+  'diplo.offer': '{name} ofrece {action}',
+  'diplo.accept': 'Aceptar',
+  'diplo.reject': 'Rechazar',
+  'diplo.relations': 'Relaciones',
+  'diplo.neutral': 'Neutral',
+  'diplo.war': 'Guerra',
+  'diplo.tribute': 'Tributo (50g)',
+  'diplo.noRivals': 'No quedan rivales.',
+  'diplo.declareWarTitle': 'Declarar Guerra',
+  'diplo.declareWarMsg': '¿Seguro que quieres declarar la guerra a {name}?',
+  'diplo.declareWarBtn': '¡Guerra!',
+
+  // ── EVENT ──
+  'event.ok': 'OK',
+  'event.units': 'Unidades: {val}%',
+
+  // ── WEATHER ──
+  'weather.turnsLeft': '{n} turnos restantes',
+  'weather.moveCost': 'Coste de movimiento',
+  'weather.attack': 'Ataque',
+  'weather.defense': 'Defensa',
+  'weather.visibility': 'Rango de vision',
+  'weather.foodProd': 'Produccion de comida',
+  'weather.ok': 'OK',
+
+  // ── BATTLE RESULT ──
+  'battle.victory': '¡Victoria!',
+  'battle.defeat': '¡Derrota!',
+  'battle.attacker': 'Atacante',
+  'battle.defender': 'Defensor',
+  'battle.loss': 'Perdida: {pct}%',
+  'battle.surviving': 'Unidades supervivientes:',
+  'battle.destroyed': 'Completamente destruido',
+  'battle.buildingDmg': 'Dano al edificio: {val} HP',
+  'battle.ok': 'OK',
+
+  // ── VICTORY PROGRESS ──
+  'victory.title': 'Progreso de Victoria',
+  'victory.collapse': 'Colapsar',
+  'victory.castles': 'Castillos destruidos',
+  'victory.economic': '{gold}/{goldReq} oro, {territory}/{territoryReq} territorio',
+  'victory.tech': '{done}/{total} tech',
+  'victory.domination': '{territory}/{required} hexes',
+
+  // ── GAME OVER ──
+  'gameover.rankings': 'Clasificacion',
+  'gameover.victory': '¡Victoria!',
+  'gameover.winner': '¡{name} gana!',
+  'gameover.draw': 'Empate',
+  'gameover.totalTurns': 'Turnos Totales',
+  'gameover.players': 'Jugadores',
+  'gameover.map': 'Mapa',
+  'gameover.bot': 'BOT',
+  'gameover.eliminated': 'ELIMINADO',
+  'gameover.winnerBadge': 'GANADOR',
+  'gameover.mainMenu': 'Menu Principal',
+  'gameover.territory': 'Territorio',
+  'gameover.buildings': 'Edificios',
+  'gameover.units': 'Unidades',
+  'gameover.power': 'Fuerza',
+  'gameover.resources': 'Recursos',
+  'gameover.techStat': 'Tech',
+  'gameover.production': 'Produccion',
+  'gameover.heroes': 'Heroes',
+
+  // ── TUTORIAL ──
+  'tutorial.skip': 'Saltar',
+  'tutorial.back': 'Atras',
+  'tutorial.next': 'Siguiente',
+  'tutorial.start': '¡Empezar!',
+  'tutorial.tip': 'Consejo',
+  'tutorial.step': '{current} / {total}',
+
+  'tutorial.0.title': '¡Bienvenido a tu Reino!',
+  'tutorial.0.text': 'Comienzas con un castillo y un pequeno ejercito. Tu objetivo es expandir tu reino y derrotar a tus rivales.',
+  'tutorial.0.tip': 'Arrastra para navegar el mapa, pellizca para hacer zoom.',
+
+  'tutorial.1.title': 'Expandir Territorio',
+  'tutorial.1.text': 'Selecciona tu ejercito y muevelo a hexes vecinos para conquistar nuevas tierras. Cada territorio proporciona recursos.',
+  'tutorial.1.tip': 'Toca un hex y pulsa "Mover Ejercito", luego toca el hex objetivo.',
+
+  'tutorial.2.title': 'Construir Edificios',
+  'tutorial.2.text': 'Construye en hexes vacios de tu territorio:\n• Granja = comida\n• Mina = hierro y piedra\n• Aserradero = madera\n• Mercado = oro',
+  'tutorial.2.tip': 'Diferentes terrenos permiten diferentes edificios. ¡Montanas para minas, bosques para madera!',
+
+  'tutorial.3.title': 'Entrenar Unidades',
+  'tutorial.3.text': 'Toca tu castillo y usa "Entrenar" para producir soldados. Hay 5 tipos de unidades, cada una con habilidades unicas.',
+  'tutorial.3.tip': 'Guerreros + Exploradores son suficientes al inicio. Investiga para Arqueros y Caballeria.',
+
+  'tutorial.4.title': 'Investigacion',
+  'tutorial.4.text': 'Usa el boton "Investigar" en la barra para descubrir nuevas tecnologias. Desbloquea nuevas unidades, edificios y bonificaciones.',
+  'tutorial.4.tip': 'Recomendamos "Arqueria" o "Agricultura" como primera investigacion.',
+
+  'tutorial.5.title': 'Contratar Heroes',
+  'tutorial.5.text': 'Los heroes dan bonificaciones especiales a tu ejercito. Usa "Heroe" en la barra para contratarlos y asignarlos.',
+  'tutorial.5.tip': 'Kagan es excelente para atacar, Arslan ideal para defender.',
+
+  'tutorial.6.title': 'Diplomacia',
+  'tutorial.6.text': 'Puedes establecer pactos de no agresion, formar alianzas o enviar tributos a tus rivales.',
+  'tutorial.6.tip': 'Luchar en dos frentes es arriesgado. ¡Haz la paz con un rival y enfocate en el otro!',
+
+  'tutorial.7.title': 'Caminos a la Victoria',
+  'tutorial.7.text': 'Puedes ganar de 4 formas:\n• Militar: Destruir todos los castillos\n• Economica: 1000 oro + 20 territorios\n• Tecnologica: Investigar todo\n• Dominacion: Controlar el 60% del mapa',
+  'tutorial.7.tip': 'Sigue la barra de progreso abajo. ¡Enfocate en tu victoria mas cercana!',
+
+  // ── SETTINGS ──
+  'settings.title': 'Ajustes',
+  'settings.back': 'Atras',
+  'settings.sound': 'Sonido y Vibracion',
+  'settings.haptic': 'Vibracion',
+  'settings.hapticDesc': 'Retroalimentacion de botones y acciones',
+  'settings.soundFx': 'Efectos de Sonido',
+  'settings.soundFxDesc': 'Sonidos de batalla, construccion, turno',
+  'settings.map': 'Mapa',
+  'settings.defaultSize': 'Tamano Predeterminado',
+  'settings.difficultySection': 'Dificultad',
+  'settings.defaultDifficulty': 'Dificultad Bot Predeterminada',
+  'settings.visual': 'Visual',
+  'settings.animSpeed': 'Velocidad de Animacion',
+  'settings.slow': 'Lenta',
+  'settings.fast': 'Rapida',
+  'settings.hexGrid': 'Rejilla Hex',
+  'settings.hexGridDesc': 'Mostrar bordes del hex',
+  'settings.fogOfWar': 'Niebla de Guerra',
+  'settings.fogOfWarDesc': 'Niebla de guerra on/off',
+  'settings.gameSection': 'Juego',
+  'settings.autoEndTurn': 'Auto Fin de Turno',
+  'settings.autoEndTurnDesc': 'Terminar turno sin acciones restantes',
+  'settings.dataSection': 'Datos',
+  'settings.savedGame': 'Partida Guardada',
+  'settings.saveExists': 'Existe una partida guardada',
+  'settings.noSave': 'No se encontro partida',
+  'settings.delete': 'Borrar',
+  'settings.resetAll': 'Restablecer Todo',
+  'settings.language': 'Idioma',
+  'settings.selectLang': 'Seleccionar Idioma',
+
+  // ── TERRAIN NAMES ──
+  'terrain.plains': 'Llanura',
+  'terrain.mountain': 'Montana',
+  'terrain.forest': 'Bosque',
+  'terrain.river': 'Rio',
+  'terrain.desert': 'Desierto',
+  'terrain.swamp': 'Pantano',
+};

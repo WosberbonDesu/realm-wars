@@ -1,0 +1,279 @@
+/** English language pack */
+export const en: Record<string, string> = {
+  // ── MENU ──
+  'menu.title': 'REALM WARS',
+  'menu.subtitle': 'War of Kingdoms',
+  'menu.newGame': 'New Game',
+  'menu.continue': 'Continue',
+  'menu.settings': 'Settings',
+  'menu.back': 'Back',
+  'menu.version': 'v1.0.0',
+
+  // ── SETUP ──
+  'setup.title': 'New Game',
+  'setup.playerName': 'Commander Name',
+  'setup.playerNamePlaceholder': 'Enter your name...',
+  'setup.botCount': 'Number of Rivals',
+  'setup.mapSize': 'Map Size',
+  'setup.mapSmall': 'Small',
+  'setup.mapMedium': 'Medium',
+  'setup.mapLarge': 'Large',
+  'setup.difficulty': 'Difficulty',
+  'setup.easy': 'Easy',
+  'setup.normal': 'Normal',
+  'setup.hard': 'Hard',
+  'setup.easyDesc': 'For beginners',
+  'setup.normalDesc': 'Balanced adventure',
+  'setup.hardDesc': 'For veterans',
+  'setup.seedLabel': 'Map Code (Optional)',
+  'setup.seedPlaceholder': 'Leave blank = random',
+  'setup.seedHint': 'Players using the same code get the same map.',
+  'setup.paste': 'Paste',
+  'setup.start': 'Start Campaign',
+  'setup.invalidSeed': 'Invalid Seed',
+  'setup.invalidSeedMsg': 'Seed must be a positive number.',
+
+  // ── GAME SCREEN ──
+  'game.endTurn': 'End Turn',
+  'game.moveHint': 'Tap the target hex',
+  'game.save': 'Save',
+  'game.research': 'Research',
+  'game.hero': 'Hero',
+  'game.diplo': 'Diplo',
+  'game.exitTitle': 'Leave Game',
+  'game.exitMsg': 'Unsaved progress will be lost. Are you sure?',
+  'game.cancel': 'Cancel',
+  'game.saveAndExit': 'Save & Exit',
+  'game.exit': 'Exit',
+  'game.saved': 'Saved',
+  'game.savedMsg': 'Game saved successfully.',
+
+  // ── TOOLBAR ──
+  'toolbar.turn': 'TURN',
+  'toolbar.seed': 'SEED',
+  'toolbar.seedCopied': 'Copied',
+  'toolbar.seedCopiedMsg': 'Map code ({seed}) copied to clipboard.',
+
+  // ── TURN BANNER ──
+  'turn.label': 'Turn {n}',
+
+  // ── FEEDBACK ──
+  'feedback.victory': 'Victory!',
+  'feedback.defeat': 'Defeated!',
+  'feedback.built': 'Building placed!',
+  'feedback.trained': 'Unit trained!',
+
+  // ── BUILD MODAL ──
+  'build.title': 'Build',
+  'build.close': 'Close',
+  'build.cantBuild': 'Cannot build on this hex',
+  'build.production': 'Production:',
+  'build.perTurn': '+{val}/turn',
+
+  // ── BUILDING NAMES ──
+  'building.castle': 'Castle',
+  'building.barracks': 'Barracks',
+  'building.mine': 'Mine',
+  'building.farm': 'Farm',
+  'building.lumbermill': 'Lumber Mill',
+  'building.tower': 'Tower',
+  'building.market': 'Market',
+
+  // ── TRAIN MODAL ──
+  'train.title': 'Train Unit',
+  'train.close': 'Close',
+  'train.train': 'Train',
+
+  // ── UNIT NAMES ──
+  'unit.warrior': 'Warrior',
+  'unit.archer': 'Archer',
+  'unit.cavalry': 'Cavalry',
+  'unit.catapult': 'Catapult',
+  'unit.scout': 'Scout',
+
+  // ── UNIT DESCRIPTIONS ──
+  'unit.warrior.desc': 'Balanced infantry unit',
+  'unit.archer.desc': 'High attack, low defense',
+  'unit.cavalry.desc': 'Fast and powerful',
+  'unit.catapult.desc': 'Building destroyer, slow',
+  'unit.scout.desc': 'Wide viewing range',
+
+  // ── HEX INFO ──
+  'hex.army': 'Army',
+  'hex.power': 'Power: {val}',
+  'hex.build': 'Build',
+  'hex.train': 'Train',
+  'hex.upgrade': 'Upgrade',
+  'hex.move': 'Move Army',
+  'hex.max': 'MAX',
+  'hex.defense': '% def',
+
+  // ── TECH TREE ──
+  'tech.title': 'Technology Tree',
+  'tech.close': 'Close',
+  'tech.level': 'Tier {n}',
+  'tech.done': 'Completed',
+  'tech.turns': '{n} turns',
+  'tech.remaining': '{n} turns left',
+
+  // ── HERO ──
+  'hero.title': 'Heroes',
+  'hero.close': 'Close',
+  'hero.myHeroes': 'My Heroes',
+  'hero.unassign': 'Unassign',
+  'hero.assign': 'Assign',
+  'hero.hire': 'Hire',
+  'hero.owned': 'Owned',
+  'hero.cooldown': '{n} turns',
+
+  // ── DIPLOMACY ──
+  'diplo.title': 'Diplomacy',
+  'diplo.close': 'Close',
+  'diplo.proposals': 'Incoming Proposals',
+  'diplo.alliance': 'Alliance',
+  'diplo.nonAggression': 'Non-Aggression',
+  'diplo.offer': '{name} offers {action}',
+  'diplo.accept': 'Accept',
+  'diplo.reject': 'Reject',
+  'diplo.relations': 'Relations',
+  'diplo.neutral': 'Neutral',
+  'diplo.war': 'War',
+  'diplo.tribute': 'Tribute (50g)',
+  'diplo.noRivals': 'No rivals remain.',
+  'diplo.declareWarTitle': 'Declare War',
+  'diplo.declareWarMsg': 'Are you sure you want to declare war on {name}?',
+  'diplo.declareWarBtn': 'War!',
+
+  // ── EVENT ──
+  'event.ok': 'OK',
+  'event.units': 'Units: {val}%',
+
+  // ── WEATHER ──
+  'weather.turnsLeft': '{n} turns left',
+  'weather.moveCost': 'Movement cost',
+  'weather.attack': 'Attack',
+  'weather.defense': 'Defense',
+  'weather.visibility': 'Visibility range',
+  'weather.foodProd': 'Food production',
+  'weather.ok': 'OK',
+
+  // ── BATTLE RESULT ──
+  'battle.victory': 'Victory!',
+  'battle.defeat': 'Defeat!',
+  'battle.attacker': 'Attacker',
+  'battle.defender': 'Defender',
+  'battle.loss': 'Loss: {pct}%',
+  'battle.surviving': 'Surviving units:',
+  'battle.destroyed': 'Completely destroyed',
+  'battle.buildingDmg': 'Building damage: {val} HP',
+  'battle.ok': 'OK',
+
+  // ── VICTORY PROGRESS ──
+  'victory.title': 'Victory Progress',
+  'victory.collapse': 'Collapse',
+  'victory.castles': 'Castles destroyed',
+  'victory.economic': '{gold}/{goldReq} gold, {territory}/{territoryReq} territory',
+  'victory.tech': '{done}/{total} tech',
+  'victory.domination': '{territory}/{required} hexes',
+
+  // ── GAME OVER ──
+  'gameover.rankings': 'Rankings',
+  'gameover.victory': 'Victory!',
+  'gameover.winner': '{name} wins!',
+  'gameover.draw': 'Draw',
+  'gameover.totalTurns': 'Total Turns',
+  'gameover.players': 'Players',
+  'gameover.map': 'Map',
+  'gameover.bot': 'BOT',
+  'gameover.eliminated': 'ELIMINATED',
+  'gameover.winnerBadge': 'WINNER',
+  'gameover.mainMenu': 'Main Menu',
+  'gameover.territory': 'Territory',
+  'gameover.buildings': 'Buildings',
+  'gameover.units': 'Units',
+  'gameover.power': 'Power',
+  'gameover.resources': 'Resources',
+  'gameover.techStat': 'Tech',
+  'gameover.production': 'Production',
+  'gameover.heroes': 'Heroes',
+
+  // ── TUTORIAL ──
+  'tutorial.skip': 'Skip',
+  'tutorial.back': 'Back',
+  'tutorial.next': 'Next',
+  'tutorial.start': 'Start!',
+  'tutorial.tip': 'Tip',
+  'tutorial.step': '{current} / {total}',
+
+  'tutorial.0.title': 'Welcome to Your Kingdom!',
+  'tutorial.0.text': 'You start with a castle and a small army. Your goal is to expand your kingdom and defeat your rivals.',
+  'tutorial.0.tip': 'Drag to navigate the map, pinch to zoom in and out.',
+
+  'tutorial.1.title': 'Expand Territory',
+  'tutorial.1.text': 'Select your army and move to neighboring hexes to conquer new lands. Each territory provides resources.',
+  'tutorial.1.tip': 'Tap a hex and press "Move Army", then tap the target hex.',
+
+  'tutorial.2.title': 'Build Structures',
+  'tutorial.2.text': 'Build on empty hexes in your territory:\n• Farm = food\n• Mine = iron & stone\n• Lumber Mill = wood\n• Market = gold',
+  'tutorial.2.tip': 'Different terrains allow different buildings. Mountains for mines, forests for lumber!',
+
+  'tutorial.3.title': 'Train Units',
+  'tutorial.3.text': 'Tap your castle and use "Train" to produce soldiers. There are 5 unit types, each with unique abilities.',
+  'tutorial.3.tip': 'Warriors + Scouts are enough at the start. Research tech for Archers and Cavalry.',
+
+  'tutorial.4.title': 'Research',
+  'tutorial.4.text': 'Use the "Research" button in the toolbar to discover new technologies. Unlock new units, buildings and bonuses.',
+  'tutorial.4.tip': 'We recommend "Archery" or "Agriculture" as your first research.',
+
+  'tutorial.5.title': 'Hire Heroes',
+  'tutorial.5.text': 'Heroes give special bonuses to your army. Use "Hero" in the toolbar to hire them and assign to an army.',
+  'tutorial.5.tip': 'Kagan is great for attack, Arslan is ideal for defense.',
+
+  'tutorial.6.title': 'Diplomacy',
+  'tutorial.6.text': 'You can establish non-aggression pacts, form alliances, or send tribute to your rivals.',
+  'tutorial.6.tip': 'Fighting on two fronts is risky! Make peace with one rival and focus on the other.',
+
+  'tutorial.7.title': 'Paths to Victory',
+  'tutorial.7.text': 'You can win in 4 different ways:\n• Military: Destroy all castles\n• Economic: 1000 gold + 20 territories\n• Technological: Research all techs\n• Domination: Control 60% of the map',
+  'tutorial.7.tip': 'Follow the progress bar at the bottom. Focus on your nearest victory!',
+
+  // ── SETTINGS ──
+  'settings.title': 'Settings',
+  'settings.back': 'Back',
+  'settings.sound': 'Sound & Vibration',
+  'settings.haptic': 'Vibration',
+  'settings.hapticDesc': 'Button and action feedback',
+  'settings.soundFx': 'Sound Effects',
+  'settings.soundFxDesc': 'Battle, building, turn sounds',
+  'settings.map': 'Map',
+  'settings.defaultSize': 'Default Size',
+  'settings.difficultySection': 'Difficulty',
+  'settings.defaultDifficulty': 'Default Bot Difficulty',
+  'settings.visual': 'Visual',
+  'settings.animSpeed': 'Animation Speed',
+  'settings.slow': 'Slow',
+  'settings.fast': 'Fast',
+  'settings.hexGrid': 'Hex Grid',
+  'settings.hexGridDesc': 'Show hex edges',
+  'settings.fogOfWar': 'Fog of War',
+  'settings.fogOfWarDesc': 'Fog of war on/off',
+  'settings.gameSection': 'Game',
+  'settings.autoEndTurn': 'Auto End Turn',
+  'settings.autoEndTurnDesc': 'End turn when no actions remain',
+  'settings.dataSection': 'Data',
+  'settings.savedGame': 'Saved Game',
+  'settings.saveExists': 'A saved game exists',
+  'settings.noSave': 'No save found',
+  'settings.delete': 'Delete',
+  'settings.resetAll': 'Reset All Settings',
+  'settings.language': 'Language',
+  'settings.selectLang': 'Select Language',
+
+  // ── TERRAIN NAMES ──
+  'terrain.plains': 'Plains',
+  'terrain.mountain': 'Mountain',
+  'terrain.forest': 'Forest',
+  'terrain.river': 'River',
+  'terrain.desert': 'Desert',
+  'terrain.swamp': 'Swamp',
+};

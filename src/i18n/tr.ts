@@ -1,0 +1,279 @@
+/** Turkish — default language */
+export const tr: Record<string, string> = {
+  // ── MENU ──
+  'menu.title': 'REALM WARS',
+  'menu.subtitle': 'Kralliklarin Savasi',
+  'menu.newGame': 'Yeni Oyun',
+  'menu.continue': 'Devam Et',
+  'menu.settings': 'Ayarlar',
+  'menu.back': 'Geri',
+  'menu.version': 'v1.0.0',
+
+  // ── SETUP ──
+  'setup.title': 'Yeni Oyun',
+  'setup.playerName': 'Komutan Adi',
+  'setup.playerNamePlaceholder': 'Adinizi girin...',
+  'setup.botCount': 'Rakip Sayisi',
+  'setup.mapSize': 'Harita Boyutu',
+  'setup.mapSmall': 'Kucuk',
+  'setup.mapMedium': 'Orta',
+  'setup.mapLarge': 'Buyuk',
+  'setup.difficulty': 'Zorluk',
+  'setup.easy': 'Kolay',
+  'setup.normal': 'Normal',
+  'setup.hard': 'Zor',
+  'setup.easyDesc': 'Yeni baslayanlar icin',
+  'setup.normalDesc': 'Dengeli bir macera',
+  'setup.hardDesc': 'Deneyimliler icin',
+  'setup.seedLabel': 'Harita Kodu (Opsiyonel)',
+  'setup.seedPlaceholder': 'Bos birak = rastgele',
+  'setup.seedHint': 'Ayni kodu kullanan oyuncular ayni haritayi gorur.',
+  'setup.paste': 'Yapistir',
+  'setup.start': 'Sefere Basla',
+  'setup.invalidSeed': 'Gecersiz Seed',
+  'setup.invalidSeedMsg': 'Seed pozitif bir sayi olmalidir.',
+
+  // ── GAME SCREEN ──
+  'game.endTurn': 'Turu Bitir',
+  'game.moveHint': 'Hedef hex\'e dokun',
+  'game.save': 'Kaydet',
+  'game.research': 'Arastir',
+  'game.hero': 'Kahraman',
+  'game.diplo': 'Diplo',
+  'game.exitTitle': 'Oyundan Cik',
+  'game.exitMsg': 'Kaydedilmemis ilerleme kaybolacak. Emin misin?',
+  'game.cancel': 'Iptal',
+  'game.saveAndExit': 'Kaydet ve Cik',
+  'game.exit': 'Cik',
+  'game.saved': 'Kaydedildi',
+  'game.savedMsg': 'Oyun basariyla kaydedildi.',
+
+  // ── TOOLBAR ──
+  'toolbar.turn': 'TUR',
+  'toolbar.seed': 'SEED',
+  'toolbar.seedCopied': 'Kopyalandi',
+  'toolbar.seedCopiedMsg': 'Harita kodu ({seed}) panoya kopyalandi.',
+
+  // ── TURN BANNER ──
+  'turn.label': 'Tur {n}',
+
+  // ── FEEDBACK ──
+  'feedback.victory': 'Zafer!',
+  'feedback.defeat': 'Maglup!',
+  'feedback.built': 'Bina kuruldu!',
+  'feedback.trained': 'Birlik egitildi!',
+
+  // ── BUILD MODAL ──
+  'build.title': 'Bina Kur',
+  'build.close': 'Kapat',
+  'build.cantBuild': 'Bu hex\'e bina kurulamaz',
+  'build.production': 'Uretim:',
+  'build.perTurn': '+{val}/tur',
+
+  // ── BUILDING NAMES ──
+  'building.castle': 'Kale',
+  'building.barracks': 'Kisla',
+  'building.mine': 'Maden',
+  'building.farm': 'Ciftlik',
+  'building.lumbermill': 'Kereste',
+  'building.tower': 'Kule',
+  'building.market': 'Pazar',
+
+  // ── TRAIN MODAL ──
+  'train.title': 'Birim Egit',
+  'train.close': 'Kapat',
+  'train.train': 'Egit',
+
+  // ── UNIT NAMES ──
+  'unit.warrior': 'Savasci',
+  'unit.archer': 'Okcu',
+  'unit.cavalry': 'Suvari',
+  'unit.catapult': 'Mancnik',
+  'unit.scout': 'Kasif',
+
+  // ── UNIT DESCRIPTIONS ──
+  'unit.warrior.desc': 'Dengeli piyade birimi',
+  'unit.archer.desc': 'Yuksek saldiri, dusuk savunma',
+  'unit.cavalry.desc': 'Hizli ve guclu',
+  'unit.catapult.desc': 'Bina yikici, yavas',
+  'unit.scout.desc': 'Genis gorus alani',
+
+  // ── HEX INFO ──
+  'hex.army': 'Ordu',
+  'hex.power': 'Guc: {val}',
+  'hex.build': 'Bina Kur',
+  'hex.train': 'Birim Egit',
+  'hex.upgrade': 'Yukselt',
+  'hex.move': 'Ordu Tasi',
+  'hex.max': 'MAX',
+  'hex.defense': '% def',
+
+  // ── TECH TREE ──
+  'tech.title': 'Teknoloji Agaci',
+  'tech.close': 'Kapat',
+  'tech.level': 'Seviye {n}',
+  'tech.done': 'Tamamlandi',
+  'tech.turns': '{n} tur',
+  'tech.remaining': '{n} tur kaldi',
+
+  // ── HERO ──
+  'hero.title': 'Kahramanlar',
+  'hero.close': 'Kapat',
+  'hero.myHeroes': 'Kahramanlarim',
+  'hero.unassign': 'Geri Cek',
+  'hero.assign': 'Ata',
+  'hero.hire': 'Kirala',
+  'hero.owned': 'Sahip',
+  'hero.cooldown': '{n} tur',
+
+  // ── DIPLOMACY ──
+  'diplo.title': 'Diplomasi',
+  'diplo.close': 'Kapat',
+  'diplo.proposals': 'Gelen Teklifler',
+  'diplo.alliance': 'Ittifak',
+  'diplo.nonAggression': 'Saldirmazlik',
+  'diplo.offer': '{name} {action} teklif ediyor',
+  'diplo.accept': 'Kabul',
+  'diplo.reject': 'Reddet',
+  'diplo.relations': 'Iliskiler',
+  'diplo.neutral': 'Tarafsiz',
+  'diplo.war': 'Savas',
+  'diplo.tribute': 'Harac (50g)',
+  'diplo.noRivals': 'Hic rakip kalmadi.',
+  'diplo.declareWarTitle': 'Savas Ilani',
+  'diplo.declareWarMsg': '{name}\'a savas ilan etmek istediginize emin misiniz?',
+  'diplo.declareWarBtn': 'Savas!',
+
+  // ── EVENT ──
+  'event.ok': 'Tamam',
+  'event.units': 'Birimler: {val}%',
+
+  // ── WEATHER ──
+  'weather.turnsLeft': '{n} tur kaldi',
+  'weather.moveCost': 'Hareket maliyeti',
+  'weather.attack': 'Saldiri',
+  'weather.defense': 'Savunma',
+  'weather.visibility': 'Gorus menzili',
+  'weather.foodProd': 'Yiyecek uretimi',
+  'weather.ok': 'Tamam',
+
+  // ── BATTLE RESULT ──
+  'battle.victory': 'Zafer!',
+  'battle.defeat': 'Yenilgi!',
+  'battle.attacker': 'Saldiran',
+  'battle.defender': 'Savunan',
+  'battle.loss': 'Kayip: %{pct}',
+  'battle.surviving': 'Kalan birimler:',
+  'battle.destroyed': 'Tamamen yok edildi',
+  'battle.buildingDmg': 'Bina hasari: {val} HP',
+  'battle.ok': 'Tamam',
+
+  // ── VICTORY PROGRESS ──
+  'victory.title': 'Zafer Ilerleme',
+  'victory.collapse': 'Kucult',
+  'victory.castles': 'Kaleler yikildi',
+  'victory.economic': '{gold}/{goldReq} altin, {territory}/{territoryReq} toprak',
+  'victory.tech': '{done}/{total} tech',
+  'victory.domination': '{territory}/{required} hex',
+
+  // ── GAME OVER ──
+  'gameover.rankings': 'Siralama',
+  'gameover.victory': 'Zafer!',
+  'gameover.winner': '{name} kazandi!',
+  'gameover.draw': 'Berabere',
+  'gameover.totalTurns': 'Toplam Tur',
+  'gameover.players': 'Oyuncu',
+  'gameover.map': 'Harita',
+  'gameover.bot': 'BOT',
+  'gameover.eliminated': 'ELENDI',
+  'gameover.winnerBadge': 'GALIP',
+  'gameover.mainMenu': 'Ana Menu',
+  'gameover.territory': 'Toprak',
+  'gameover.buildings': 'Bina',
+  'gameover.units': 'Birim',
+  'gameover.power': 'Guc',
+  'gameover.resources': 'Kaynak',
+  'gameover.techStat': 'Tech',
+  'gameover.production': 'Uretim',
+  'gameover.heroes': 'Kahraman',
+
+  // ── TUTORIAL ──
+  'tutorial.skip': 'Atla',
+  'tutorial.back': 'Geri',
+  'tutorial.next': 'Ileri',
+  'tutorial.start': 'Basla!',
+  'tutorial.tip': 'Ipucu',
+  'tutorial.step': '{current} / {total}',
+
+  'tutorial.0.title': 'Kralliginiza Hos Geldiniz!',
+  'tutorial.0.text': 'Bir kale ve kucuk bir orduyla basliyorsunuz. Amactniz krallginizi genisletmek ve rakiplerinizi yenmek.',
+  'tutorial.0.tip': 'Haritada surukleme ile gezinin, pinch ile yakinlasip uzaklasin.',
+
+  'tutorial.1.title': 'Toprak Genislet',
+  'tutorial.1.text': 'Ordunuzu secip komsu hex\'lere tasiyarak yeni topraklar fetdedin. Her toprak size kaynak saglar.',
+  'tutorial.1.tip': 'Hex\'e dokunup "Ordu Tasi" butonuna basin, sonra hedef hex\'e dokunun.',
+
+  'tutorial.2.title': 'Bina Kur',
+  'tutorial.2.text': 'Topraginzdaki bos hex\'lere bina kurun:\n• Ciftlik = yiyecek\n• Maden = demir & tas\n• Kereste = odun\n• Pazar = altin',
+  'tutorial.2.tip': 'Her terrain tipinde farkli binalar kurulabilir. Dag\'a maden, ormana kereste!',
+
+  'tutorial.3.title': 'Birim Egit',
+  'tutorial.3.text': 'Kalenize dokunup "Birim Egit" ile asker uretin. 5 birim tipi var, her birinin ozel yetenegi var.',
+  'tutorial.3.tip': 'Baslangicta Savasci + Kasif yeterli. Okcu ve Suvari icin teknoloji arastirin.',
+
+  'tutorial.4.title': 'Arastirma Yap',
+  'tutorial.4.text': 'Ust bardaki "Arastir" butonuyla yeni teknolojiler kesfdedin. Yeni birimler, binalar ve bonuslar acin.',
+  'tutorial.4.tip': 'Ilk arastirma olarak "Okculuk" veya "Tarim" oneririz.',
+
+  'tutorial.5.title': 'Kahraman Kirala',
+  'tutorial.5.text': 'Kahramanlar ordunuza ozel bonuslar verir. Ust bardaki "Kahraman" ile kiralayin ve bir orduya atayin.',
+  'tutorial.5.tip': 'Kagan saldiri icin, Arslan savunma icin idealdir.',
+
+  'tutorial.6.title': 'Diplomasi',
+  'tutorial.6.text': 'Rakiplerinizle saldirmazlik pakti veya ittifak kurabilir, harac gonderebilirsiniz.',
+  'tutorial.6.tip': 'Iki cephede savas riskli! Bir rakiple anlasip digerine odaklanin.',
+
+  'tutorial.7.title': 'Zafer Yollari',
+  'tutorial.7.text': '4 farkli yoldan kazanabilirsiniz:\n• Askeri: Tum kaleleri yik\n• Ekonomik: 1000 altin + 20 toprak\n• Teknolojik: Tum tech\'leri arastir\n• Hakimiyet: Haritanin %60\'i',
+  'tutorial.7.tip': 'Alt bardaki ilerleme cubugunu takip edin. En yakin zafere odaklanin!',
+
+  // ── SETTINGS ──
+  'settings.title': 'Ayarlar',
+  'settings.back': 'Geri',
+  'settings.sound': 'Ses & Titresim',
+  'settings.haptic': 'Titresim',
+  'settings.hapticDesc': 'Buton ve aksiyon geri bildirimi',
+  'settings.soundFx': 'Ses Efektleri',
+  'settings.soundFxDesc': 'Savas, bina kurma, tur sesleri',
+  'settings.map': 'Harita',
+  'settings.defaultSize': 'Varsayilan Boyut',
+  'settings.difficultySection': 'Zorluk',
+  'settings.defaultDifficulty': 'Varsayilan Bot Zorlugu',
+  'settings.visual': 'Gorsel',
+  'settings.animSpeed': 'Animasyon Hizi',
+  'settings.slow': 'Yavas',
+  'settings.fast': 'Hizli',
+  'settings.hexGrid': 'Hex Izgara',
+  'settings.hexGridDesc': 'Hex kenarlarini goster',
+  'settings.fogOfWar': 'Savas Sisi',
+  'settings.fogOfWarDesc': 'Fog of war acik/kapali',
+  'settings.gameSection': 'Oyun',
+  'settings.autoEndTurn': 'Otomatik Tur Bitir',
+  'settings.autoEndTurnDesc': 'Aksiyon kalmayinca turu bitir',
+  'settings.dataSection': 'Veri',
+  'settings.savedGame': 'Kayitli Oyun',
+  'settings.saveExists': 'Kayitli bir oyun mevcut',
+  'settings.noSave': 'Kayit bulunamadi',
+  'settings.delete': 'Sil',
+  'settings.resetAll': 'Tum Ayarlari Sifirla',
+  'settings.language': 'Dil',
+  'settings.selectLang': 'Dil Secin',
+
+  // ── TERRAIN NAMES ──
+  'terrain.plains': 'Ova',
+  'terrain.mountain': 'Dag',
+  'terrain.forest': 'Orman',
+  'terrain.river': 'Nehir',
+  'terrain.desert': 'Col',
+  'terrain.swamp': 'Bataklik',
+};

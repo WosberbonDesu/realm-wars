@@ -7,6 +7,8 @@ import { saveSettings, loadSettings, deleteSave, hasSave } from '../services/sav
 import { soundService } from '../services/soundService';
 import { playSound } from '../services/soundService';
 import AnimatedButton from '../components/AnimatedButton';
+import { useI18n } from '../i18n/useI18n';
+import { LANGUAGES, LangCode, setLanguage, getLanguage } from '../i18n';
 
 export interface GameSettings {
   mapRadius: number;
@@ -17,6 +19,7 @@ export interface GameSettings {
   animationSpeed: 'slow' | 'normal' | 'fast';
   hapticEnabled: boolean;
   soundEnabled: boolean;
+  language: LangCode;
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -28,6 +31,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   animationSpeed: 'normal',
   hapticEnabled: true,
   soundEnabled: true,
+  language: 'tr',
 };
 
 interface Props {
@@ -35,6 +39,7 @@ interface Props {
 }
 
 export default function SettingsScreen({ onBack }: Props) {
+  const { t } = useI18n();
   const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
   const [savedExists, setSavedExists] = useState(false);
 
@@ -45,6 +50,7 @@ export default function SettingsScreen({ onBack }: Props) {
         setSettings(merged);
         soundService.setHapticEnabled(merged.hapticEnabled);
         soundService.setSoundEnabled(merged.soundEnabled);
+        if (merged.language) setLanguage(merged.language);
       }
     });
     hasSave().then(setSavedExists);
@@ -59,6 +65,7 @@ export default function SettingsScreen({ onBack }: Props) {
     // Apply immediately
     if (key === 'hapticEnabled') soundService.setHapticEnabled(value as boolean);
     if (key === 'soundEnabled') soundService.setSoundEnabled(value as boolean);
+    if (key === 'language') setLanguage(value as LangCode);
   };
 
   const handleDeleteSave = async () => {
@@ -67,9 +74,9 @@ export default function SettingsScreen({ onBack }: Props) {
   };
 
   const difficultyInfo = {
-    easy:   { color: COLORS.green, desc: 'Yeni baslayanlar icin' },
-    normal: { color: COLORS.primaryLight, desc: 'Dengeli bir macera' },
-    hard:   { color: COLORS.red, desc: 'Deneyimliler icin' },
+    easy:   { color: COLORS.green, descKey: 'setup.easyDesc' },
+    normal: { color: COLORS.primaryLight, descKey: 'setup.normalDesc' },
+    hard:   { color: COLORS.red, descKey: 'setup.hardDesc' },
   };
 
   return (
@@ -77,21 +84,45 @@ export default function SettingsScreen({ onBack }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>{'‹ Geri'}</Text>
+          <Text style={styles.backText}>{'‹ '}{t('settings.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Ayarlar</Text>
+        <Text style={styles.title}>{t('settings.title')}</Text>
         <View style={{ width: 60 }} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
 
+        {/* ── DİL ── */}
+        <Text style={styles.sectionTitle}>{t('settings.language')}</Text>
+        <View style={styles.card}>
+          <Text style={styles.label}>{t('settings.selectLang')}</Text>
+          <View style={styles.langGrid}>
+            {(Object.keys(LANGUAGES) as LangCode[]).map(code => {
+              const lang = LANGUAGES[code];
+              const isActive = settings.language === code;
+              return (
+                <TouchableOpacity
+                  key={code}
+                  style={[styles.langBtn, isActive && styles.langBtnActive]}
+                  onPress={() => updateSetting('language', code)}
+                >
+                  <Text style={styles.langFlag}>{lang.flag}</Text>
+                  <Text style={[styles.langName, isActive && styles.langNameActive]}>
+                    {lang.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {/* ── SES & TİTRESİM ── */}
-        <Text style={styles.sectionTitle}>Ses & Titresim</Text>
+        <Text style={styles.sectionTitle}>{t('settings.sound')}</Text>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Titresim</Text>
-              <Text style={styles.toggleDesc}>Buton ve aksiyon geri bildirimi</Text>
+              <Text style={styles.toggleLabel}>{t('settings.haptic')}</Text>
+              <Text style={styles.toggleDesc}>{t('settings.hapticDesc')}</Text>
             </View>
             <Switch
               value={settings.hapticEnabled}
@@ -103,8 +134,8 @@ export default function SettingsScreen({ onBack }: Props) {
 
           <View style={[styles.toggleRow, { borderTopWidth: 1 }]}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Ses Efektleri</Text>
-              <Text style={styles.toggleDesc}>Savas, bina kurma, tur sesleri</Text>
+              <Text style={styles.toggleLabel}>{t('settings.soundFx')}</Text>
+              <Text style={styles.toggleDesc}>{t('settings.soundFxDesc')}</Text>
             </View>
             <Switch
               value={settings.soundEnabled}
@@ -116,14 +147,14 @@ export default function SettingsScreen({ onBack }: Props) {
         </View>
 
         {/* ── HARİTA ── */}
-        <Text style={styles.sectionTitle}>Harita</Text>
+        <Text style={styles.sectionTitle}>{t('settings.map')}</Text>
         <View style={styles.card}>
-          <Text style={styles.label}>Varsayilan Boyut</Text>
+          <Text style={styles.label}>{t('settings.defaultSize')}</Text>
           <View style={styles.optionRow}>
             {([
-              { value: 12, label: 'Kucuk', desc: '~200 hex' },
-              { value: 18, label: 'Orta', desc: '~600 hex' },
-              { value: 24, label: 'Buyuk', desc: '~1200 hex' },
+              { value: 12, key: 'setup.mapSmall', desc: '~200 hex' },
+              { value: 18, key: 'setup.mapMedium', desc: '~600 hex' },
+              { value: 24, key: 'setup.mapLarge', desc: '~1200 hex' },
             ] as const).map(opt => (
               <TouchableOpacity
                 key={opt.value}
@@ -137,7 +168,7 @@ export default function SettingsScreen({ onBack }: Props) {
                   styles.optionText,
                   settings.mapRadius === opt.value && styles.optionTextActive,
                 ]}>
-                  {opt.label}
+                  {t(opt.key)}
                 </Text>
                 <Text style={styles.optionSubText}>{opt.desc}</Text>
               </TouchableOpacity>
@@ -146,9 +177,9 @@ export default function SettingsScreen({ onBack }: Props) {
         </View>
 
         {/* ── ZORLUK ── */}
-        <Text style={styles.sectionTitle}>Zorluk</Text>
+        <Text style={styles.sectionTitle}>{t('settings.difficultySection')}</Text>
         <View style={styles.card}>
-          <Text style={styles.label}>Varsayilan Bot Zorlugu</Text>
+          <Text style={styles.label}>{t('settings.defaultDifficulty')}</Text>
           <View style={styles.optionRow}>
             {(['easy', 'normal', 'hard'] as const).map(d => (
               <TouchableOpacity
@@ -166,23 +197,23 @@ export default function SettingsScreen({ onBack }: Props) {
                   styles.optionText,
                   settings.botDifficulty === d && { color: difficultyInfo[d].color },
                 ]}>
-                  {d === 'easy' ? 'Kolay' : d === 'normal' ? 'Normal' : 'Zor'}
+                  {t(`setup.${d}`)}
                 </Text>
-                <Text style={styles.optionSubText}>{difficultyInfo[d].desc}</Text>
+                <Text style={styles.optionSubText}>{t(difficultyInfo[d].descKey)}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
         {/* ── GÖRSEL ── */}
-        <Text style={styles.sectionTitle}>Gorsel</Text>
+        <Text style={styles.sectionTitle}>{t('settings.visual')}</Text>
         <View style={styles.card}>
-          <Text style={styles.label}>Animasyon Hizi</Text>
+          <Text style={styles.label}>{t('settings.animSpeed')}</Text>
           <View style={styles.optionRow}>
             {([
-              { value: 'slow' as const, label: 'Yavas' },
-              { value: 'normal' as const, label: 'Normal' },
-              { value: 'fast' as const, label: 'Hizli' },
+              { value: 'slow' as const, key: 'settings.slow' },
+              { value: 'normal' as const, key: 'setup.normal' },
+              { value: 'fast' as const, key: 'settings.fast' },
             ]).map(opt => (
               <TouchableOpacity
                 key={opt.value}
@@ -196,7 +227,7 @@ export default function SettingsScreen({ onBack }: Props) {
                   styles.optionText,
                   settings.animationSpeed === opt.value && styles.optionTextActive,
                 ]}>
-                  {opt.label}
+                  {t(opt.key)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -204,8 +235,8 @@ export default function SettingsScreen({ onBack }: Props) {
 
           <View style={[styles.toggleRow, { marginTop: SPACE.md }]}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Hex Izgara</Text>
-              <Text style={styles.toggleDesc}>Hex kenarlarini goster</Text>
+              <Text style={styles.toggleLabel}>{t('settings.hexGrid')}</Text>
+              <Text style={styles.toggleDesc}>{t('settings.hexGridDesc')}</Text>
             </View>
             <Switch
               value={settings.showGrid}
@@ -217,8 +248,8 @@ export default function SettingsScreen({ onBack }: Props) {
 
           <View style={[styles.toggleRow, { borderTopWidth: 1 }]}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Savas Sisi</Text>
-              <Text style={styles.toggleDesc}>Fog of war acik/kapali</Text>
+              <Text style={styles.toggleLabel}>{t('settings.fogOfWar')}</Text>
+              <Text style={styles.toggleDesc}>{t('settings.fogOfWarDesc')}</Text>
             </View>
             <Switch
               value={settings.showFogOfWar}
@@ -230,12 +261,12 @@ export default function SettingsScreen({ onBack }: Props) {
         </View>
 
         {/* ── OYUN ── */}
-        <Text style={styles.sectionTitle}>Oyun</Text>
+        <Text style={styles.sectionTitle}>{t('settings.gameSection')}</Text>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Otomatik Tur Bitir</Text>
-              <Text style={styles.toggleDesc}>Aksiyon kalmayinca turu bitir</Text>
+              <Text style={styles.toggleLabel}>{t('settings.autoEndTurn')}</Text>
+              <Text style={styles.toggleDesc}>{t('settings.autoEndTurnDesc')}</Text>
             </View>
             <Switch
               value={settings.autoEndTurn}
@@ -247,18 +278,18 @@ export default function SettingsScreen({ onBack }: Props) {
         </View>
 
         {/* ── VERİ YÖNETİMİ ── */}
-        <Text style={styles.sectionTitle}>Veri</Text>
+        <Text style={styles.sectionTitle}>{t('settings.dataSection')}</Text>
         <View style={styles.card}>
           <View style={styles.dataRow}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Kayitli Oyun</Text>
+              <Text style={styles.toggleLabel}>{t('settings.savedGame')}</Text>
               <Text style={styles.toggleDesc}>
-                {savedExists ? 'Kayitli bir oyun mevcut' : 'Kayit bulunamadi'}
+                {savedExists ? t('settings.saveExists') : t('settings.noSave')}
               </Text>
             </View>
             {savedExists && (
               <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteSave}>
-                <Text style={styles.deleteBtnText}>Sil</Text>
+                <Text style={styles.deleteBtnText}>{t('settings.delete')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -266,7 +297,7 @@ export default function SettingsScreen({ onBack }: Props) {
 
         {/* Sıfırla */}
         <AnimatedButton
-          label="Tum Ayarlari Sifirla"
+          label={t('settings.resetAll')}
           onPress={() => {
             const reset = { ...DEFAULT_SETTINGS };
             setSettings(reset);
@@ -411,6 +442,38 @@ const styles = StyleSheet.create({
     color: COLORS.red,
     fontSize: FONT.caption,
     fontWeight: FONT.bold,
+  },
+  langGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACE.sm,
+  },
+  langBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.sm,
+    paddingVertical: SPACE.md,
+    paddingHorizontal: SPACE.lg,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bg,
+    minWidth: '45%' as any,
+  },
+  langBtnActive: {
+    borderColor: COLORS.gold,
+    backgroundColor: COLORS.primaryDark,
+  },
+  langFlag: {
+    fontSize: 22,
+  },
+  langName: {
+    color: COLORS.textMuted,
+    fontSize: FONT.body,
+    fontWeight: FONT.semi,
+  },
+  langNameActive: {
+    color: COLORS.gold,
   },
   versionText: {
     color: COLORS.textMuted,

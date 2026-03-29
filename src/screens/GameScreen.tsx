@@ -28,12 +28,14 @@ import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
 import { playSound } from '../services/soundService';
+import { useI18n } from '../i18n/useI18n';
 
 interface Props {
   onBackToMenu: () => void;
 }
 
 export default function GameScreen({ onBackToMenu }: Props) {
+  const { t } = useI18n();
   const turn = useGameStore(s => s.turn);
   const phase = useGameStore(s => s.phase);
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
@@ -116,12 +118,12 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
   const handleBackToMenu = () => {
     Alert.alert(
-      'Oyundan Cik',
-      'Kaydedilmemis ilerleme kaybolacak. Emin misin?',
+      t('game.exitTitle'),
+      t('game.exitMsg'),
       [
-        { text: 'Iptal', style: 'cancel' },
-        { text: 'Kaydet ve Cik', onPress: async () => { await saveCurrentGame(); onBackToMenu(); } },
-        { text: 'Cik', style: 'destructive', onPress: onBackToMenu },
+        { text: t('game.cancel'), style: 'cancel' },
+        { text: t('game.saveAndExit'), onPress: async () => { await saveCurrentGame(); onBackToMenu(); } },
+        { text: t('game.exit'), style: 'destructive', onPress: onBackToMenu },
       ]
     );
   };
@@ -133,7 +135,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
   const handleSave = async () => {
     await saveCurrentGame();
-    Alert.alert('Kaydedildi', 'Oyun basariyla kaydedildi.');
+    Alert.alert(t('game.saved'), t('game.savedMsg'));
   };
 
   // Oyun bitti mi
@@ -145,10 +147,10 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
   // Toolbar aksiyonları
   const toolbarActions = [
-    { icon: '💾', label: 'Kaydet', color: COLORS.gold, onPress: () => { playSound('click'); handleSave(); } },
-    { icon: '🔬', label: 'Arastir', color: COLORS.primaryLight, onPress: () => { playSound('click'); setTechModalVisible(true); } },
-    { icon: '⚔️', label: 'Kahraman', color: COLORS.orange, onPress: () => { playSound('click'); setHeroModalVisible(true); } },
-    { icon: '🏳️', label: 'Diplo', color: COLORS.purple, onPress: () => { playSound('click'); setDiplomacyModalVisible(true); } },
+    { icon: '💾', label: t('game.save'), color: COLORS.gold, onPress: () => { playSound('click'); handleSave(); } },
+    { icon: '🔬', label: t('game.research'), color: COLORS.primaryLight, onPress: () => { playSound('click'); setTechModalVisible(true); } },
+    { icon: '⚔️', label: t('game.hero'), color: COLORS.orange, onPress: () => { playSound('click'); setHeroModalVisible(true); } },
+    { icon: '🏳️', label: t('game.diplo'), color: COLORS.purple, onPress: () => { playSound('click'); setDiplomacyModalVisible(true); } },
   ];
 
   return (
@@ -171,7 +173,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
       {/* Hareket modu bilgisi */}
       {moveMode && (
         <View style={styles.moveBanner}>
-          <Text style={styles.moveBannerText}>Hedef hex'e dokun</Text>
+          <Text style={styles.moveBannerText}>{t('game.moveHint')}</Text>
         </View>
       )}
 
@@ -187,7 +189,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
             const won = result.winner === 'attacker';
             showFeedback(
               won ? '⚔️' : '💀',
-              won ? 'Zafer!' : 'Maglup!',
+              won ? t('feedback.victory') : t('feedback.defeat'),
               won ? COLORS.green : COLORS.red,
             );
           }}
@@ -226,7 +228,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         )}
 
         <AnimatedButton
-          label="Turu Bitir"
+          label={t('game.endTurn')}
           onPress={() => { playSound('turnStart'); useGameStore.getState().endTurn(); }}
           variant="primary"
         />
@@ -247,7 +249,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
           setBuildModalVisible(false);
           if (built) {
             playSound('build');
-            showFeedback('🏗️', 'Bina kuruldu!', COLORS.green);
+            showFeedback('🏗️', t('feedback.built'), COLORS.green);
           }
         }}
       />
@@ -257,7 +259,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
           setTrainModalVisible(false);
           if (trained) {
             playSound('train');
-            showFeedback('⚔️', 'Birlik egitildi!', COLORS.primaryLight);
+            showFeedback('⚔️', t('feedback.trained'), COLORS.primaryLight);
           }
         }}
       />

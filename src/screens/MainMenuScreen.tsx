@@ -9,19 +9,15 @@ import { hasSave, getSaveInfo } from '../services/saveService';
 import AnimatedButton from '../components/AnimatedButton';
 import { BotDifficulty } from '../types/game';
 import { playSound } from '../services/soundService';
+import { useI18n } from '../i18n/useI18n';
 
 interface Props {
   onStartGame: () => void;
   onSettings: () => void;
 }
 
-const DIFFICULTY_LABELS: Record<BotDifficulty, { label: string; color: string; desc: string }> = {
-  easy:   { label: 'Kolay',    color: COLORS.green,         desc: 'Yeni baslayanlar icin' },
-  normal: { label: 'Normal',   color: COLORS.primaryLight,  desc: 'Dengeli bir macera' },
-  hard:   { label: 'Zor',      color: COLORS.red,           desc: 'Deneyimliler icin' },
-};
-
 export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
+  const { t } = useI18n();
   const [playerName, setPlayerName] = useState('Komutan');
   const [botCount, setBotCount] = useState(2);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('normal');
@@ -56,7 +52,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
     playSound('click');
     const parsedSeed = seedInput.trim() ? parseInt(seedInput.trim(), 10) : undefined;
     if (seedInput.trim() && (isNaN(parsedSeed!) || parsedSeed! < 1)) {
-      Alert.alert('Gecersiz Seed', 'Seed pozitif bir sayi olmalidir.');
+      Alert.alert(t('setup.invalidSeed'), t('setup.invalidSeedMsg'));
       return;
     }
     initGame(playerName || 'Komutan', botCount, parsedSeed, difficulty, mapSize);
@@ -75,26 +71,29 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
     }
   };
 
+  const DIFF_COLORS: Record<BotDifficulty, string> = {
+    easy: COLORS.green, normal: COLORS.primaryLight, hard: COLORS.red,
+  };
+
   if (showSetup) {
-    const diffInfo = DIFFICULTY_LABELS[difficulty];
     return (
       <View style={styles.container}>
         <View style={styles.setupPanel}>
-          <Text style={styles.setupTitle}>Yeni Oyun</Text>
+          <Text style={styles.setupTitle}>{t('setup.title')}</Text>
 
           {/* Oyuncu Adi */}
-          <Text style={styles.label}>Komutan Adi</Text>
+          <Text style={styles.label}>{t('setup.playerName')}</Text>
           <TextInput
             style={styles.input}
             value={playerName}
             onChangeText={setPlayerName}
-            placeholder="Adinizi girin..."
+            placeholder={t('setup.playerNamePlaceholder')}
             placeholderTextColor={COLORS.textMuted}
             maxLength={16}
           />
 
           {/* Bot Sayisi */}
-          <Text style={styles.label}>Rakip Sayisi</Text>
+          <Text style={styles.label}>{t('setup.botCount')}</Text>
           <View style={styles.rowSelector}>
             {[1, 2, 3].map(n => (
               <TouchableOpacity
@@ -110,12 +109,12 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
           </View>
 
           {/* Harita Boyutu */}
-          <Text style={styles.label}>Harita Boyutu</Text>
+          <Text style={styles.label}>{t('setup.mapSize')}</Text>
           <View style={styles.rowSelector}>
             {([
-              { value: 12 as const, label: 'Kucuk', sub: '~200' },
-              { value: 18 as const, label: 'Orta', sub: '~600' },
-              { value: 24 as const, label: 'Buyuk', sub: '~1200' },
+              { value: 12 as const, key: 'setup.mapSmall', sub: '~200' },
+              { value: 18 as const, key: 'setup.mapMedium', sub: '~600' },
+              { value: 24 as const, key: 'setup.mapLarge', sub: '~1200' },
             ]).map(opt => (
               <TouchableOpacity
                 key={opt.value}
@@ -123,7 +122,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
                 onPress={() => { playSound('click'); setMapSize(opt.value); }}
               >
                 <Text style={[styles.selectorText, mapSize === opt.value && styles.selectorTextActive]}>
-                  {opt.label}
+                  {t(opt.key)}
                 </Text>
                 <Text style={styles.mapSizeSub}>{opt.sub} hex</Text>
               </TouchableOpacity>
@@ -131,51 +130,51 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
           </View>
 
           {/* Zorluk */}
-          <Text style={styles.label}>Zorluk</Text>
+          <Text style={styles.label}>{t('setup.difficulty')}</Text>
           <View style={styles.rowSelector}>
-            {(Object.keys(DIFFICULTY_LABELS) as BotDifficulty[]).map(d => (
+            {(['easy', 'normal', 'hard'] as BotDifficulty[]).map(d => (
               <TouchableOpacity
                 key={d}
                 style={[
                   styles.selectorOption,
-                  difficulty === d && { ...styles.selectorActive, borderColor: DIFFICULTY_LABELS[d].color },
+                  difficulty === d && { ...styles.selectorActive, borderColor: DIFF_COLORS[d] },
                 ]}
                 onPress={() => { playSound('click'); setDifficulty(d); }}
               >
                 <Text style={[
                   styles.selectorText,
-                  difficulty === d && { color: DIFFICULTY_LABELS[d].color, fontWeight: FONT.bold },
+                  difficulty === d && { color: DIFF_COLORS[d], fontWeight: FONT.bold },
                 ]}>
-                  {DIFFICULTY_LABELS[d].label}
+                  {t(`setup.${d}`)}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={[styles.diffDesc, { color: diffInfo.color }]}>{diffInfo.desc}</Text>
+          <Text style={[styles.diffDesc, { color: DIFF_COLORS[difficulty] }]}>
+            {t(`setup.${difficulty}Desc`)}
+          </Text>
 
           {/* Seed */}
-          <Text style={styles.label}>Harita Kodu (Opsiyonel)</Text>
+          <Text style={styles.label}>{t('setup.seedLabel')}</Text>
           <View style={styles.seedRow}>
             <TextInput
               style={[styles.input, styles.seedInput]}
               value={seedInput}
               onChangeText={setSeedInput}
-              placeholder="Bos birak = rastgele"
+              placeholder={t('setup.seedPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="numeric"
               maxLength={12}
             />
             <TouchableOpacity style={styles.pasteBtn} onPress={handlePasteSeed}>
-              <Text style={styles.pasteBtnText}>Yapistir</Text>
+              <Text style={styles.pasteBtnText}>{t('setup.paste')}</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.seedHint}>
-            Ayni kodu kullanan oyuncular ayni haritayi görür.
-          </Text>
+          <Text style={styles.seedHint}>{t('setup.seedHint')}</Text>
 
           {/* Basla */}
           <AnimatedButton
-            label="Sefere Basla"
+            label={t('setup.start')}
             onPress={handleStartGame}
             variant="gold"
             style={{ marginBottom: 12 }}
@@ -185,7 +184,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
             style={styles.backButton}
             onPress={() => { playSound('click'); setShowSetup(false); }}
           >
-            <Text style={styles.backButtonText}>Geri</Text>
+            <Text style={styles.backButtonText}>{t('menu.back')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -197,17 +196,17 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
       {/* Baslik */}
       <View style={styles.titleContainer}>
         <Text style={styles.titleIcon}>{'⚔️'}</Text>
-        <Text style={styles.title}>REALM WARS</Text>
-        <Text style={styles.subtitle}>Kralliklarin Savasi</Text>
+        <Text style={styles.title}>{t('menu.title')}</Text>
+        <Text style={styles.subtitle}>{t('menu.subtitle')}</Text>
       </View>
 
       {/* Menu Butonlari */}
       <View style={styles.menuButtons}>
-        <AnimatedButton label="Yeni Oyun" onPress={handleNewGame} variant="primary" />
+        <AnimatedButton label={t('menu.newGame')} onPress={handleNewGame} variant="primary" />
 
         <View>
           <AnimatedButton
-            label="Devam Et"
+            label={t('menu.continue')}
             onPress={handleContinue}
             variant="primary"
             disabled={!savedExists}
@@ -220,14 +219,14 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
         </View>
 
         <AnimatedButton
-          label="Ayarlar"
+          label={t('menu.settings')}
           onPress={() => { playSound('click'); onSettings(); }}
           variant="secondary"
         />
       </View>
 
       {/* Versiyon */}
-      <Text style={styles.version}>v1.0.0</Text>
+      <Text style={styles.version}>{t('menu.version')}</Text>
     </View>
   );
 }
@@ -240,8 +239,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-
-  // Title
   titleContainer: {
     alignItems: 'center',
     marginBottom: 60,
@@ -262,8 +259,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     letterSpacing: 2,
   },
-
-  // Menu Buttons
   menuButtons: {
     width: '100%',
     maxWidth: 300,
@@ -275,16 +270,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-
-  // Version
   version: {
     position: 'absolute',
     bottom: 24,
     color: COLORS.textMuted,
     fontSize: 12,
   },
-
-  // Setup Panel
   setupPanel: {
     width: '100%',
     maxWidth: 340,
@@ -320,8 +311,6 @@ const styles = StyleSheet.create({
     fontSize: FONT.body,
     marginBottom: SPACE.lg,
   },
-
-  // Row selector (bot count + difficulty)
   rowSelector: {
     flexDirection: 'row',
     gap: SPACE.sm,
@@ -358,8 +347,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACE.lg,
     marginTop: 2,
   },
-
-  // Seed row
   seedRow: {
     flexDirection: 'row',
     gap: SPACE.sm,
@@ -388,7 +375,6 @@ const styles = StyleSheet.create({
     fontSize: FONT.tiny,
     marginBottom: SPACE.xl,
   },
-
   backButton: {
     paddingVertical: SPACE.md,
     alignItems: 'center',

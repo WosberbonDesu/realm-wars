@@ -1,0 +1,279 @@
+/** German language pack */
+export const de: Record<string, string> = {
+  // ── MENU ──
+  'menu.title': 'REALM WARS',
+  'menu.subtitle': 'Krieg der Koenigreiche',
+  'menu.newGame': 'Neues Spiel',
+  'menu.continue': 'Fortsetzen',
+  'menu.settings': 'Einstellungen',
+  'menu.back': 'Zurueck',
+  'menu.version': 'v1.0.0',
+
+  // ── SETUP ──
+  'setup.title': 'Neues Spiel',
+  'setup.playerName': 'Kommandant',
+  'setup.playerNamePlaceholder': 'Namen eingeben...',
+  'setup.botCount': 'Anzahl Gegner',
+  'setup.mapSize': 'Kartengroesse',
+  'setup.mapSmall': 'Klein',
+  'setup.mapMedium': 'Mittel',
+  'setup.mapLarge': 'Gross',
+  'setup.difficulty': 'Schwierigkeit',
+  'setup.easy': 'Leicht',
+  'setup.normal': 'Normal',
+  'setup.hard': 'Schwer',
+  'setup.easyDesc': 'Fuer Anfaenger',
+  'setup.normalDesc': 'Ausgewogenes Abenteuer',
+  'setup.hardDesc': 'Fuer Veteranen',
+  'setup.seedLabel': 'Kartencode (Optional)',
+  'setup.seedPlaceholder': 'Leer = zufaellig',
+  'setup.seedHint': 'Spieler mit demselben Code erhalten dieselbe Karte.',
+  'setup.paste': 'Einfuegen',
+  'setup.start': 'Feldzug starten',
+  'setup.invalidSeed': 'Ungueltiger Seed',
+  'setup.invalidSeedMsg': 'Seed muss eine positive Zahl sein.',
+
+  // ── GAME SCREEN ──
+  'game.endTurn': 'Zug beenden',
+  'game.moveHint': 'Ziel-Hex antippen',
+  'game.save': 'Speichern',
+  'game.research': 'Forschen',
+  'game.hero': 'Held',
+  'game.diplo': 'Diplo',
+  'game.exitTitle': 'Spiel verlassen',
+  'game.exitMsg': 'Nicht gespeicherter Fortschritt geht verloren. Sicher?',
+  'game.cancel': 'Abbrechen',
+  'game.saveAndExit': 'Speichern & Beenden',
+  'game.exit': 'Beenden',
+  'game.saved': 'Gespeichert',
+  'game.savedMsg': 'Spiel erfolgreich gespeichert.',
+
+  // ── TOOLBAR ──
+  'toolbar.turn': 'ZUG',
+  'toolbar.seed': 'SEED',
+  'toolbar.seedCopied': 'Kopiert',
+  'toolbar.seedCopiedMsg': 'Kartencode ({seed}) in die Zwischenablage kopiert.',
+
+  // ── TURN BANNER ──
+  'turn.label': 'Zug {n}',
+
+  // ── FEEDBACK ──
+  'feedback.victory': 'Sieg!',
+  'feedback.defeat': 'Niederlage!',
+  'feedback.built': 'Gebaeude errichtet!',
+  'feedback.trained': 'Einheit ausgebildet!',
+
+  // ── BUILD MODAL ──
+  'build.title': 'Bauen',
+  'build.close': 'Schliessen',
+  'build.cantBuild': 'Kann hier nicht bauen',
+  'build.production': 'Produktion:',
+  'build.perTurn': '+{val}/Zug',
+
+  // ── BUILDING NAMES ──
+  'building.castle': 'Burg',
+  'building.barracks': 'Kaserne',
+  'building.mine': 'Mine',
+  'building.farm': 'Bauernhof',
+  'building.lumbermill': 'Saegewerk',
+  'building.tower': 'Turm',
+  'building.market': 'Markt',
+
+  // ── TRAIN MODAL ──
+  'train.title': 'Einheit ausbilden',
+  'train.close': 'Schliessen',
+  'train.train': 'Ausbilden',
+
+  // ── UNIT NAMES ──
+  'unit.warrior': 'Krieger',
+  'unit.archer': 'Bogenschuetze',
+  'unit.cavalry': 'Kavallerie',
+  'unit.catapult': 'Katapult',
+  'unit.scout': 'Spaeher',
+
+  // ── UNIT DESCRIPTIONS ──
+  'unit.warrior.desc': 'Ausgewogene Infanterie',
+  'unit.archer.desc': 'Hoher Angriff, niedrige Verteidigung',
+  'unit.cavalry.desc': 'Schnell und maechtig',
+  'unit.catapult.desc': 'Gebaeude-Zerstoerer, langsam',
+  'unit.scout.desc': 'Grosse Sichtweite',
+
+  // ── HEX INFO ──
+  'hex.army': 'Armee',
+  'hex.power': 'Staerke: {val}',
+  'hex.build': 'Bauen',
+  'hex.train': 'Ausbilden',
+  'hex.upgrade': 'Aufwerten',
+  'hex.move': 'Armee bewegen',
+  'hex.max': 'MAX',
+  'hex.defense': '% Vert.',
+
+  // ── TECH TREE ──
+  'tech.title': 'Technologiebaum',
+  'tech.close': 'Schliessen',
+  'tech.level': 'Stufe {n}',
+  'tech.done': 'Abgeschlossen',
+  'tech.turns': '{n} Zuege',
+  'tech.remaining': 'Noch {n} Zuege',
+
+  // ── HERO ──
+  'hero.title': 'Helden',
+  'hero.close': 'Schliessen',
+  'hero.myHeroes': 'Meine Helden',
+  'hero.unassign': 'Abziehen',
+  'hero.assign': 'Zuweisen',
+  'hero.hire': 'Anwerben',
+  'hero.owned': 'Im Besitz',
+  'hero.cooldown': '{n} Zuege',
+
+  // ── DIPLOMACY ──
+  'diplo.title': 'Diplomatie',
+  'diplo.close': 'Schliessen',
+  'diplo.proposals': 'Eingehende Vorschlaege',
+  'diplo.alliance': 'Buendnis',
+  'diplo.nonAggression': 'Nichtangriffspakt',
+  'diplo.offer': '{name} bietet {action} an',
+  'diplo.accept': 'Annehmen',
+  'diplo.reject': 'Ablehnen',
+  'diplo.relations': 'Beziehungen',
+  'diplo.neutral': 'Neutral',
+  'diplo.war': 'Krieg',
+  'diplo.tribute': 'Tribut (50g)',
+  'diplo.noRivals': 'Keine Rivalen uebrig.',
+  'diplo.declareWarTitle': 'Kriegserklaerung',
+  'diplo.declareWarMsg': 'Wollen Sie {name} wirklich den Krieg erklaeren?',
+  'diplo.declareWarBtn': 'Krieg!',
+
+  // ── EVENT ──
+  'event.ok': 'OK',
+  'event.units': 'Einheiten: {val}%',
+
+  // ── WEATHER ──
+  'weather.turnsLeft': 'Noch {n} Zuege',
+  'weather.moveCost': 'Bewegungskosten',
+  'weather.attack': 'Angriff',
+  'weather.defense': 'Verteidigung',
+  'weather.visibility': 'Sichtweite',
+  'weather.foodProd': 'Nahrungsproduktion',
+  'weather.ok': 'OK',
+
+  // ── BATTLE RESULT ──
+  'battle.victory': 'Sieg!',
+  'battle.defeat': 'Niederlage!',
+  'battle.attacker': 'Angreifer',
+  'battle.defender': 'Verteidiger',
+  'battle.loss': 'Verlust: {pct}%',
+  'battle.surviving': 'Ueberlebende Einheiten:',
+  'battle.destroyed': 'Vollstaendig zerstoert',
+  'battle.buildingDmg': 'Gebaeudesschaden: {val} HP',
+  'battle.ok': 'OK',
+
+  // ── VICTORY PROGRESS ──
+  'victory.title': 'Siegfortschritt',
+  'victory.collapse': 'Einklappen',
+  'victory.castles': 'Burgen zerstoert',
+  'victory.economic': '{gold}/{goldReq} Gold, {territory}/{territoryReq} Gebiet',
+  'victory.tech': '{done}/{total} Tech',
+  'victory.domination': '{territory}/{required} Hexe',
+
+  // ── GAME OVER ──
+  'gameover.rankings': 'Rangliste',
+  'gameover.victory': 'Sieg!',
+  'gameover.winner': '{name} gewinnt!',
+  'gameover.draw': 'Unentschieden',
+  'gameover.totalTurns': 'Zuege gesamt',
+  'gameover.players': 'Spieler',
+  'gameover.map': 'Karte',
+  'gameover.bot': 'BOT',
+  'gameover.eliminated': 'BESIEGT',
+  'gameover.winnerBadge': 'SIEGER',
+  'gameover.mainMenu': 'Hauptmenue',
+  'gameover.territory': 'Gebiet',
+  'gameover.buildings': 'Gebaeude',
+  'gameover.units': 'Einheiten',
+  'gameover.power': 'Staerke',
+  'gameover.resources': 'Rohstoffe',
+  'gameover.techStat': 'Tech',
+  'gameover.production': 'Produktion',
+  'gameover.heroes': 'Helden',
+
+  // ── TUTORIAL ──
+  'tutorial.skip': 'Ueberspringen',
+  'tutorial.back': 'Zurueck',
+  'tutorial.next': 'Weiter',
+  'tutorial.start': 'Los!',
+  'tutorial.tip': 'Tipp',
+  'tutorial.step': '{current} / {total}',
+
+  'tutorial.0.title': 'Willkommen in Eurem Koenigreich!',
+  'tutorial.0.text': 'Ihr startet mit einer Burg und einer kleinen Armee. Euer Ziel ist es, euer Reich zu erweitern und eure Rivalen zu besiegen.',
+  'tutorial.0.tip': 'Zieht zum Navigieren, kneifen zum Zoomen.',
+
+  'tutorial.1.title': 'Gebiet erweitern',
+  'tutorial.1.text': 'Waehlt eure Armee und bewegt sie auf benachbarte Hexe, um neue Laender zu erobern. Jedes Gebiet bringt Rohstoffe.',
+  'tutorial.1.tip': 'Tippt auf ein Hex und drueckt "Armee bewegen", dann tippt auf das Ziel.',
+
+  'tutorial.2.title': 'Gebaeude errichten',
+  'tutorial.2.text': 'Baut auf leeren Hexen in eurem Gebiet:\n• Bauernhof = Nahrung\n• Mine = Eisen & Stein\n• Saegewerk = Holz\n• Markt = Gold',
+  'tutorial.2.tip': 'Verschiedene Gelaende erlauben verschiedene Gebaeude. Berge fuer Minen, Waelder fuer Holz!',
+
+  'tutorial.3.title': 'Einheiten ausbilden',
+  'tutorial.3.text': 'Tippt auf eure Burg und waehlt "Ausbilden" um Soldaten zu produzieren. Es gibt 5 Einheitentypen mit einzigartigen Faehigkeiten.',
+  'tutorial.3.tip': 'Krieger + Spaeher reichen zu Beginn. Forscht fuer Bogenschuetzen und Kavallerie.',
+
+  'tutorial.4.title': 'Forschung',
+  'tutorial.4.text': 'Nutzt den "Forschen"-Knopf in der Leiste, um neue Technologien zu entdecken. Schaltet neue Einheiten, Gebaeude und Boni frei.',
+  'tutorial.4.tip': 'Wir empfehlen "Bogenschiessen" oder "Landwirtschaft" als erste Forschung.',
+
+  'tutorial.5.title': 'Helden anwerben',
+  'tutorial.5.text': 'Helden geben eurer Armee besondere Boni. Nutzt "Held" in der Leiste zum Anwerben und Zuweisen.',
+  'tutorial.5.tip': 'Kagan ist gut fuer Angriff, Arslan ideal fuer Verteidigung.',
+
+  'tutorial.6.title': 'Diplomatie',
+  'tutorial.6.text': 'Ihr koennt Nichtangriffspakte, Buendnisse schliessen oder Tribute an eure Rivalen senden.',
+  'tutorial.6.tip': 'Krieg an zwei Fronten ist riskant! Schliesst Frieden mit einem Rivalen und konzentriert euch auf den anderen.',
+
+  'tutorial.7.title': 'Wege zum Sieg',
+  'tutorial.7.text': '4 verschiedene Siegwege:\n• Militaerisch: Alle Burgen zerstoeren\n• Wirtschaftlich: 1000 Gold + 20 Gebiete\n• Technologisch: Alle Techs erforschen\n• Vorherrschaft: 60% der Karte kontrollieren',
+  'tutorial.7.tip': 'Verfolgt den Fortschrittsbalken unten. Konzentriert euch auf den naechsten Sieg!',
+
+  // ── SETTINGS ──
+  'settings.title': 'Einstellungen',
+  'settings.back': 'Zurueck',
+  'settings.sound': 'Ton & Vibration',
+  'settings.haptic': 'Vibration',
+  'settings.hapticDesc': 'Tasten- und Aktionsrueckmeldung',
+  'settings.soundFx': 'Soundeffekte',
+  'settings.soundFxDesc': 'Kampf-, Bau- und Zugsounds',
+  'settings.map': 'Karte',
+  'settings.defaultSize': 'Standardgroesse',
+  'settings.difficultySection': 'Schwierigkeit',
+  'settings.defaultDifficulty': 'Standard-Bot-Schwierigkeit',
+  'settings.visual': 'Visuell',
+  'settings.animSpeed': 'Animationsgeschwindigkeit',
+  'settings.slow': 'Langsam',
+  'settings.fast': 'Schnell',
+  'settings.hexGrid': 'Hex-Raster',
+  'settings.hexGridDesc': 'Hex-Raender anzeigen',
+  'settings.fogOfWar': 'Kriegsnebel',
+  'settings.fogOfWarDesc': 'Fog of War ein/aus',
+  'settings.gameSection': 'Spiel',
+  'settings.autoEndTurn': 'Auto-Zugbeendigung',
+  'settings.autoEndTurnDesc': 'Zug beenden wenn keine Aktionen uebrig',
+  'settings.dataSection': 'Daten',
+  'settings.savedGame': 'Gespeichertes Spiel',
+  'settings.saveExists': 'Ein Spielstand existiert',
+  'settings.noSave': 'Kein Spielstand gefunden',
+  'settings.delete': 'Loeschen',
+  'settings.resetAll': 'Alle Einstellungen zuruecksetzen',
+  'settings.language': 'Sprache',
+  'settings.selectLang': 'Sprache waehlen',
+
+  // ── TERRAIN NAMES ──
+  'terrain.plains': 'Ebene',
+  'terrain.mountain': 'Berg',
+  'terrain.forest': 'Wald',
+  'terrain.river': 'Fluss',
+  'terrain.desert': 'Wueste',
+  'terrain.swamp': 'Sumpf',
+};

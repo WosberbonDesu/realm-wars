@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Clipboard, Alert } from 'react-native';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
+import { t } from '../i18n';
 
 interface ToolbarAction {
   icon: string;
@@ -24,7 +25,7 @@ export default function GameToolbar({
   const handleCopySeed = () => {
     if (!mapSeed) return;
     Clipboard.setString(String(mapSeed));
-    Alert.alert('Kopyalandi', `Harita kodu (${mapSeed}) panoya kopyalandi.`);
+    Alert.alert(t('toolbar.seedCopied'), t('toolbar.seedCopiedMsg', { seed: mapSeed }));
   };
 
   return (
@@ -41,12 +42,12 @@ export default function GameToolbar({
       {/* Orta: tur + seed */}
       <View style={styles.centerSection}>
         <View style={styles.turnBadge}>
-          <Text style={styles.turnLabel}>TUR</Text>
+          <Text style={styles.turnLabel}>{t('toolbar.turn')}</Text>
           <Text style={styles.turnNumber}>{turn}</Text>
         </View>
         {mapSeed != null && (
           <TouchableOpacity style={styles.seedBadge} onPress={handleCopySeed} activeOpacity={0.7}>
-            <Text style={styles.seedLabel}>SEED</Text>
+            <Text style={styles.seedLabel}>{t('toolbar.seed')}</Text>
             <Text style={styles.seedValue} numberOfLines={1}>
               {String(mapSeed).slice(-6)}
             </Text>
