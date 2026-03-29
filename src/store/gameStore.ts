@@ -22,6 +22,10 @@ import { TECH_TREE, BASE_UNITS } from '../constants/tech';
 import { rollEvent, applyEvent } from '../engine/events';
 import { GameEvent } from '../constants/events';
 import { HEROES, HeroId } from '../constants/heroes';
+import {
+  VictoryType, ECONOMIC_GOLD_THRESHOLD,
+  ECONOMIC_TERRITORY_THRESHOLD, DOMINATION_TERRITORY_PERCENT,
+} from '../constants/victory';
 
 // ===== HELPER FUNCTIONS =====
 
@@ -144,6 +148,7 @@ const initialState: GameState = {
   moveTargets: [],
   actionLog: [],
   pendingEvent: null,
+  victoryInfo: null,
 };
 
 // ===== STORE =====
@@ -267,6 +272,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       moveTargets: [],
       actionLog: [],
       pendingEvent: null,
+      victoryInfo: null,
     });
 
     // İnsan oyuncu için görünürlük aç
@@ -602,6 +608,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // 1.6 Rastgele olay
     triggerRandomEvent(get, set);
+
+    // 1.7 Zafer kontrolu
+    checkGameOver(get, set);
+    if (get().phase === GamePhase.GameOver) return;
 
     // 2. Sıradaki oyuncuyu bul
     const currentIndex = state.players.findIndex(p => p.id === state.currentPlayerId);
@@ -1063,8 +1073,52 @@ function checkGameOver(
   const state = get();
   const alivePlayers = state.players.filter(p => p.castleCoord !== null);
 
-  if (alivePlayers.length <= 1) {
-    set({ phase: GamePhase.GameOver });
+  // 1. Askeri zafer: tek oyuncu kaldi
+  if (alivePlayers.length <= 1 && alivePlayers.length > 0) {
+    set({
+      phase: GamePhase.GameOver,
+      victoryInfo: { winnerId: alivePlayers[0].id, victoryType: VictoryType.Military },
+    });
+    return;
+  }
+
+  // Harita toplam hex sayisi
+  const totalHexes = state.map.size;
+
+  for (const player of alivePlayers) {
+    // 2. Ekonomik zafer: yeterli altin + toprak
+    if (
+      player.resources.gold >= ECONOMIC_GOLD_THRESHOLD &&
+      player.territory.length >= ECONOMIC_TERRITORY_THRESHOLD
+    ) {
+      set({
+        phase: GamePhase.GameOver,
+        victoryInfo: { winnerId: player.id, victoryType: VictoryType.Economic },
+      });
+      return;
+    }
+
+    // 3. Teknolojik zafer: tum tech'ler arastirilmis
+    const allTechIds = Object.values(TechId);
+    if (
+      player.researchedTechs.length >= allTechIds.length &&
+      allTechIds.every(t => player.researchedTechs.includes(t))
+    ) {
+      set({
+        phase: GamePhase.GameOver,
+        victoryInfo: { winnerId: player.id, victoryType: VictoryType.Technology },
+      });
+      return;
+    }
+
+    // 4. Hakimiyet zaferi: haritanin %60'i
+    if (player.territory.length >= totalHexes * DOMINATION_TERRITORY_PERCENT) {
+      set({
+        phase: GamePhase.GameOver,
+        victoryInfo: { winnerId: player.id, victoryType: VictoryType.Domination },
+      });
+      return;
+    }
   }
 }
 

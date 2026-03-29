@@ -133,6 +133,7 @@ export interface GameState {
   moveTargets: HexCoord[];
   actionLog: { id: string; text: string; color: string; icon: string }[];
   pendingEvent: { type: string; name: string; icon: string; positive: boolean } | null;
+  victoryInfo: { winnerId: string; victoryType: string } | null;
 }
 
 export enum GamePhase {

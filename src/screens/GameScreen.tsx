@@ -16,9 +16,11 @@ import ResourceBar from '../components/ResourceBar';
 import TechTreeModal from '../components/TechTreeModal';
 import EventModal from '../components/EventModal';
 import HeroModal from '../components/HeroModal';
+import VictoryProgress from '../components/VictoryProgress';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
+import { VICTORY_CONDITIONS, VictoryType } from '../constants/victory';
 
 interface Props {
   onBackToMenu: () => void;
@@ -38,6 +40,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const [techModalVisible, setTechModalVisible] = useState(false);
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [heroModalVisible, setHeroModalVisible] = useState(false);
+  const [victoryExpanded, setVictoryExpanded] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const pendingEvent = useGameStore(s => s.pendingEvent);
 
@@ -100,19 +103,41 @@ export default function GameScreen({ onBackToMenu }: Props) {
   };
 
   // Oyun bitti mi
+  const victoryInfo = useGameStore(s => s.victoryInfo);
+
   if (phase === GamePhase.GameOver) {
-    const winner = players.find(p => p.castleCoord !== null);
+    const winner = victoryInfo
+      ? players.find(p => p.id === victoryInfo.winnerId)
+      : players.find(p => p.castleCoord !== null);
+    const victory = victoryInfo
+      ? VICTORY_CONDITIONS[victoryInfo.victoryType as VictoryType]
+      : null;
+
     return (
       <View style={styles.gameOverContainer}>
-        <Text style={styles.gameOverTitle}>Oyun Bitti!</Text>
+        {victory && (
+          <Text style={styles.victoryIcon}>{victory.icon}</Text>
+        )}
+        <Text style={[
+          styles.gameOverTitle,
+          victory && { color: victory.color },
+        ]}>
+          {victory ? victory.name : 'Oyun Bitti!'}
+        </Text>
         <Text style={styles.gameOverWinner}>
           {winner ? `${winner.name} Kazandi!` : 'Berabere!'}
+        </Text>
+        {victory && (
+          <Text style={styles.victoryDesc}>{victory.description}</Text>
+        )}
+        <Text style={styles.gameOverStats}>
+          Tur: {turn} | Toprak: {winner?.territory.length ?? 0}
         </Text>
         <AnimatedButton
           label="Ana Menu"
           onPress={onBackToMenu}
           variant="primary"
-          style={{ paddingHorizontal: 40 }}
+          style={{ paddingHorizontal: 40, marginTop: 20 }}
         />
       </View>
     );
@@ -185,6 +210,11 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
       {/* Alt bar */}
       <View style={styles.bottomBar}>
+        <VictoryProgress
+          expanded={victoryExpanded}
+          onToggle={() => setVictoryExpanded(v => !v)}
+        />
+
         {currentPlayer && (
           <ResourceBar resources={currentPlayer.resources} income={income} />
         )}
@@ -311,16 +341,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
+  victoryIcon: {
+    fontSize: 56,
+    marginBottom: 16,
+  },
   gameOverTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: COLORS.gold,
-    marginBottom: 12,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   gameOverWinner: {
     fontSize: 20,
     fontWeight: '700',
     color: COLORS.textPrimary,
-    marginBottom: 32,
+    marginBottom: 8,
+  },
+  victoryDesc: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  gameOverStats: {
+    color: COLORS.textMuted,
+    fontSize: 12,
   },
 });
