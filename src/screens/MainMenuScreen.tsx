@@ -25,6 +25,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
   const [playerName, setPlayerName] = useState('Komutan');
   const [botCount, setBotCount] = useState(2);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('normal');
+  const [mapSize, setMapSize] = useState<12 | 18 | 24>(18);
   const [seedInput, setSeedInput] = useState('');
   const [savedExists, setSavedExists] = useState(false);
   const [saveInfo, setSaveInfo] = useState<{ turn: number; playerName: string } | null>(null);
@@ -58,7 +59,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
       Alert.alert('Gecersiz Seed', 'Seed pozitif bir sayi olmalidir.');
       return;
     }
-    initGame(playerName || 'Komutan', botCount, parsedSeed, difficulty);
+    initGame(playerName || 'Komutan', botCount, parsedSeed, difficulty, mapSize);
     onStartGame();
   };
 
@@ -104,6 +105,27 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
                 <Text style={[styles.selectorText, botCount === n && styles.selectorTextActive]}>
                   {n}
                 </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Harita Boyutu */}
+          <Text style={styles.label}>Harita Boyutu</Text>
+          <View style={styles.rowSelector}>
+            {([
+              { value: 12 as const, label: 'Kucuk', sub: '~200' },
+              { value: 18 as const, label: 'Orta', sub: '~600' },
+              { value: 24 as const, label: 'Buyuk', sub: '~1200' },
+            ]).map(opt => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.selectorOption, mapSize === opt.value && styles.selectorActive]}
+                onPress={() => { playSound('click'); setMapSize(opt.value); }}
+              >
+                <Text style={[styles.selectorText, mapSize === opt.value && styles.selectorTextActive]}>
+                  {opt.label}
+                </Text>
+                <Text style={styles.mapSizeSub}>{opt.sub} hex</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -325,6 +347,11 @@ const styles = StyleSheet.create({
   },
   selectorTextActive: {
     color: COLORS.textPrimary,
+  },
+  mapSizeSub: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    marginTop: 1,
   },
   diffDesc: {
     fontSize: FONT.tiny,

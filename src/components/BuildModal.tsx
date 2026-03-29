@@ -12,7 +12,7 @@ import { TERRAIN_BUILDABLE } from '../constants/terrain';
 
 interface Props {
   visible: boolean;
-  onClose: () => void;
+  onClose: (built?: boolean) => void;
 }
 
 const BUILDING_NAMES: Record<BuildingType, string> = {
@@ -39,7 +39,7 @@ export default function BuildModal({ visible, onClose }: Props) {
 
   const handleBuild = (type: BuildingType) => {
     const success = buildStructure(selectedHex, type);
-    if (success) onClose();
+    if (success) onClose(true);
   };
 
   const canAfford = (cost: Partial<Resources>): boolean => {
@@ -60,7 +60,7 @@ export default function BuildModal({ visible, onClose }: Props) {
         <View style={styles.panel}>
           <View style={styles.header}>
             <Text style={styles.title}>Bina Kur</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={() => onClose()}>
               <Text style={styles.closeText}>Kapat</Text>
             </TouchableOpacity>
           </View>

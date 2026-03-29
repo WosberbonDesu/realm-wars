@@ -80,7 +80,7 @@ function calculateTotalPower(units: Unit[]): number {
 
 export interface GameActions {
   // Oyun başlatma
-  initGame: (playerName: string, botCount: number, seed?: number, difficulty?: BotDifficulty) => void;
+  initGame: (playerName: string, botCount: number, seed?: number, difficulty?: BotDifficulty, mapRadius?: number) => void;
 
   // Hex seçimi
   selectHex: (coord: HexCoord | null) => void;
@@ -182,11 +182,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ...initialState,
 
   // ─── OYUN BAŞLATMA ───
-  initGame: (playerName: string, botCount: number, seed?: number, difficulty: BotDifficulty = 'normal') => {
+  initGame: (playerName: string, botCount: number, seed?: number, difficulty: BotDifficulty = 'normal', mapRadius?: number) => {
     const resolvedSeed = seed ?? Date.now();
-    const map = generateMap(resolvedSeed, MAP_RADIUS);
+    const resolvedRadius = mapRadius ?? MAP_RADIUS;
+    const map = generateMap(resolvedSeed, resolvedRadius);
     const totalPlayers = 1 + botCount;
-    const startPositions = findStartPositions(map, totalPlayers, MAP_RADIUS);
+    const startPositions = findStartPositions(map, totalPlayers, resolvedRadius);
     const resolvedDifficulty = difficulty;
 
     // Oyuncuları oluştur
@@ -286,7 +287,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // State güncelle
     set({
       map: new Map(map),
-      mapRadius: MAP_RADIUS,
+      mapRadius: resolvedRadius,
       mapSeed: resolvedSeed,
       botDifficulty: resolvedDifficulty,
       players,

@@ -11,7 +11,7 @@ import { UNIT_ABILITIES } from '../constants/abilities';
 
 interface Props {
   visible: boolean;
-  onClose: () => void;
+  onClose: (trained?: boolean) => void;
 }
 
 const UNIT_NAMES: Record<UnitType, string> = {
@@ -63,7 +63,7 @@ export default function TrainModal({ visible, onClose }: Props) {
   const handleTrain = (type: UnitType) => {
     const count = counts[type];
     const success = trainUnit(selectedHex, type, count);
-    if (success) onClose();
+    if (success) onClose(true);
   };
 
   const adjustCount = (type: UnitType, delta: number) => {
@@ -82,7 +82,7 @@ export default function TrainModal({ visible, onClose }: Props) {
         <View style={styles.panel}>
           <View style={styles.header}>
             <Text style={styles.title}>Birim Egit</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={() => onClose()}>
               <Text style={styles.closeText}>Kapat</Text>
             </TouchableOpacity>
           </View>

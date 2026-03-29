@@ -22,6 +22,8 @@ import VictoryProgress from '../components/VictoryProgress';
 import GameToolbar from '../components/GameToolbar';
 import TutorialModal from '../components/TutorialModal';
 import GameOverScreen from '../components/GameOverScreen';
+import FloatingFeedback, { FeedbackItem } from '../components/FloatingFeedback';
+import ScreenFlash from '../components/ScreenFlash';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
@@ -63,6 +65,21 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const mapRef = useRef<HexMapRef>(null);
   const [showTurnBanner, setShowTurnBanner] = useState(false);
   const prevTurn = useRef(turn);
+
+  // Animations
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [flashColor, setFlashColor] = useState<string | null>(null);
+  let feedbackCounter = useRef(0);
+
+  const showFeedback = (icon: string, text: string, color: string) => {
+    feedbackCounter.current++;
+    const item: FeedbackItem = { id: `fb-${feedbackCounter.current}`, icon, text, color };
+    setFeedbackItems(prev => [...prev, item]);
+  };
+
+  const removeFeedback = (id: string) => {
+    setFeedbackItems(prev => prev.filter(f => f.id !== id));
+  };
 
   // Ilk tur -> tutorial goster
   const tutorialShown = useRef(false);
@@ -166,6 +183,13 @@ export default function GameScreen({ onBackToMenu }: Props) {
             setBattleResult(result);
             setBattleModalVisible(true);
             playSound('battle');
+            setFlashColor('#FF4444');
+            const won = result.winner === 'attacker';
+            showFeedback(
+              won ? '⚔️' : '💀',
+              won ? 'Zafer!' : 'Maglup!',
+              won ? COLORS.green : COLORS.red,
+            );
           }}
         />
         <Minimap onTapHex={(q, r) => mapRef.current?.focusOnHex(q, r)} />
@@ -208,9 +232,35 @@ export default function GameScreen({ onBackToMenu }: Props) {
         />
       </View>
 
+      {/* Animasyon katmani */}
+      <FloatingFeedback items={feedbackItems} onItemDone={removeFeedback} />
+      <ScreenFlash
+        visible={flashColor !== null}
+        color={flashColor ?? '#FF4444'}
+        onDone={() => setFlashColor(null)}
+      />
+
       {/* Modaller */}
-      <BuildModal visible={buildModalVisible} onClose={() => setBuildModalVisible(false)} />
-      <TrainModal visible={trainModalVisible} onClose={() => setTrainModalVisible(false)} />
+      <BuildModal
+        visible={buildModalVisible}
+        onClose={(built) => {
+          setBuildModalVisible(false);
+          if (built) {
+            playSound('build');
+            showFeedback('🏗️', 'Bina kuruldu!', COLORS.green);
+          }
+        }}
+      />
+      <TrainModal
+        visible={trainModalVisible}
+        onClose={(trained) => {
+          setTrainModalVisible(false);
+          if (trained) {
+            playSound('train');
+            showFeedback('⚔️', 'Birlik egitildi!', COLORS.primaryLight);
+          }
+        }}
+      />
       <BattleResultModal visible={battleModalVisible} result={battleResult} onClose={() => setBattleModalVisible(false)} />
       <TechTreeModal visible={techModalVisible} onClose={() => setTechModalVisible(false)} />
       <EventModal visible={eventModalVisible} event={currentEvent} onClose={() => setEventModalVisible(false)} />

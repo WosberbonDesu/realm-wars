@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView,
 } from 'react-native';
-import { COLORS } from '../constants/theme';
-import { saveSettings, loadSettings } from '../services/saveService';
+import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
+import { saveSettings, loadSettings, deleteSave, hasSave } from '../services/saveService';
+import { soundService } from '../services/soundService';
+import { playSound } from '../services/soundService';
+import AnimatedButton from '../components/AnimatedButton';
 
 export interface GameSettings {
   mapRadius: number;
@@ -12,6 +15,8 @@ export interface GameSettings {
   showFogOfWar: boolean;
   autoEndTurn: boolean;
   animationSpeed: 'slow' | 'normal' | 'fast';
+  hapticEnabled: boolean;
+  soundEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -21,6 +26,8 @@ const DEFAULT_SETTINGS: GameSettings = {
   showFogOfWar: true,
   autoEndTurn: false,
   animationSpeed: 'normal',
+  hapticEnabled: true,
+  soundEnabled: true,
 };
 
 interface Props {
@@ -29,40 +36,94 @@ interface Props {
 
 export default function SettingsScreen({ onBack }: Props) {
   const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
+  const [savedExists, setSavedExists] = useState(false);
 
   useEffect(() => {
     loadSettings().then(saved => {
-      if (saved) setSettings({ ...DEFAULT_SETTINGS, ...saved } as GameSettings);
+      if (saved) {
+        const merged = { ...DEFAULT_SETTINGS, ...saved } as GameSettings;
+        setSettings(merged);
+        soundService.setHapticEnabled(merged.hapticEnabled);
+        soundService.setSoundEnabled(merged.soundEnabled);
+      }
     });
+    hasSave().then(setSavedExists);
   }, []);
 
   const updateSetting = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
+    playSound('click');
     const updated = { ...settings, [key]: value };
     setSettings(updated);
     saveSettings(updated as unknown as Record<string, unknown>);
+
+    // Apply immediately
+    if (key === 'hapticEnabled') soundService.setHapticEnabled(value as boolean);
+    if (key === 'soundEnabled') soundService.setSoundEnabled(value as boolean);
+  };
+
+  const handleDeleteSave = async () => {
+    await deleteSave();
+    setSavedExists(false);
+  };
+
+  const difficultyInfo = {
+    easy:   { color: COLORS.green, desc: 'Yeni baslayanlar icin' },
+    normal: { color: COLORS.primaryLight, desc: 'Dengeli bir macera' },
+    hard:   { color: COLORS.red, desc: 'Deneyimliler icin' },
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>Geri</Text>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+          <Text style={styles.backText}>{'‹ Geri'}</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Ayarlar</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={styles.content}>
-        {/* Harita Boyutu */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* ── SES & TİTRESİM ── */}
+        <Text style={styles.sectionTitle}>Ses & Titresim</Text>
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Titresim</Text>
+              <Text style={styles.toggleDesc}>Buton ve aksiyon geri bildirimi</Text>
+            </View>
+            <Switch
+              value={settings.hapticEnabled}
+              onValueChange={(v) => updateSetting('hapticEnabled', v)}
+              trackColor={{ false: COLORS.border, true: COLORS.primaryDark }}
+              thumbColor={settings.hapticEnabled ? COLORS.primary : COLORS.textMuted}
+            />
+          </View>
+
+          <View style={[styles.toggleRow, { borderTopWidth: 1 }]}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Ses Efektleri</Text>
+              <Text style={styles.toggleDesc}>Savas, bina kurma, tur sesleri</Text>
+            </View>
+            <Switch
+              value={settings.soundEnabled}
+              onValueChange={(v) => updateSetting('soundEnabled', v)}
+              trackColor={{ false: COLORS.border, true: COLORS.primaryDark }}
+              thumbColor={settings.soundEnabled ? COLORS.primary : COLORS.textMuted}
+            />
+          </View>
+        </View>
+
+        {/* ── HARİTA ── */}
         <Text style={styles.sectionTitle}>Harita</Text>
         <View style={styles.card}>
-          <Text style={styles.label}>Harita Boyutu</Text>
+          <Text style={styles.label}>Varsayilan Boyut</Text>
           <View style={styles.optionRow}>
             {([
-              { value: 12, label: 'Kucuk' },
-              { value: 18, label: 'Orta' },
-              { value: 24, label: 'Buyuk' },
+              { value: 12, label: 'Kucuk', desc: '~200 hex' },
+              { value: 18, label: 'Orta', desc: '~600 hex' },
+              { value: 24, label: 'Buyuk', desc: '~1200 hex' },
             ] as const).map(opt => (
               <TouchableOpacity
                 key={opt.value}
@@ -78,43 +139,42 @@ export default function SettingsScreen({ onBack }: Props) {
                 ]}>
                   {opt.label}
                 </Text>
-                <Text style={styles.optionSubText}>R:{opt.value}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Bot Zorluğu */}
-        <Text style={styles.sectionTitle}>Zorluk</Text>
-        <View style={styles.card}>
-          <Text style={styles.label}>Bot Zorlugu</Text>
-          <View style={styles.optionRow}>
-            {([
-              { value: 'easy' as const, label: 'Kolay', desc: 'Yavas bot' },
-              { value: 'normal' as const, label: 'Normal', desc: 'Dengeli' },
-              { value: 'hard' as const, label: 'Zor', desc: 'Agresif bot' },
-            ]).map(opt => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[
-                  styles.optionBtn,
-                  settings.botDifficulty === opt.value && styles.optionBtnActive,
-                ]}
-                onPress={() => updateSetting('botDifficulty', opt.value)}
-              >
-                <Text style={[
-                  styles.optionText,
-                  settings.botDifficulty === opt.value && styles.optionTextActive,
-                ]}>
-                  {opt.label}
-                </Text>
                 <Text style={styles.optionSubText}>{opt.desc}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* Animasyon Hızı */}
+        {/* ── ZORLUK ── */}
+        <Text style={styles.sectionTitle}>Zorluk</Text>
+        <View style={styles.card}>
+          <Text style={styles.label}>Varsayilan Bot Zorlugu</Text>
+          <View style={styles.optionRow}>
+            {(['easy', 'normal', 'hard'] as const).map(d => (
+              <TouchableOpacity
+                key={d}
+                style={[
+                  styles.optionBtn,
+                  settings.botDifficulty === d && {
+                    ...styles.optionBtnActive,
+                    borderColor: difficultyInfo[d].color,
+                  },
+                ]}
+                onPress={() => updateSetting('botDifficulty', d)}
+              >
+                <Text style={[
+                  styles.optionText,
+                  settings.botDifficulty === d && { color: difficultyInfo[d].color },
+                ]}>
+                  {d === 'easy' ? 'Kolay' : d === 'normal' ? 'Normal' : 'Zor'}
+                </Text>
+                <Text style={styles.optionSubText}>{difficultyInfo[d].desc}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* ── GÖRSEL ── */}
         <Text style={styles.sectionTitle}>Gorsel</Text>
         <View style={styles.card}>
           <Text style={styles.label}>Animasyon Hizi</Text>
@@ -142,9 +202,8 @@ export default function SettingsScreen({ onBack }: Props) {
             ))}
           </View>
 
-          {/* Toggle'lar */}
-          <View style={styles.toggleRow}>
-            <View>
+          <View style={[styles.toggleRow, { marginTop: SPACE.md }]}>
+            <View style={styles.toggleInfo}>
               <Text style={styles.toggleLabel}>Hex Izgara</Text>
               <Text style={styles.toggleDesc}>Hex kenarlarini goster</Text>
             </View>
@@ -156,8 +215,8 @@ export default function SettingsScreen({ onBack }: Props) {
             />
           </View>
 
-          <View style={styles.toggleRow}>
-            <View>
+          <View style={[styles.toggleRow, { borderTopWidth: 1 }]}>
+            <View style={styles.toggleInfo}>
               <Text style={styles.toggleLabel}>Savas Sisi</Text>
               <Text style={styles.toggleDesc}>Fog of war acik/kapali</Text>
             </View>
@@ -170,11 +229,11 @@ export default function SettingsScreen({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Oyun */}
+        {/* ── OYUN ── */}
         <Text style={styles.sectionTitle}>Oyun</Text>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
-            <View>
+            <View style={styles.toggleInfo}>
               <Text style={styles.toggleLabel}>Otomatik Tur Bitir</Text>
               <Text style={styles.toggleDesc}>Aksiyon kalmayinca turu bitir</Text>
             </View>
@@ -187,16 +246,40 @@ export default function SettingsScreen({ onBack }: Props) {
           </View>
         </View>
 
+        {/* ── VERİ YÖNETİMİ ── */}
+        <Text style={styles.sectionTitle}>Veri</Text>
+        <View style={styles.card}>
+          <View style={styles.dataRow}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Kayitli Oyun</Text>
+              <Text style={styles.toggleDesc}>
+                {savedExists ? 'Kayitli bir oyun mevcut' : 'Kayit bulunamadi'}
+              </Text>
+            </View>
+            {savedExists && (
+              <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteSave}>
+                <Text style={styles.deleteBtnText}>Sil</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
         {/* Sıfırla */}
-        <TouchableOpacity
-          style={styles.resetBtn}
+        <AnimatedButton
+          label="Tum Ayarlari Sifirla"
           onPress={() => {
-            setSettings(DEFAULT_SETTINGS);
-            saveSettings(DEFAULT_SETTINGS as unknown as Record<string, unknown>);
+            const reset = { ...DEFAULT_SETTINGS };
+            setSettings(reset);
+            saveSettings(reset as unknown as Record<string, unknown>);
+            soundService.setHapticEnabled(reset.hapticEnabled);
+            soundService.setSoundEnabled(reset.soundEnabled);
           }}
-        >
-          <Text style={styles.resetText}>Varsayilana Sifirla</Text>
-        </TouchableOpacity>
+          variant="danger"
+          style={{ marginTop: SPACE.xl }}
+        />
+
+        {/* Versiyon */}
+        <Text style={styles.versionText}>Realm Wars v1.0.0</Text>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -213,58 +296,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACE.lg,
     paddingTop: 48,
     paddingBottom: 14,
     backgroundColor: COLORS.bgLight,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  backBtn: {
+    paddingVertical: SPACE.xs,
+    paddingRight: SPACE.md,
+  },
   backText: {
     color: COLORS.textSecondary,
-    fontSize: 14,
+    fontSize: FONT.body,
+    fontWeight: FONT.semi,
   },
   title: {
     color: COLORS.gold,
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: FONT.h2,
+    fontWeight: FONT.black,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACE.lg,
   },
   sectionTitle: {
     color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: FONT.tiny,
+    fontWeight: FONT.bold,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: 20,
-    marginBottom: 8,
-    marginLeft: 4,
+    letterSpacing: 1.5,
+    marginTop: SPACE.xl,
+    marginBottom: SPACE.sm,
+    marginLeft: SPACE.xs,
   },
   card: {
     backgroundColor: COLORS.bgLight,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: RADIUS.lg,
+    padding: SPACE.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   label: {
     color: COLORS.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
+    fontSize: FONT.body,
+    fontWeight: FONT.semi,
+    marginBottom: SPACE.md,
   },
   optionRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 4,
+    gap: SPACE.sm,
   },
   optionBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: SPACE.md,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: 'center',
@@ -276,47 +363,59 @@ const styles = StyleSheet.create({
   },
   optionText: {
     color: COLORS.textMuted,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: FONT.caption,
+    fontWeight: FONT.bold,
   },
   optionTextActive: {
     color: COLORS.textPrimary,
   },
   optionSubText: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    fontSize: FONT.tiny,
     marginTop: 2,
   },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderTopWidth: 1,
+    paddingVertical: SPACE.md,
     borderTopColor: COLORS.border,
-    marginTop: 8,
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: SPACE.md,
   },
   toggleLabel: {
     color: COLORS.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: FONT.body,
+    fontWeight: FONT.semi,
   },
   toggleDesc: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: FONT.tiny,
     marginTop: 2,
   },
-  resetBtn: {
-    marginTop: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.red,
+  dataRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  resetText: {
+  deleteBtn: {
+    paddingHorizontal: SPACE.md,
+    paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.red,
+  },
+  deleteBtnText: {
     color: COLORS.red,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: FONT.caption,
+    fontWeight: FONT.bold,
+  },
+  versionText: {
+    color: COLORS.textMuted,
+    fontSize: FONT.tiny,
+    textAlign: 'center',
+    marginTop: SPACE.xl,
   },
 });
