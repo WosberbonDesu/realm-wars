@@ -25,6 +25,7 @@ import GameOverScreen from '../components/GameOverScreen';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
+import { playSound } from '../services/soundService';
 
 interface Props {
   onBackToMenu: () => void;
@@ -36,6 +37,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
   const players = useGameStore(s => s.players);
   const selectedHex = useGameStore(s => s.selectedHex);
+  const mapSeed = useGameStore(s => s.mapSeed);
 
   const [buildModalVisible, setBuildModalVisible] = useState(false);
   const [trainModalVisible, setTrainModalVisible] = useState(false);
@@ -75,6 +77,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
     if (turn !== prevTurn.current) {
       prevTurn.current = turn;
       setShowTurnBanner(true);
+      playSound('turnStart');
       const timer = setTimeout(() => clearActionLog(), 5000);
       return () => clearTimeout(timer);
     }
@@ -86,6 +89,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
       if (event) {
         setCurrentEvent(event);
         setEventModalVisible(true);
+        playSound('event');
       }
       useGameStore.setState({ pendingEvent: null });
     }
@@ -124,10 +128,10 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
   // Toolbar aksiyonları
   const toolbarActions = [
-    { icon: '💾', label: 'Kaydet', color: COLORS.gold, onPress: handleSave },
-    { icon: '🔬', label: 'Arastir', color: COLORS.primaryLight, onPress: () => setTechModalVisible(true) },
-    { icon: '⚔️', label: 'Kahraman', color: COLORS.orange, onPress: () => setHeroModalVisible(true) },
-    { icon: '🏳️', label: 'Diplo', color: COLORS.purple, onPress: () => setDiplomacyModalVisible(true) },
+    { icon: '💾', label: 'Kaydet', color: COLORS.gold, onPress: () => { playSound('click'); handleSave(); } },
+    { icon: '🔬', label: 'Arastir', color: COLORS.primaryLight, onPress: () => { playSound('click'); setTechModalVisible(true); } },
+    { icon: '⚔️', label: 'Kahraman', color: COLORS.orange, onPress: () => { playSound('click'); setHeroModalVisible(true); } },
+    { icon: '🏳️', label: 'Diplo', color: COLORS.purple, onPress: () => { playSound('click'); setDiplomacyModalVisible(true); } },
   ];
 
   return (
@@ -139,6 +143,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         playerColor={currentPlayer?.color ?? COLORS.primary}
         actions={toolbarActions}
         onBackToMenu={handleBackToMenu}
+        mapSeed={mapSeed}
       />
 
       {/* Hava durumu satiri */}
@@ -160,6 +165,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
           onBattleResult={(result) => {
             setBattleResult(result);
             setBattleModalVisible(true);
+            playSound('battle');
           }}
         />
         <Minimap onTapHex={(q, r) => mapRef.current?.focusOnHex(q, r)} />
@@ -197,7 +203,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
         <AnimatedButton
           label="Turu Bitir"
-          onPress={() => useGameStore.getState().endTurn()}
+          onPress={() => { playSound('turnStart'); useGameStore.getState().endTurn(); }}
           variant="primary"
         />
       </View>

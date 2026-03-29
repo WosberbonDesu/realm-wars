@@ -2,12 +2,12 @@ import { create } from 'zustand';
 import {
   GameState, GamePhase, Player, HexTile, HexCoord,
   BuildingType, UnitType, Building, Army, Unit, Resources,
-  TechId, HeroState,
+  TechId, HeroState, BotDifficulty,
   hexKey,
 } from '../types/game';
 import { generateMap, findStartPositions } from '../engine/mapGenerator';
 import { simulateBattle, BattleResult } from '../engine/combat';
-import { botTakeTurn, BotActions, BotDifficulty } from '../engine/botAI';
+import { botTakeTurn, BotActions } from '../engine/botAI';
 import { hexesInRange, getNeighbors } from '../engine/hexUtils';
 import {
   MAP_RADIUS, STARTING_RESOURCES, PLAYER_COLORS, BOT_NAMES,
@@ -80,7 +80,7 @@ function calculateTotalPower(units: Unit[]): number {
 
 export interface GameActions {
   // Oyun başlatma
-  initGame: (playerName: string, botCount: number) => void;
+  initGame: (playerName: string, botCount: number, seed?: number, difficulty?: BotDifficulty) => void;
 
   // Hex seçimi
   selectHex: (coord: HexCoord | null) => void;
@@ -155,6 +155,8 @@ export type GameStore = GameState & GameActions;
 const initialState: GameState = {
   map: new Map(),
   mapRadius: MAP_RADIUS,
+  mapSeed: 0,
+  botDifficulty: 'normal',
   players: [],
   currentPlayerId: '',
   turn: 1,
@@ -180,11 +182,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ...initialState,
 
   // ─── OYUN BAŞLATMA ───
-  initGame: (playerName: string, botCount: number) => {
-    const seed = Date.now();
-    const map = generateMap(seed, MAP_RADIUS);
+  initGame: (playerName: string, botCount: number, seed?: number, difficulty: BotDifficulty = 'normal') => {
+    const resolvedSeed = seed ?? Date.now();
+    const map = generateMap(resolvedSeed, MAP_RADIUS);
     const totalPlayers = 1 + botCount;
     const startPositions = findStartPositions(map, totalPlayers, MAP_RADIUS);
+    const resolvedDifficulty = difficulty;
 
     // Oyuncuları oluştur
     const players: Player[] = [];
@@ -284,6 +287,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       map: new Map(map),
       mapRadius: MAP_RADIUS,
+      mapSeed: resolvedSeed,
+      botDifficulty: resolvedDifficulty,
       players,
       currentPlayerId: players[0].id,
       turn: 1,
@@ -1215,8 +1220,7 @@ function executeBotTurn(
     },
   };
 
-  // TODO: settings'ten difficulty al, simdilik normal
-  botTakeTurn(get(), bot, actions, 'normal');
+  botTakeTurn(get(), bot, actions, get().botDifficulty);
 
   // Logları mevcut loglara ekle
   const currentLogs = get().actionLog;

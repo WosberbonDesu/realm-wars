@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  GameState, GamePhase, HexTile, HexCoord, Player, Resources,
-  hexKey,
+  GameState, GamePhase, HexTile, HexCoord, Player, BotDifficulty,
 } from '../types/game';
 
 const SAVE_KEY = '@realm_wars_save';
@@ -13,6 +12,8 @@ const SETTINGS_KEY = '@realm_wars_settings';
 interface SerializedGameState {
   mapEntries: [string, HexTile][];
   mapRadius: number;
+  mapSeed: number;
+  botDifficulty: BotDifficulty;
   players: Player[];
   currentPlayerId: string;
   turn: number;
@@ -36,6 +37,8 @@ export function serializeState(state: GameState): SerializedGameState {
   return {
     mapEntries: Array.from(state.map.entries()),
     mapRadius: state.mapRadius,
+    mapSeed: state.mapSeed,
+    botDifficulty: state.botDifficulty,
     players: state.players,
     currentPlayerId: state.currentPlayerId,
     turn: state.turn,
@@ -60,6 +63,8 @@ export function deserializeState(data: SerializedGameState): GameState {
   return {
     map: new Map(data.mapEntries),
     mapRadius: data.mapRadius,
+    mapSeed: data.mapSeed ?? 0,
+    botDifficulty: (data as any).botDifficulty ?? 'normal',
     players: data.players,
     currentPlayerId: data.currentPlayerId,
     turn: data.turn,

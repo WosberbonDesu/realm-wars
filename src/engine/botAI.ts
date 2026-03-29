@@ -1,11 +1,11 @@
 import {
   GameState, Player, HexTile, HexTerrain, BuildingType,
-  UnitType, hexKey, Building, Army,
+  UnitType, hexKey, BotDifficulty,
 } from '../types/game';
 import { getNeighbors, hexDistance } from './hexUtils';
 import { BUILDING_COSTS, UNIT_STATS } from '../constants/game';
 
-export type BotDifficulty = 'easy' | 'normal' | 'hard';
+export type { BotDifficulty };
 
 export interface BotActions {
   build: (q: number, r: number, type: BuildingType) => void;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Clipboard, Alert } from 'react-native';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
 
 interface ToolbarAction {
@@ -15,11 +15,18 @@ interface Props {
   playerColor: string;
   actions: ToolbarAction[];
   onBackToMenu: () => void;
+  mapSeed?: number;
 }
 
 export default function GameToolbar({
-  turn, playerName, playerColor, actions, onBackToMenu,
+  turn, playerName, playerColor, actions, onBackToMenu, mapSeed,
 }: Props) {
+  const handleCopySeed = () => {
+    if (!mapSeed) return;
+    Clipboard.setString(String(mapSeed));
+    Alert.alert('Kopyalandi', `Harita kodu (${mapSeed}) panoya kopyalandi.`);
+  };
+
   return (
     <View style={styles.container}>
       {/* Sol: geri + oyuncu */}
@@ -31,10 +38,20 @@ export default function GameToolbar({
         <Text style={styles.playerName} numberOfLines={1}>{playerName}</Text>
       </View>
 
-      {/* Orta: tur */}
-      <View style={styles.turnBadge}>
-        <Text style={styles.turnLabel}>TUR</Text>
-        <Text style={styles.turnNumber}>{turn}</Text>
+      {/* Orta: tur + seed */}
+      <View style={styles.centerSection}>
+        <View style={styles.turnBadge}>
+          <Text style={styles.turnLabel}>TUR</Text>
+          <Text style={styles.turnNumber}>{turn}</Text>
+        </View>
+        {mapSeed != null && (
+          <TouchableOpacity style={styles.seedBadge} onPress={handleCopySeed} activeOpacity={0.7}>
+            <Text style={styles.seedLabel}>SEED</Text>
+            <Text style={styles.seedValue} numberOfLines={1}>
+              {String(mapSeed).slice(-6)}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Sag: aksiyonlar */}
@@ -102,6 +119,12 @@ const styles = StyleSheet.create({
     fontWeight: FONT.semi,
     maxWidth: 70,
   },
+  centerSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.xs,
+    marginHorizontal: SPACE.xs,
+  },
   turnBadge: {
     alignItems: 'center',
     backgroundColor: COLORS.bgCard,
@@ -110,7 +133,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     paddingHorizontal: SPACE.md,
     paddingVertical: 2,
-    marginHorizontal: SPACE.sm,
   },
   turnLabel: {
     color: COLORS.textMuted,
@@ -123,6 +145,28 @@ const styles = StyleSheet.create({
     fontSize: FONT.h3,
     fontWeight: FONT.black,
     marginTop: -2,
+  },
+  seedBadge: {
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACE.sm,
+    paddingVertical: 2,
+  },
+  seedLabel: {
+    color: COLORS.textMuted,
+    fontSize: 6,
+    fontWeight: FONT.bold,
+    letterSpacing: 1.5,
+  },
+  seedValue: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: FONT.bold,
+    marginTop: -1,
+    maxWidth: 50,
   },
   actionRow: {
     flexDirection: 'row',

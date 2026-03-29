@@ -119,9 +119,13 @@ export interface Player {
 }
 
 // ===== GAME STATE =====
+export type BotDifficulty = 'easy' | 'normal' | 'hard';
+
 export interface GameState {
   map: Map<string, HexTile>;
   mapRadius: number;
+  mapSeed: number;
+  botDifficulty: BotDifficulty;
   players: Player[];
   currentPlayerId: string;
   turn: number;
