@@ -11,17 +11,19 @@ import { tr } from './tr';
 import { en } from './en';
 import { de } from './de';
 import { es } from './es';
+import { ar } from './ar';
 
-export type LangCode = 'tr' | 'en' | 'de' | 'es';
+export type LangCode = 'tr' | 'en' | 'de' | 'es' | 'ar';
 
 export const LANGUAGES: Record<LangCode, { name: string; flag: string }> = {
   tr: { name: 'Türkçe', flag: '🇹🇷' },
   en: { name: 'English', flag: '🇬🇧' },
   de: { name: 'Deutsch', flag: '🇩🇪' },
   es: { name: 'Español', flag: '🇪🇸' },
+  ar: { name: 'العربية', flag: '🇸🇦' },
 };
 
-const packs: Record<LangCode, Record<string, string>> = { tr, en, de, es };
+const packs: Record<LangCode, Record<string, string>> = { tr, en, de, es, ar };
 
 let _lang: LangCode = 'tr';
 let _dict: Record<string, string> = tr;
