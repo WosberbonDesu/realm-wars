@@ -376,6 +376,8 @@ function getTerrainDecorations(terrain: HexTerrain, cx: number, cy: number, q: n
 
 export interface HexMapRef {
   focusOnHex: (q: number, r: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
 }
 
 interface Props {
@@ -415,11 +417,15 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
   useImperativeHandle(ref, () => ({
     focusOnHex: (q: number, r: number) => {
       const { x, y } = hexToPixel(q, r);
-      // Camera: canvas center (CC,CC) = screen center. Hex at (x+CC, y+CC).
-      // To center hex: translate so (x+CC) aligns with canvas center (CC) → offset = -x
       translateX.value = withTiming(-x, { duration: 400 });
       translateY.value = withTiming(-y, { duration: 400 });
       scale.value = withTiming(1.2, { duration: 400 });
+    },
+    zoomIn: () => {
+      scale.value = withTiming(Math.min(3, scale.value * 1.4), { duration: 250 });
+    },
+    zoomOut: () => {
+      scale.value = withTiming(Math.max(0.3, scale.value / 1.4), { duration: 250 });
     },
   }));
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import HexMapRenderer, { HexMapRef } from '../components/HexMapRenderer';
@@ -19,11 +19,11 @@ import DiplomacyModal from '../components/DiplomacyModal';
 import WeatherBadge from '../components/WeatherBadge';
 import WeatherInfoModal from '../components/WeatherInfoModal';
 import VictoryProgress from '../components/VictoryProgress';
-import GameToolbar from '../components/GameToolbar';
 import TutorialModal from '../components/TutorialModal';
 import GameOverScreen from '../components/GameOverScreen';
 import FloatingFeedback, { FeedbackItem } from '../components/FloatingFeedback';
 import ScreenFlash from '../components/ScreenFlash';
+import MapControls from '../components/MapControls';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
@@ -61,6 +61,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
   const enterMoveMode = useGameStore(s => s.enterMoveMode);
   const moveMode = useGameStore(s => s.moveMode);
+  const exitMoveMode = useGameStore(s => s.exitMoveMode);
   const saveCurrentGame = useGameStore(s => s.saveCurrentGame);
   const calculateIncome = useGameStore(s => s.calculateIncome);
   const actionLog = useGameStore(s => s.actionLog);
@@ -147,39 +148,62 @@ export default function GameScreen({ onBackToMenu }: Props) {
     return <GameOverScreen onBackToMenu={onBackToMenu} />;
   }
 
-  // Toolbar aksiyonları
-  const toolbarActions = [
-    { icon: '💾', label: t('game.save'), color: COLORS.gold, onPress: () => { playSound('click'); handleSave(); } },
-    { icon: '🔬', label: t('game.research'), color: COLORS.primaryLight, onPress: () => { playSound('click'); setTechModalVisible(true); } },
-    { icon: '⚔️', label: t('game.hero'), color: COLORS.orange, onPress: () => { playSound('click'); setHeroModalVisible(true); } },
-    { icon: '🏳️', label: t('game.diplo'), color: COLORS.purple, onPress: () => { playSound('click'); setDiplomacyModalVisible(true); } },
-  ];
+  const handleCenterCastle = () => {
+    if (currentPlayer?.castleCoord) {
+      mapRef.current?.focusOnHex(currentPlayer.castleCoord.q, currentPlayer.castleCoord.r);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* Toolbar */}
-      <GameToolbar
-        turn={turn}
-        playerName={currentPlayer?.name ?? '---'}
-        playerColor={currentPlayer?.color ?? COLORS.primary}
-        actions={toolbarActions}
-        onBackToMenu={handleBackToMenu}
-        mapSeed={mapSeed}
-      />
+      {/* ═══ TOP BAR: geri + oyuncu + tur + aksiyonlar ═══ */}
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={handleBackToMenu} style={styles.backBtn}>
+          <Text style={styles.backIcon}>{'‹'}</Text>
+        </TouchableOpacity>
 
-      {/* Hava durumu satiri */}
-      <View style={styles.weatherRow}>
-        <WeatherBadge onPress={() => setWeatherModalVisible(true)} />
+        <View style={[styles.playerDot, { backgroundColor: currentPlayer?.color ?? COLORS.primary }]} />
+        <Text style={styles.playerName} numberOfLines={1}>{currentPlayer?.name ?? '---'}</Text>
+
+        <View style={styles.turnBadge}>
+          <Text style={styles.turnLabel}>{t('toolbar.turn')}</Text>
+          <Text style={styles.turnNumber}>{turn}</Text>
+        </View>
+
+        {/* Seed */}
+        <Text style={styles.seedText}>#{String(mapSeed).slice(-5)}</Text>
+
+        <View style={{ flex: 1 }} />
+
+        {/* Top-right actions — bigger touch targets */}
+        <TouchableOpacity style={styles.topAction} onPress={() => { playSound('click'); handleSave(); }}>
+          <Text style={styles.topActionIcon}>💾</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.topAction} onPress={() => { playSound('click'); setTechModalVisible(true); }}>
+          <Text style={styles.topActionIcon}>🔬</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.topAction} onPress={() => { playSound('click'); setHeroModalVisible(true); }}>
+          <Text style={styles.topActionIcon}>🦸</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.topAction} onPress={() => { playSound('click'); setDiplomacyModalVisible(true); }}>
+          <Text style={styles.topActionIcon}>🏳️</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Hareket modu bilgisi */}
-      {moveMode && (
-        <View style={styles.moveBanner}>
-          <Text style={styles.moveBannerText}>{t('game.moveHint')}</Text>
-        </View>
-      )}
+      {/* ═══ WEATHER + MOVE BANNER ═══ */}
+      <View style={styles.subBar}>
+        <WeatherBadge onPress={() => setWeatherModalVisible(true)} />
+        {moveMode && (
+          <View style={styles.moveBanner}>
+            <Text style={styles.moveBannerText}>{t('game.moveHint')}</Text>
+            <TouchableOpacity onPress={() => exitMoveMode()} style={styles.cancelMoveBtn}>
+              <Text style={styles.cancelMoveText}>{t('game.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
-      {/* Harita */}
+      {/* ═══ MAP AREA ═══ */}
       <View style={styles.mapContainer}>
         <HexMapRenderer
           ref={mapRef}
@@ -198,8 +222,18 @@ export default function GameScreen({ onBackToMenu }: Props) {
             );
           }}
         />
+
+        {/* Minimap */}
         <Minimap onTapHex={(q, r) => mapRef.current?.focusOnHex(q, r)} />
 
+        {/* Zoom controls */}
+        <MapControls
+          onZoomIn={() => mapRef.current?.zoomIn()}
+          onZoomOut={() => mapRef.current?.zoomOut()}
+          onCenterCastle={handleCenterCastle}
+        />
+
+        {/* Turn banner overlay */}
         <TurnBanner
           turn={turn}
           playerName={currentPlayer?.name ?? ''}
@@ -212,7 +246,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         {actionLog.length > 0 && <ActionLog entries={actionLog} />}
       </View>
 
-      {/* Hex bilgi paneli */}
+      {/* ═══ HEX INFO PANEL — positioned above bottom bar ═══ */}
       {selectedHex && !moveMode && (
         <HexInfoPanel
           onBuild={() => setBuildModalVisible(true)}
@@ -221,7 +255,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         />
       )}
 
-      {/* Alt bar */}
+      {/* ═══ BOTTOM BAR: resources + end turn ═══ */}
       <View style={styles.bottomBar}>
         <VictoryProgress
           expanded={victoryExpanded}
@@ -239,7 +273,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         />
       </View>
 
-      {/* Animasyon katmani */}
+      {/* ═══ ANIMATION LAYERS ═══ */}
       <FloatingFeedback items={feedbackItems} onItemDone={removeFeedback} />
       <ScreenFlash
         visible={flashColor !== null}
@@ -247,7 +281,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         onDone={() => setFlashColor(null)}
       />
 
-      {/* Modaller */}
+      {/* ═══ MODALS ═══ */}
       <BuildModal
         visible={buildModalVisible}
         onClose={(built) => {
@@ -284,32 +318,139 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
   },
-  weatherRow: {
+
+  // ═══ TOP BAR ═══
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACE.md,
+    paddingTop: 50,
+    paddingBottom: SPACE.sm,
+    backgroundColor: COLORS.bgLight,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    gap: SPACE.sm,
+    zIndex: 20,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.bgCard,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backIcon: {
+    color: COLORS.textSecondary,
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: -1,
+  },
+  playerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  playerName: {
+    color: COLORS.textPrimary,
+    fontSize: FONT.caption,
+    fontWeight: '700' as any,
+    maxWidth: 60,
+  },
+  turnBadge: {
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACE.sm,
+    paddingVertical: 2,
+  },
+  turnLabel: {
+    color: COLORS.textMuted,
+    fontSize: 7,
+    fontWeight: '700' as any,
+    letterSpacing: 1.5,
+  },
+  turnNumber: {
+    color: COLORS.gold,
+    fontSize: FONT.body,
+    fontWeight: '900' as any,
+    marginTop: -1,
+  },
+  seedText: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: '600' as any,
+  },
+  topAction: {
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.bgCard,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topActionIcon: {
+    fontSize: 18,
+  },
+
+  // ═══ SUB BAR ═══
+  subBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: SPACE.md,
     paddingVertical: SPACE.xs,
     backgroundColor: COLORS.bgLight,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    zIndex: 10,
+    gap: SPACE.md,
+    zIndex: 15,
   },
   moveBanner: {
-    backgroundColor: COLORS.primaryDark,
-    paddingVertical: SPACE.sm,
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 10,
+    justifyContent: 'center',
+    backgroundColor: COLORS.primaryDark,
+    borderRadius: RADIUS.sm,
+    paddingVertical: SPACE.xs,
+    paddingHorizontal: SPACE.md,
+    gap: SPACE.md,
   },
   moveBannerText: {
     color: COLORS.textPrimary,
     fontSize: FONT.caption,
-    fontWeight: FONT.bold,
+    fontWeight: '700' as any,
   },
+  cancelMoveBtn: {
+    backgroundColor: COLORS.red + '30',
+    paddingHorizontal: SPACE.md,
+    paddingVertical: SPACE.xs,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.red + '60',
+  },
+  cancelMoveText: {
+    color: COLORS.red,
+    fontSize: FONT.tiny,
+    fontWeight: '700' as any,
+  },
+
+  // ═══ MAP ═══
   mapContainer: {
     flex: 1,
   },
+
+  // ═══ BOTTOM BAR ═══
   bottomBar: {
     paddingHorizontal: SPACE.lg,
-    paddingVertical: SPACE.md,
-    paddingBottom: 30,
+    paddingVertical: SPACE.sm,
+    paddingBottom: 28,
     backgroundColor: COLORS.bgLight,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,

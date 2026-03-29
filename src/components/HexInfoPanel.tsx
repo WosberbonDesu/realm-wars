@@ -171,14 +171,14 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 140,
-    left: 12,
-    right: 12,
     backgroundColor: COLORS.bgPanel,
-    borderRadius: 14,
-    padding: 14,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 6,
     borderWidth: 1,
+    borderBottomWidth: 0,
     borderColor: COLORS.border,
   },
   header: {
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
@@ -301,9 +301,11 @@ const styles = StyleSheet.create({
   actionBtn: {
     flex: 1,
     backgroundColor: COLORS.actionBuild,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
   },
   actionBtnTrain: {
     backgroundColor: COLORS.actionTrain,
@@ -362,7 +364,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: COLORS.textPrimary,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: FONT.body,
+    fontWeight: '700' as any,
   },
 });
