@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS } from '../constants/theme';
+import { RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
+import HexMapRenderer from '../components/HexMapRenderer';
 
 interface Props {
   onBackToMenu: () => void;
@@ -28,35 +30,21 @@ export default function GameScreen({ onBackToMenu }: Props) {
         </Text>
       </View>
 
-      {/* Harita alani - Adim 3'te Skia ile doldurulacak */}
-      <View style={styles.mapArea}>
-        <Text style={styles.placeholderText}>
-          Harita burada render edilecek
-        </Text>
-        <Text style={styles.placeholderSubText}>
-          (Adim 3: Skia Hex Renderer)
-        </Text>
-      </View>
+      {/* Harita */}
+      <HexMapRenderer />
 
       {/* Alt bilgi - kaynak gosterimi placeholder */}
       <View style={styles.bottomBar}>
         {currentPlayer && (
           <View style={styles.resourceRow}>
-            <Text style={styles.resText}>
-              Altin: {currentPlayer.resources.gold}
-            </Text>
-            <Text style={styles.resText}>
-              Demir: {currentPlayer.resources.iron}
-            </Text>
-            <Text style={styles.resText}>
-              Yiyecek: {currentPlayer.resources.food}
-            </Text>
-            <Text style={styles.resText}>
-              Odun: {currentPlayer.resources.wood}
-            </Text>
-            <Text style={styles.resText}>
-              Tas: {currentPlayer.resources.stone}
-            </Text>
+            {(['gold', 'iron', 'food', 'wood', 'stone'] as const).map(res => (
+              <View key={res} style={styles.resItem}>
+                <Text style={styles.resIcon}>{RESOURCE_ICONS[res]}</Text>
+                <Text style={[styles.resText, { color: RESOURCE_COLORS[res] }]}>
+                  {currentPlayer.resources[res]}
+                </Text>
+              </View>
+            ))}
           </View>
         )}
 
@@ -98,20 +86,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  mapArea: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    color: COLORS.textMuted,
-    fontSize: 18,
-  },
-  placeholderSubText: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    marginTop: 8,
-  },
   bottomBar: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -125,10 +99,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  resItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  resIcon: {
+    fontSize: 12,
+  },
   resText: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
   },
   endTurnButton: {
     backgroundColor: COLORS.primary,
