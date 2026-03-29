@@ -1,13 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { Resources } from '../types/game';
-import HexMapRenderer from '../components/HexMapRenderer';
+import HexMapRenderer, { HexMapRef } from '../components/HexMapRenderer';
 import HexInfoPanel from '../components/HexInfoPanel';
 import BuildModal from '../components/BuildModal';
 import TrainModal from '../components/TrainModal';
 import BattleResultModal from '../components/BattleResultModal';
+import Minimap from '../components/Minimap';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 
@@ -31,6 +32,8 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const moveMode = useGameStore(s => s.moveMode);
   const saveCurrentGame = useGameStore(s => s.saveCurrentGame);
   const calculateIncome = useGameStore(s => s.calculateIncome);
+
+  const mapRef = useRef<HexMapRef>(null);
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
 
@@ -88,10 +91,16 @@ export default function GameScreen({ onBackToMenu }: Props) {
       )}
 
       {/* Harita */}
-      <HexMapRenderer onBattleResult={(result) => {
-        setBattleResult(result);
-        setBattleModalVisible(true);
-      }} />
+      <View style={{ flex: 1 }}>
+        <HexMapRenderer
+          ref={mapRef}
+          onBattleResult={(result) => {
+            setBattleResult(result);
+            setBattleModalVisible(true);
+          }}
+        />
+        <Minimap onTapHex={(q, r) => mapRef.current?.focusOnHex(q, r)} />
+      </View>
 
       {/* Hex bilgi paneli */}
       {selectedHex && !moveMode && (

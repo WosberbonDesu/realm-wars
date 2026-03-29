@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useRef } from 'react';
+import React, { useMemo, useCallback, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { View, StyleSheet, Dimensions, LayoutChangeEvent } from 'react-native';
 import {
   Canvas, Path, Skia, Group, Text as SkiaText,
@@ -8,7 +8,7 @@ import {
   Gesture, GestureDetector, GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withDecay,
+  useSharedValue, useAnimatedStyle, withDecay, withTiming,
 } from 'react-native-reanimated';
 import { useGameStore } from '../store/gameStore';
 import { hexToPixel, getHexCorners, pixelToHex } from '../engine/hexUtils';
@@ -30,11 +30,15 @@ function makeHexPath(cx: number, cy: number, size: number): ReturnType<typeof Sk
   return path;
 }
 
+export interface HexMapRef {
+  focusOnHex: (q: number, r: number) => void;
+}
+
 interface Props {
   onBattleResult?: (result: import('../engine/combat').BattleResult) => void;
 }
 
-export default function HexMapRenderer({ onBattleResult }: Props = {}) {
+const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({ onBattleResult }, ref) {
   const map = useGameStore(s => s.map);
   const selectedHex = useGameStore(s => s.selectedHex);
   const selectHex = useGameStore(s => s.selectHex);
@@ -62,6 +66,30 @@ export default function HexMapRenderer({ onBattleResult }: Props = {}) {
     canvasWidth.value = e.nativeEvent.layout.width;
     canvasHeight.value = e.nativeEvent.layout.height;
   }, []);
+
+  // Kamera kontrol (dışarıdan çağrılabilir)
+  useImperativeHandle(ref, () => ({
+    focusOnHex: (q: number, r: number) => {
+      const { x, y } = hexToPixel(q, r);
+      translateX.value = withTiming(-x, { duration: 400 });
+      translateY.value = withTiming(-y, { duration: 400 });
+      scale.value = withTiming(1.2, { duration: 400 });
+    },
+  }));
+
+  // Oyun başladığında kaleye odaklan
+  const currentPlayer = players.find(p => p.id === currentPlayerId);
+  const hasFocused = useRef(false);
+  useEffect(() => {
+    if (currentPlayer?.castleCoord && !hasFocused.current) {
+      hasFocused.current = true;
+      const { q, r } = currentPlayer.castleCoord;
+      const { x, y } = hexToPixel(q, r);
+      translateX.value = -x;
+      translateY.value = -y;
+      scale.value = 1.2;
+    }
+  }, [currentPlayer?.castleCoord]);
 
   // Pan gesture
   const panGesture = Gesture.Pan()
@@ -298,7 +326,9 @@ export default function HexMapRenderer({ onBattleResult }: Props = {}) {
       />
     </View>
   );
-}
+});
+
+export default HexMapRenderer;
 
 // Emoji overlay - bina ve ordu ikonlarini goster
 function EmojiOverlay({
