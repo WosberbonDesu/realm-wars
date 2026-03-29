@@ -7,7 +7,7 @@ import {
 } from '../types/game';
 import { generateMap, findStartPositions } from '../engine/mapGenerator';
 import { simulateBattle, BattleResult } from '../engine/combat';
-import { botTakeTurn, BotActions } from '../engine/botAI';
+import { botTakeTurn, BotActions, BotDifficulty } from '../engine/botAI';
 import { hexesInRange, getNeighbors } from '../engine/hexUtils';
 import {
   MAP_RADIUS, STARTING_RESOURCES, PLAYER_COLORS, BOT_NAMES,
@@ -1215,7 +1215,8 @@ function executeBotTurn(
     },
   };
 
-  botTakeTurn(get(), bot, actions);
+  // TODO: settings'ten difficulty al, simdilik normal
+  botTakeTurn(get(), bot, actions, 'normal');
 
   // Logları mevcut loglara ekle
   const currentLogs = get().actionLog;
