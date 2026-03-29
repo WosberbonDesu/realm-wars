@@ -14,6 +14,58 @@ export const TERRAIN_COLORS: Record<HexTerrain, string> = {
   [HexTerrain.Swamp]: '#5B6B4A',
 };
 
+// Fantastik harita - zengin renk paleti
+export const TERRAIN_PALETTE: Record<HexTerrain, {
+  base: string;
+  light: string;
+  dark: string;
+  accent: string;
+  shadow: string;
+}> = {
+  [HexTerrain.Plains]: {
+    base: '#6AAF3D',
+    light: '#8FD462',
+    dark: '#4A8A28',
+    accent: '#C8E89A',
+    shadow: '#2E5E15',
+  },
+  [HexTerrain.Mountain]: {
+    base: '#7A6850',
+    light: '#A89880',
+    dark: '#5A4A38',
+    accent: '#C8B8A0',
+    shadow: '#3A2A1A',
+  },
+  [HexTerrain.Forest]: {
+    base: '#2A5E20',
+    light: '#3D7A30',
+    dark: '#1A3E12',
+    accent: '#5AA848',
+    shadow: '#0E2A08',
+  },
+  [HexTerrain.River]: {
+    base: '#3A80C8',
+    light: '#5AAAE8',
+    dark: '#2060A0',
+    accent: '#80C8F8',
+    shadow: '#103860',
+  },
+  [HexTerrain.Desert]: {
+    base: '#C89838',
+    light: '#E8C060',
+    dark: '#A07020',
+    accent: '#F0D888',
+    shadow: '#705010',
+  },
+  [HexTerrain.Swamp]: {
+    base: '#4A5E3A',
+    light: '#607848',
+    dark: '#2A3820',
+    accent: '#788858',
+    shadow: '#1A2810',
+  },
+};
+
 export const TERRAIN_ICONS: Record<HexTerrain, string> = {
   [HexTerrain.Plains]: '🌾',
   [HexTerrain.Mountain]: '⛰️',
