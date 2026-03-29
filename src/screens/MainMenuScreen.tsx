@@ -5,6 +5,7 @@ import {
 import { COLORS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { hasSave, getSaveInfo, loadSettings } from '../services/saveService';
+import AnimatedButton from '../components/AnimatedButton';
 
 interface Props {
   onStartGame: () => void;
@@ -82,9 +83,12 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
           </View>
 
           {/* Basla */}
-          <TouchableOpacity style={styles.startButton} onPress={handleStartGame}>
-            <Text style={styles.startButtonText}>Sefere Basla</Text>
-          </TouchableOpacity>
+          <AnimatedButton
+            label="Sefere Basla"
+            onPress={handleStartGame}
+            variant="gold"
+            style={{ marginBottom: 12 }}
+          />
 
           <TouchableOpacity
             style={styles.backButton}
@@ -108,34 +112,23 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
 
       {/* Menu Butonlari */}
       <View style={styles.menuButtons}>
-        <TouchableOpacity style={styles.menuButton} onPress={handleNewGame}>
-          <Text style={styles.menuButtonText}>Yeni Oyun</Text>
-        </TouchableOpacity>
+        <AnimatedButton label="Yeni Oyun" onPress={handleNewGame} variant="primary" />
 
-        <TouchableOpacity
-          style={[styles.menuButton, !savedExists && styles.menuButtonDisabled]}
-          onPress={handleContinue}
-          disabled={!savedExists}
-        >
-          <Text style={[
-            styles.menuButtonText,
-            !savedExists && styles.menuButtonTextDisabled,
-          ]}>
-            Devam Et
-          </Text>
+        <View>
+          <AnimatedButton
+            label="Devam Et"
+            onPress={handleContinue}
+            variant="primary"
+            disabled={!savedExists}
+          />
           {saveInfo && savedExists && (
             <Text style={styles.saveInfoText}>
               {saveInfo.playerName} - Tur {saveInfo.turn}
             </Text>
           )}
-        </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={styles.menuButtonSecondary}
-          onPress={onSettings}
-        >
-          <Text style={styles.menuButtonSecondaryText}>Ayarlar</Text>
-        </TouchableOpacity>
+        <AnimatedButton label="Ayarlar" onPress={onSettings} variant="secondary" />
       </View>
 
       {/* Versiyon */}
@@ -183,42 +176,11 @@ const styles = StyleSheet.create({
     maxWidth: 300,
     gap: 16,
   },
-  menuButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  menuButtonText: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  menuButtonDisabled: {
-    backgroundColor: COLORS.bgLight,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
   saveInfoText: {
     color: COLORS.textMuted,
     fontSize: 11,
     marginTop: 4,
-  },
-  menuButtonTextDisabled: {
-    color: COLORS.textMuted,
-  },
-  menuButtonSecondary: {
-    backgroundColor: 'transparent',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-  },
-  menuButtonSecondaryText: {
-    color: COLORS.textSecondary,
-    fontSize: 16,
-    fontWeight: '600',
+    textAlign: 'center',
   },
 
   // Version
@@ -292,19 +254,6 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
 
-  // Start
-  startButton: {
-    backgroundColor: COLORS.gold,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  startButtonText: {
-    color: COLORS.bg,
-    fontSize: 18,
-    fontWeight: '800',
-  },
   backButton: {
     paddingVertical: 12,
     alignItems: 'center',

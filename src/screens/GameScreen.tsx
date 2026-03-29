@@ -11,6 +11,8 @@ import BattleResultModal from '../components/BattleResultModal';
 import Minimap from '../components/Minimap';
 import TurnBanner from '../components/TurnBanner';
 import ActionLog from '../components/ActionLog';
+import AnimatedButton from '../components/AnimatedButton';
+import ResourceBar from '../components/ResourceBar';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 
@@ -54,6 +56,18 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
 
+  const handleBackToMenu = () => {
+    Alert.alert(
+      'Oyundan Cik',
+      'Kaydedilmemis ilerleme kaybolacak. Emin misin?',
+      [
+        { text: 'Iptal', style: 'cancel' },
+        { text: 'Kaydet ve Cik', onPress: async () => { await saveCurrentGame(); onBackToMenu(); } },
+        { text: 'Cik', style: 'destructive', onPress: onBackToMenu },
+      ]
+    );
+  };
+
   // Gelir hesapla
   const income = useMemo(() => {
     if (!currentPlayerId) return null;
@@ -74,9 +88,12 @@ export default function GameScreen({ onBackToMenu }: Props) {
         <Text style={styles.gameOverWinner}>
           {winner ? `${winner.name} Kazandi!` : 'Berabere!'}
         </Text>
-        <TouchableOpacity style={styles.menuBtn} onPress={onBackToMenu}>
-          <Text style={styles.menuBtnText}>Ana Menu</Text>
-        </TouchableOpacity>
+        <AnimatedButton
+          label="Ana Menu"
+          onPress={onBackToMenu}
+          variant="primary"
+          style={{ paddingHorizontal: 40 }}
+        />
       </View>
     );
   }
@@ -85,7 +102,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
     <View style={styles.container}>
       {/* Ust bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={onBackToMenu}>
+        <TouchableOpacity onPress={handleBackToMenu}>
           <Text style={styles.backText}>Menu</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={handleSave}>
@@ -143,27 +160,14 @@ export default function GameScreen({ onBackToMenu }: Props) {
       {/* Alt bar */}
       <View style={styles.bottomBar}>
         {currentPlayer && (
-          <View style={styles.resourceRow}>
-            {(['gold', 'iron', 'food', 'wood', 'stone'] as const).map(res => (
-              <View key={res} style={styles.resItem}>
-                <Text style={styles.resIcon}>{RESOURCE_ICONS[res]}</Text>
-                <Text style={[styles.resText, { color: RESOURCE_COLORS[res] }]}>
-                  {currentPlayer.resources[res]}
-                </Text>
-                {income && income[res] > 0 && (
-                  <Text style={styles.incomeText}>+{income[res]}</Text>
-                )}
-              </View>
-            ))}
-          </View>
+          <ResourceBar resources={currentPlayer.resources} income={income} />
         )}
 
-        <TouchableOpacity
-          style={styles.endTurnButton}
+        <AnimatedButton
+          label="Turu Bitir"
           onPress={() => useGameStore.getState().endTurn()}
-        >
-          <Text style={styles.endTurnText}>Turu Bitir</Text>
-        </TouchableOpacity>
+          variant="primary"
+        />
       </View>
 
       {/* Modaller */}
@@ -250,39 +254,6 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border,
     zIndex: 10,
   },
-  resourceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  resItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  resIcon: {
-    fontSize: 12,
-  },
-  resText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  incomeText: {
-    color: COLORS.green,
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  endTurnButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  endTurnText: {
-    color: COLORS.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
   // Game Over
   gameOverContainer: {
     flex: 1,
@@ -302,16 +273,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.textPrimary,
     marginBottom: 32,
-  },
-  menuBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-  },
-  menuBtnText: {
-    color: COLORS.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
