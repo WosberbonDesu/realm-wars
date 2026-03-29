@@ -77,6 +77,25 @@ export interface Army {
   totalPower: number;
 }
 
+// ===== TECHNOLOGY =====
+export enum TechId {
+  Agriculture = 'agriculture',
+  Mining = 'mining',
+  Archery = 'archery',
+  HorseRiding = 'horse_riding',
+  Fortification = 'fortification',
+  Commerce = 'commerce',
+  SiegeEngines = 'siege_engines',
+  SteelWorking = 'steel_working',
+  AdvancedFarming = 'advanced_farming',
+  Cartography = 'cartography',
+}
+
+export interface TechProgress {
+  techId: TechId;
+  turnsLeft: number;
+}
+
 // ===== PLAYERS =====
 export interface Player {
   id: string;
@@ -86,6 +105,8 @@ export interface Player {
   resources: Resources;
   territory: HexCoord[];  // sahip olunan hex'ler
   castleCoord: HexCoord | null;
+  researchedTechs: TechId[];
+  currentResearch: TechProgress | null;
 }
 
 // ===== GAME STATE =====

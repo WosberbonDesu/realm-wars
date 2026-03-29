@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { UnitType, Resources } from '../types/game';
+import { BASE_UNITS } from '../constants/tech';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { UNIT_STATS, UNIT_ICONS } from '../constants/game';
 
@@ -71,7 +72,8 @@ export default function TrainModal({ visible, onClose }: Props) {
     }));
   };
 
-  const unitTypes = Object.values(UnitType);
+  const getUnlockedUnits = useGameStore(s => s.getUnlockedUnits);
+  const unitTypes = getUnlockedUnits(currentPlayerId);
 
   return (
     <Modal visible={visible} transparent animationType="slide">

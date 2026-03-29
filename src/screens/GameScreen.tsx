@@ -13,6 +13,7 @@ import TurnBanner from '../components/TurnBanner';
 import ActionLog from '../components/ActionLog';
 import AnimatedButton from '../components/AnimatedButton';
 import ResourceBar from '../components/ResourceBar';
+import TechTreeModal from '../components/TechTreeModal';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 
@@ -31,6 +32,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const [trainModalVisible, setTrainModalVisible] = useState(false);
   const [battleResult, setBattleResult] = useState<BattleResult | null>(null);
   const [battleModalVisible, setBattleModalVisible] = useState(false);
+  const [techModalVisible, setTechModalVisible] = useState(false);
 
   const enterMoveMode = useGameStore(s => s.enterMoveMode);
   const moveMode = useGameStore(s => s.moveMode);
@@ -108,6 +110,9 @@ export default function GameScreen({ onBackToMenu }: Props) {
         <TouchableOpacity onPress={handleSave}>
           <Text style={styles.saveText}>Kaydet</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => setTechModalVisible(true)}>
+          <Text style={styles.techText}>Arastir</Text>
+        </TouchableOpacity>
         <Text style={styles.turnText}>Tur {turn}</Text>
         <View style={styles.playerBadge}>
           <View style={[styles.playerDot, { backgroundColor: currentPlayer?.color }]} />
@@ -184,6 +189,10 @@ export default function GameScreen({ onBackToMenu }: Props) {
         result={battleResult}
         onClose={() => setBattleModalVisible(false)}
       />
+      <TechTreeModal
+        visible={techModalVisible}
+        onClose={() => setTechModalVisible(false)}
+      />
     </View>
   );
 }
@@ -211,6 +220,11 @@ const styles = StyleSheet.create({
   },
   saveText: {
     color: COLORS.gold,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  techText: {
+    color: COLORS.primaryLight,
     fontSize: 13,
     fontWeight: '600',
   },

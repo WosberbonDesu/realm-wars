@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   GameState, GamePhase, Player, HexTile, HexCoord,
   BuildingType, UnitType, Building, Army, Unit, Resources,
+  TechId,
   hexKey,
 } from '../types/game';
 import { generateMap, findStartPositions } from '../engine/mapGenerator';
@@ -15,6 +16,7 @@ import {
 } from '../constants/game';
 import { TERRAIN_BUILDABLE } from '../constants/terrain';
 import { saveGame, loadGame } from '../services/saveService';
+import { TECH_TREE, BASE_UNITS } from '../constants/tech';
 
 // ===== HELPER FUNCTIONS =====
 
@@ -104,6 +106,11 @@ export interface GameActions {
   // Aksiyon logu
   actionLog: { id: string; text: string; color: string; icon: string }[];
   clearActionLog: () => void;
+
+  // Teknoloji
+  startResearch: (techId: TechId) => boolean;
+  getAvailableTechs: (playerId: string) => TechId[];
+  getUnlockedUnits: (playerId: string) => UnitType[];
 }
 
 export type GameStore = GameState & GameActions;
@@ -149,6 +156,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       resources: cloneResources(STARTING_RESOURCES),
       territory: [],
       castleCoord: null,
+      researchedTechs: [],
+      currentResearch: null,
     };
     players.push(humanPlayer);
 
@@ -162,6 +171,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         resources: cloneResources(STARTING_RESOURCES),
         territory: [],
         castleCoord: null,
+        researchedTechs: [],
+        currentResearch: null,
       };
       players.push(botPlayer);
     }
@@ -493,6 +504,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // 1. Mevcut oyuncunun kaynak üretimi
     collectResources(state, set);
 
+    // 1.5 Araştırma ilerlet
+    tickResearch(get, set);
+
     // 2. Sıradaki oyuncuyu bul
     const currentIndex = state.players.findIndex(p => p.id === state.currentPlayerId);
     let nextIndex = (currentIndex + 1) % state.players.length;
@@ -669,7 +683,122 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     return income;
   },
+
+  // ─── TEKNOLOJİ ───
+  startResearch: (techId: TechId): boolean => {
+    const state = get();
+    const player = state.players.find(p => p.id === state.currentPlayerId);
+    if (!player) return false;
+
+    // Zaten araştırılmış mı?
+    if (player.researchedTechs.includes(techId)) return false;
+
+    // Zaten araştırma var mı?
+    if (player.currentResearch) return false;
+
+    const tech = TECH_TREE[techId];
+    if (!tech) return false;
+
+    // Ön koşullar karşılanmış mı?
+    for (const prereq of tech.prerequisites) {
+      if (!player.researchedTechs.includes(prereq)) return false;
+    }
+
+    // Maliyet kontrolü
+    if (!canAfford(player.resources, tech.cost)) return false;
+
+    // Kaynağı düş ve araştırmayı başlat
+    const newPlayers = state.players.map(p =>
+      p.id === player.id
+        ? {
+            ...p,
+            resources: subtractResources(p.resources, tech.cost),
+            currentResearch: { techId, turnsLeft: tech.researchTurns },
+          }
+        : p
+    );
+    set({ players: newPlayers });
+    return true;
+  },
+
+  getAvailableTechs: (playerId: string): TechId[] => {
+    const state = get();
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return [];
+
+    return Object.values(TechId).filter(techId => {
+      if (player.researchedTechs.includes(techId)) return false;
+      if (player.currentResearch?.techId === techId) return false;
+      const tech = TECH_TREE[techId];
+      return tech.prerequisites.every(p => player.researchedTechs.includes(p));
+    });
+  },
+
+  getUnlockedUnits: (playerId: string): UnitType[] => {
+    const state = get();
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return [...BASE_UNITS];
+
+    const unlocked = new Set<UnitType>(BASE_UNITS);
+    for (const techId of player.researchedTechs) {
+      const tech = TECH_TREE[techId];
+      if (tech.unlocks.units) {
+        for (const u of tech.unlocks.units) unlocked.add(u);
+      }
+    }
+    return Array.from(unlocked);
+  },
 }));
+
+// ===== ARAŞTIRMA İLERLET =====
+
+function tickResearch(
+  get: () => GameStore,
+  set: (partial: Partial<GameState>) => void
+) {
+  const state = get();
+  const player = state.players.find(p => p.id === state.currentPlayerId);
+  if (!player?.currentResearch) return;
+
+  const { techId, turnsLeft } = player.currentResearch;
+
+  if (turnsLeft <= 1) {
+    // Araştırma tamamlandı
+    const newPlayers = state.players.map(p =>
+      p.id === player.id
+        ? {
+            ...p,
+            researchedTechs: [...p.researchedTechs, techId],
+            currentResearch: null,
+          }
+        : p
+    );
+    set({ players: newPlayers });
+
+    // Log ekle
+    const tech = TECH_TREE[techId];
+    const currentLogs = get().actionLog;
+    set({
+      actionLog: [...currentLogs, {
+        id: `research-${Date.now()}`,
+        text: `${tech.name} arastirmasi tamamlandi!`,
+        color: player.color,
+        icon: tech.icon,
+      }],
+    });
+  } else {
+    // Bir tur ilerlet
+    const newPlayers = state.players.map(p =>
+      p.id === player.id
+        ? {
+            ...p,
+            currentResearch: { techId, turnsLeft: turnsLeft - 1 },
+          }
+        : p
+    );
+    set({ players: newPlayers });
+  }
+}
 
 // ===== KAYNAK TOPLAMA =====
 
