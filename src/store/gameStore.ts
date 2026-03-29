@@ -572,7 +572,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // SAVAŞ!
       const atkHero = getHeroBonusForArmy(state.players, state.currentPlayerId, from);
       const defHero = getHeroBonusForArmy(state.players, newToTile.army.ownerId, to);
-      battleResult = simulateBattle(fromTile.army, newToTile.army, newToTile.terrain, newToTile.building, atkHero, defHero);
+
+      // Mevsim + hava saldiri/savunma modifier'lari hero bonusuna ekle
+      const seasonDef = SEASONS[state.currentSeason as Season];
+      const weatherDef = WEATHER_TYPES[state.currentWeather as WeatherType];
+      const envAtkMod = (seasonDef?.attackModifier ?? 0) + (weatherDef?.attackBonus ?? 0);
+      const envDefMod = (seasonDef?.defenseModifier ?? 0) + (weatherDef?.defenseBonus ?? 0);
+
+      const atkHeroWithEnv: HeroCombatBonus = {
+        attackBonus: (atkHero?.attackBonus ?? 0),
+        defenseBonus: (atkHero?.defenseBonus ?? 0),
+        attackMult: (atkHero?.attackMult ?? 0) + envAtkMod,
+        defenseMult: (atkHero?.defenseMult ?? 0) + envDefMod,
+      };
+      const defHeroWithEnv: HeroCombatBonus = {
+        attackBonus: (defHero?.attackBonus ?? 0),
+        defenseBonus: (defHero?.defenseBonus ?? 0),
+        attackMult: (defHero?.attackMult ?? 0) + envAtkMod,
+        defenseMult: (defHero?.defenseMult ?? 0) + envDefMod,
+      };
+
+      battleResult = simulateBattle(fromTile.army, newToTile.army, newToTile.terrain, newToTile.building, atkHeroWithEnv, defHeroWithEnv);
 
       if (battleResult.winner === 'attacker') {
         // Saldırgan kazandı → hex'i ele geçir
@@ -684,6 +704,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // 1. Mevcut oyuncunun tur sonu islemleri
     collectResources(get(), set);
     tickResearch(get, set);
+    tickHeroCooldowns(get, set);
     triggerRandomEvent(get, set);
     tickSeasonWeather(get, set);
     tickDiplomacy(get, set);
@@ -872,17 +893,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const player = state.players.find(p => p.id === playerId);
     if (!player) return { gold: 0, iron: 0, food: 0, wood: 0, stone: 0 };
 
+    const season = SEASONS[state.currentSeason as Season];
+    const foodMult = season?.foodProductionMultiplier ?? 1;
+
     const income: Resources = { gold: 0, iron: 0, food: 0, wood: 0, stone: 0 };
     for (const coord of player.territory) {
       const tile = state.map.get(hexKey(coord.q, coord.r));
       if (tile?.building && tile.building.ownerId === playerId) {
         income.gold += tile.building.productionPerTick.gold ?? 0;
         income.iron += tile.building.productionPerTick.iron ?? 0;
-        income.food += tile.building.productionPerTick.food ?? 0;
+        income.food += Math.round((tile.building.productionPerTick.food ?? 0) * foodMult);
         income.wood += tile.building.productionPerTick.wood ?? 0;
         income.stone += tile.building.productionPerTick.stone ?? 0;
       }
     }
+    // Toprak basina baz altin geliri
+    income.gold += Math.floor(player.territory.length * 0.5);
     return income;
   },
 
@@ -1188,21 +1214,30 @@ function collectResources(
   const player = state.players.find(p => p.id === state.currentPlayerId);
   if (!player) return;
 
+  // Mevsim food uretim carpani
+  const season = SEASONS[state.currentSeason as Season];
+  const foodMult = season?.foodProductionMultiplier ?? 1;
+
   let income: Partial<Resources> = {};
 
-  // Binalardan üretim
+  // Binalardan uretim
   for (const coord of player.territory) {
     const tile = state.map.get(hexKey(coord.q, coord.r));
     if (tile?.building && tile.building.ownerId === player.id) {
+      const prod = tile.building.productionPerTick;
       income = {
-        gold: (income.gold ?? 0) + (tile.building.productionPerTick.gold ?? 0),
-        iron: (income.iron ?? 0) + (tile.building.productionPerTick.iron ?? 0),
-        food: (income.food ?? 0) + (tile.building.productionPerTick.food ?? 0),
-        wood: (income.wood ?? 0) + (tile.building.productionPerTick.wood ?? 0),
-        stone: (income.stone ?? 0) + (tile.building.productionPerTick.stone ?? 0),
+        gold: (income.gold ?? 0) + (prod.gold ?? 0),
+        iron: (income.iron ?? 0) + (prod.iron ?? 0),
+        food: (income.food ?? 0) + Math.round((prod.food ?? 0) * foodMult),
+        wood: (income.wood ?? 0) + (prod.wood ?? 0),
+        stone: (income.stone ?? 0) + (prod.stone ?? 0),
       };
     }
   }
+
+  // Toprak basina kucuk baz gelir (bina olmasa bile hex sahipliginden)
+  const territoryGold = Math.floor(player.territory.length * 0.5);
+  income.gold = (income.gold ?? 0) + territoryGold;
 
   const newPlayers = state.players.map(p =>
     p.id === player.id
@@ -1461,4 +1496,36 @@ function triggerRandomEvent(
       positive: event.positive,
     },
   });
+}
+
+// ===== KAHRAMAN COOLDOWN =====
+
+function tickHeroCooldowns(
+  get: () => GameStore,
+  set: (partial: Partial<GameState>) => void
+) {
+  const state = get();
+  const player = state.players.find(p => p.id === state.currentPlayerId);
+  if (!player || player.heroes.length === 0) return;
+
+  let changed = false;
+  const updatedHeroes = player.heroes.map(h => {
+    if (h.abilityCooldown > 0) {
+      changed = true;
+      const newCd = h.abilityCooldown - 1;
+      return {
+        ...h,
+        abilityCooldown: newCd,
+        isDisabled: newCd > 0 ? h.isDisabled : false,
+      };
+    }
+    return h;
+  });
+
+  if (!changed) return;
+
+  const newPlayers = state.players.map(p =>
+    p.id === player.id ? { ...p, heroes: updatedHeroes } : p
+  );
+  set({ players: newPlayers });
 }

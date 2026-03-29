@@ -9,6 +9,7 @@ import {
 } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue, useAnimatedStyle, withDecay, withTiming,
+  runOnJS, type SharedValue,
 } from 'react-native-reanimated';
 import { useGameStore } from '../store/gameStore';
 import { hexToPixel, getHexCorners, pixelToHex } from '../engine/hexUtils';
@@ -18,6 +19,8 @@ import { COLORS } from '../constants/theme';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const S = HEX_SIZE;
+// Canvas 2000x2000, left:-1000 top:-1000. Hex'leri canvas ortasina cizmek icin offset:
+const CC = 1000;
 
 // ===== HEX PATH HELPERS =====
 
@@ -239,6 +242,8 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
   useImperativeHandle(ref, () => ({
     focusOnHex: (q: number, r: number) => {
       const { x, y } = hexToPixel(q, r);
+      // Camera: canvas center (CC,CC) = screen center. Hex at (x+CC, y+CC).
+      // To center hex: translate so (x+CC) aligns with canvas center (CC) → offset = -x
       translateX.value = withTiming(-x, { duration: 400 });
       translateY.value = withTiming(-y, { duration: 400 });
       scale.value = withTiming(1.2, { duration: 400 });
@@ -268,28 +273,33 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
     .onStart(() => { savedScale.value = scale.value; })
     .onUpdate((e) => { scale.value = Math.max(0.3, Math.min(3, savedScale.value * e.scale)); });
 
+  const handleTap = useCallback((x: number, y: number) => {
+    const cx = canvasWidth.value / 2;
+    const cy = canvasHeight.value / 2;
+    const mapX = (x - cx - translateX.value) / scale.value;
+    const mapY = (y - cy - translateY.value) / scale.value;
+    const hexCoord = pixelToHex(mapX, mapY);
+    const key = hexKey(hexCoord.q, hexCoord.r);
+    if (!map.has(key)) return;
+
+    if (moveMode && moveFrom) {
+      const isTarget = moveTargets.some(t => t.q === hexCoord.q && t.r === hexCoord.r);
+      if (isTarget) {
+        const result = moveArmy(moveFrom, hexCoord);
+        exitMoveMode();
+        if (result && onBattleResult) onBattleResult(result);
+      } else {
+        exitMoveMode();
+      }
+      return;
+    }
+    selectHex(hexCoord);
+  }, [map, moveMode, moveFrom, moveTargets, moveArmy, exitMoveMode, onBattleResult, selectHex]);
+
   const tapGesture = Gesture.Tap()
     .onEnd((e) => {
-      const cx = canvasWidth.value / 2;
-      const cy = canvasHeight.value / 2;
-      const mapX = (e.x - cx - translateX.value) / scale.value;
-      const mapY = (e.y - cy - translateY.value) / scale.value;
-      const hexCoord = pixelToHex(mapX, mapY);
-      const key = hexKey(hexCoord.q, hexCoord.r);
-      if (!map.has(key)) return;
-
-      if (moveMode && moveFrom) {
-        const isTarget = moveTargets.some(t => t.q === hexCoord.q && t.r === hexCoord.r);
-        if (isTarget) {
-          const result = moveArmy(moveFrom, hexCoord);
-          exitMoveMode();
-          if (result && onBattleResult) onBattleResult(result);
-        } else {
-          exitMoveMode();
-        }
-        return;
-      }
-      selectHex(hexCoord);
+      'worklet';
+      runOnJS(handleTap)(e.x, e.y);
     });
 
   const composed = Gesture.Simultaneous(panGesture, pinchGesture);
@@ -321,7 +331,9 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
       const isExplored = showFogOfWar ? tile.explored : true;
       if (!isExplored && !isVisible) continue;
 
-      const { x: cx, y: cy } = hexToPixel(tile.coord.q, tile.coord.r);
+      const { x: rawX, y: rawY } = hexToPixel(tile.coord.q, tile.coord.r);
+      const cx = rawX + CC;
+      const cy = rawY + CC;
       const palette = TERRAIN_PALETTE[tile.terrain];
       const isExploredOnly = !isVisible && isExplored;
 
@@ -360,8 +372,8 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
     const paths: ReturnType<typeof Skia.Path.Make>[] = [];
     for (const [, tile] of map) {
       if (!tile.explored && !tile.visible) {
-        const { x: cx, y: cy } = hexToPixel(tile.coord.q, tile.coord.r);
-        paths.push(makeHexPath(cx, cy, HEX_SIZE));
+        const { x: rx, y: ry } = hexToPixel(tile.coord.q, tile.coord.r);
+        paths.push(makeHexPath(rx + CC, ry + CC, HEX_SIZE));
       }
     }
     return paths;
@@ -539,11 +551,11 @@ function EmojiOverlay({
   hexRenderData, translateX, translateY, scale, canvasWidth, canvasHeight,
 }: {
   hexRenderData: { cx: number; cy: number; buildingIcon: string | null; armyIcon: string | null; armyCount: number; tile: HexTile }[];
-  translateX: Animated.SharedValue<number>;
-  translateY: Animated.SharedValue<number>;
-  scale: Animated.SharedValue<number>;
-  canvasWidth: Animated.SharedValue<number>;
-  canvasHeight: Animated.SharedValue<number>;
+  translateX: SharedValue<number>;
+  translateY: SharedValue<number>;
+  scale: SharedValue<number>;
+  canvasWidth: SharedValue<number>;
+  canvasHeight: SharedValue<number>;
 }) {
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [

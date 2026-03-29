@@ -88,17 +88,41 @@ export function applyEvent(
       break;
     }
 
-    case 'production_boost':
-    case 'army_boost':
-      // Basit implementasyon - kaynak ver
+    case 'production_boost': {
+      // Uretim artisi: multiplier kadar kaynak bonusu (anlik)
+      const boost = event.effect.multiplier;
       updatedPlayer = {
         ...updatedPlayer,
         resources: {
-          ...updatedPlayer.resources,
-          gold: updatedPlayer.resources.gold + 30,
+          gold: updatedPlayer.resources.gold + Math.round(20 * boost),
+          iron: updatedPlayer.resources.iron + Math.round(10 * boost),
+          food: updatedPlayer.resources.food + Math.round(15 * boost),
+          wood: updatedPlayer.resources.wood + Math.round(15 * boost),
+          stone: updatedPlayer.resources.stone + Math.round(10 * boost),
         },
       };
       break;
+    }
+
+    case 'army_boost': {
+      // Ordu guclendirmesi: tum birimlerin saldiri gucunu artir
+      const bonus = event.effect.attackBonus;
+      for (const { key, army } of armyTiles) {
+        const boostedUnits = army.units.map(u => ({
+          ...u,
+          attack: u.attack + bonus,
+        }));
+        updatedArmies.push({
+          key,
+          army: {
+            ...army,
+            units: boostedUnits,
+            totalPower: boostedUnits.reduce((s, u) => s + (u.attack + u.defense) * u.count, 0),
+          },
+        });
+      }
+      break;
+    }
   }
 
   return { updatedPlayer, updatedArmies };

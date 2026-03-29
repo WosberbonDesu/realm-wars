@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, ViewStyle, TextStyle } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSequence,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { COLORS } from '../constants/theme';
@@ -32,11 +33,12 @@ export default function AnimatedButton({
       opacityVal.value = withTiming(1, { duration: 120 });
     })
     .onEnd(() => {
+      'worklet';
       scaleVal.value = withSequence(
         withTiming(1.03, { duration: 60 }),
         withTiming(1, { duration: 80 }),
       );
-      onPress();
+      runOnJS(onPress)();
     });
 
   const animStyle = useAnimatedStyle(() => ({
