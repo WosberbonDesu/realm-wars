@@ -1,64 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
+import { useI18n } from '../i18n/useI18n';
 
-interface TutorialStep {
-  title: string;
-  icon: string;
-  text: string;
-  tip: string;
-}
-
-const STEPS: TutorialStep[] = [
-  {
-    title: 'Kralliginiza Hos Geldiniz!',
-    icon: '🏰',
-    text: 'Bir kale ve kucuk bir orduyla basliyorsunuz. Amactniz krallginizi genisletmek ve rakiplerinizi yenmek.',
-    tip: 'Haritada surukleme ile gezinin, pinch ile yakinlasip uzaklasin.',
-  },
-  {
-    title: 'Toprak Genislet',
-    icon: '🚩',
-    text: 'Ordunuzu secip komsu hex\'lere tasiyarak yeni topraklar fethdedin. Her toprak size kaynak saglar.',
-    tip: 'Hex\'e dokunup "Ordu Tasi" butonuna basin, sonra hedef hex\'e dokunun.',
-  },
-  {
-    title: 'Bina Kur',
-    icon: '🏗️',
-    text: 'Topraginzdaki bos hex\'lere bina kurun:\n• Ciftlik = yiyecek\n• Maden = demir & tas\n• Kereste = odun\n• Pazar = altin',
-    tip: 'Her terrain tipinde farkli binalar kurulabilir. Dag\'a maden, ormana kereste!',
-  },
-  {
-    title: 'Birim Egit',
-    icon: '⚔️',
-    text: 'Kalenize dokunup "Birim Egit" ile asker uretin. 5 birim tipi var, her birinin ozel yetenegi var.',
-    tip: 'Baslangicta Savasci + Kasif yeterli. Okcu ve Suvari icin teknoloji arastirin.',
-  },
-  {
-    title: 'Arastirma Yap',
-    icon: '🔬',
-    text: 'Ust bardaki "Arastir" butonuyla yeni teknolojiler kesfdedin. Yeni birimler, binalar ve bonuslar acin.',
-    tip: 'Ilk arastirma olarak "Okculuk" veya "Tarim" oneririz.',
-  },
-  {
-    title: 'Kahraman Kirala',
-    icon: '⚔️',
-    text: 'Kahramanlar ordunuza ozel bonuslar verir. Ust bardaki "Kahraman" ile kiralayin ve bir orduya atayin.',
-    tip: 'Kagan saldiri icin, Arslan savunma icin idealdir.',
-  },
-  {
-    title: 'Diplomasi',
-    icon: '🏳️',
-    text: 'Rakiplerinizle saldirmazlik pakti veya ittifak kurabilir, harac gonderebilirsiniz.',
-    tip: 'Iki cephede savas riskli! Bir rakiple anlasip digerine odaklanin.',
-  },
-  {
-    title: 'Zafer Yollari',
-    icon: '👑',
-    text: '4 farkli yoldan kazanabilirsiniz:\n• Askeri: Tum kaleleri yik\n• Ekonomik: 1000 altin + 20 toprak\n• Teknolojik: Tum tech\'leri arastir\n• Hakimiyet: Haritanin %60\'i',
-    tip: 'Alt bardaki ilerleme cubugunu takip edin. En yakin zafere odaklanin!',
-  },
-];
+const STEP_ICONS = ['🏰', '🚩', '🏗️', '⚔️', '🔬', '⚔️', '🏳️', '👑'];
+const TOTAL_STEPS = 8;
 
 interface Props {
   visible: boolean;
@@ -66,9 +12,9 @@ interface Props {
 }
 
 export default function TutorialModal({ visible, onClose }: Props) {
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
-  const current = STEPS[step];
-  const isLast = step === STEPS.length - 1;
+  const isLast = step === TOTAL_STEPS - 1;
   const isFirst = step === 0;
 
   const handleNext = () => {
@@ -95,7 +41,7 @@ export default function TutorialModal({ visible, onClose }: Props) {
         <View style={styles.panel}>
           {/* Progress dots */}
           <View style={styles.dots}>
-            {STEPS.map((_, i) => (
+            {STEP_ICONS.map((_, i) => (
               <View
                 key={i}
                 style={[styles.dot, i === step && styles.dotActive, i < step && styles.dotDone]}
@@ -104,37 +50,37 @@ export default function TutorialModal({ visible, onClose }: Props) {
           </View>
 
           {/* Ikon */}
-          <Text style={styles.icon}>{current.icon}</Text>
+          <Text style={styles.icon}>{STEP_ICONS[step]}</Text>
 
           {/* Baslik */}
-          <Text style={styles.title}>{current.title}</Text>
+          <Text style={styles.title}>{t(`tutorial.${step}.title`)}</Text>
 
           {/* Aciklama */}
-          <Text style={styles.text}>{current.text}</Text>
+          <Text style={styles.text}>{t(`tutorial.${step}.text`)}</Text>
 
           {/* Ipucu */}
           <View style={styles.tipBox}>
-            <Text style={styles.tipLabel}>Ipucu</Text>
-            <Text style={styles.tipText}>{current.tip}</Text>
+            <Text style={styles.tipLabel}>{t('tutorial.tip')}</Text>
+            <Text style={styles.tipText}>{t(`tutorial.${step}.tip`)}</Text>
           </View>
 
           {/* Adim sayaci */}
-          <Text style={styles.counter}>{step + 1} / {STEPS.length}</Text>
+          <Text style={styles.counter}>{t('tutorial.step', { current: step + 1, total: TOTAL_STEPS })}</Text>
 
           {/* Butonlar */}
           <View style={styles.buttons}>
             {!isFirst ? (
               <TouchableOpacity style={styles.prevBtn} onPress={handlePrev}>
-                <Text style={styles.prevText}>Geri</Text>
+                <Text style={styles.prevText}>{t('tutorial.back')}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-                <Text style={styles.skipText}>Atla</Text>
+                <Text style={styles.skipText}>{t('tutorial.skip')}</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-              <Text style={styles.nextText}>{isLast ? 'Basla!' : 'Ileri'}</Text>
+              <Text style={styles.nextText}>{isLast ? t('tutorial.start') : t('tutorial.next')}</Text>
             </TouchableOpacity>
           </View>
         </View>

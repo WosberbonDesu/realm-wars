@@ -4,12 +4,14 @@ import { useGameStore } from '../store/gameStore';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
 import { VICTORY_CONDITIONS, VictoryType } from '../constants/victory';
 import AnimatedButton from './AnimatedButton';
+import { useI18n } from '../i18n/useI18n';
 
 interface Props {
   onBackToMenu: () => void;
 }
 
 export default function GameOverScreen({ onBackToMenu }: Props) {
+  const { t } = useI18n();
   const turn = useGameStore(s => s.turn);
   const players = useGameStore(s => s.players);
   const victoryInfo = useGameStore(s => s.victoryInfo);
@@ -78,22 +80,22 @@ export default function GameOverScreen({ onBackToMenu }: Props) {
         {/* Zafer baslik */}
         {victory && <Text style={styles.victoryIcon}>{victory.icon}</Text>}
         <Text style={[styles.title, victory && { color: victory.color }]}>
-          {isPlayerWin ? 'Zafer!' : victory ? victory.name : 'Oyun Bitti'}
+          {isPlayerWin ? t('gameover.victory') : victory ? victory.name : t('gameover.victory')}
         </Text>
         <Text style={styles.winnerName}>
-          {winner ? `${winner.name} ${isPlayerWin ? 'kazandi!' : 'galip geldi'}` : 'Berabere'}
+          {winner ? t('gameover.winner', { name: winner.name }) : t('gameover.draw')}
         </Text>
         {victory && <Text style={styles.victoryDesc}>{victory.description}</Text>}
 
         {/* Genel istatistikler */}
         <View style={styles.summaryRow}>
-          <StatBox label="Toplam Tur" value={`${turn}`} icon="🕐" />
-          <StatBox label="Oyuncu" value={`${players.length}`} icon="👥" />
-          <StatBox label="Harita" value={`${map.size} hex`} icon="🗺️" />
+          <StatBox label={t('gameover.totalTurns')} value={`${turn}`} icon="🕐" />
+          <StatBox label={t('gameover.players')} value={`${players.length}`} icon="👥" />
+          <StatBox label={t('gameover.map')} value={`${map.size} hex`} icon="🗺️" />
         </View>
 
         {/* Oyuncu siralama */}
-        <Text style={styles.sectionTitle}>Siralama</Text>
+        <Text style={styles.sectionTitle}>{t('gameover.rankings')}</Text>
         {stats.map((s, rank) => (
           <View
             key={s.player.id}
@@ -109,26 +111,26 @@ export default function GameOverScreen({ onBackToMenu }: Props) {
               <Text style={[styles.playerName, !s.alive && styles.deadText]}>
                 {s.player.name}
               </Text>
-              {s.player.isBot && <Text style={styles.botBadge}>BOT</Text>}
-              {!s.alive && <Text style={styles.elimBadge}>ELENDI</Text>}
-              {s.player.id === winner?.id && <Text style={styles.winBadge}>GALIP</Text>}
+              {s.player.isBot && <Text style={styles.botBadge}>{t('gameover.bot')}</Text>}
+              {!s.alive && <Text style={styles.elimBadge}>{t('gameover.eliminated')}</Text>}
+              {s.player.id === winner?.id && <Text style={styles.winBadge}>{t('gameover.winnerBadge')}</Text>}
             </View>
 
             <View style={styles.statsGrid}>
-              <MiniStat icon="🏠" label="Toprak" value={s.territory} />
-              <MiniStat icon="🏗️" label="Bina" value={s.buildings} />
-              <MiniStat icon="⚔️" label="Birim" value={s.totalUnits} />
-              <MiniStat icon="💪" label="Guc" value={s.armyPower} />
-              <MiniStat icon="💰" label="Kaynak" value={s.totalResources} />
-              <MiniStat icon="🔬" label="Tech" value={s.techs} />
-              <MiniStat icon="📈" label="Uretim" value={`${s.production}/t`} />
-              <MiniStat icon="🦸" label="Kahraman" value={s.heroes} />
+              <MiniStat icon="🏠" label={t('gameover.territory')} value={s.territory} />
+              <MiniStat icon="🏗️" label={t('gameover.buildings')} value={s.buildings} />
+              <MiniStat icon="⚔️" label={t('gameover.units')} value={s.totalUnits} />
+              <MiniStat icon="💪" label={t('gameover.power')} value={s.armyPower} />
+              <MiniStat icon="💰" label={t('gameover.resources')} value={s.totalResources} />
+              <MiniStat icon="🔬" label={t('gameover.techStat')} value={s.techs} />
+              <MiniStat icon="📈" label={t('gameover.production')} value={`${s.production}/t`} />
+              <MiniStat icon="🦸" label={t('gameover.heroes')} value={s.heroes} />
             </View>
           </View>
         ))}
 
         <AnimatedButton
-          label="Ana Menu"
+          label={t('gameover.mainMenu')}
           onPress={onBackToMenu}
           variant="primary"
           style={{ marginTop: SPACE.xl }}

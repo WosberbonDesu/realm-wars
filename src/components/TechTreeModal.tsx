@@ -6,6 +6,7 @@ import { useGameStore } from '../store/gameStore';
 import { TechId, Resources } from '../types/game';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { TECH_TREE, TECH_TIERS } from '../constants/tech';
+import { t } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -47,9 +48,9 @@ export default function TechTreeModal({ visible, onClose }: Props) {
       <View style={styles.overlay}>
         <View style={styles.panel}>
           <View style={styles.header}>
-            <Text style={styles.title}>Teknoloji Agaci</Text>
+            <Text style={styles.title}>{t('tech.title')}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Text style={styles.closeText}>Kapat</Text>
+              <Text style={styles.closeText}>{t('tech.close')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -66,7 +67,7 @@ export default function TechTreeModal({ visible, onClose }: Props) {
                     width: `${((TECH_TREE[currentResearch.techId].researchTurns - currentResearch.turnsLeft) / TECH_TREE[currentResearch.techId].researchTurns) * 100}%`,
                   }]} />
                 </View>
-                <Text style={styles.turnsText}>{currentResearch.turnsLeft} tur kaldi</Text>
+                <Text style={styles.turnsText}>{t('tech.remaining', { n: currentResearch.turnsLeft })}</Text>
               </View>
             </View>
           )}
@@ -74,7 +75,7 @@ export default function TechTreeModal({ visible, onClose }: Props) {
           <ScrollView style={styles.treeContainer}>
             {TECH_TIERS.map((tier, tierIndex) => (
               <View key={tierIndex}>
-                <Text style={styles.tierLabel}>Seviye {tierIndex + 1}</Text>
+                <Text style={styles.tierLabel}>{t('tech.level', { n: tierIndex + 1 })}</Text>
                 <View style={styles.tierRow}>
                   {tier.map(techId => {
                     const tech = TECH_TREE[techId];
@@ -105,9 +106,9 @@ export default function TechTreeModal({ visible, onClose }: Props) {
                         </Text>
 
                         {isResearched ? (
-                          <Text style={styles.completedText}>Tamamlandi</Text>
+                          <Text style={styles.completedText}>{t('tech.done')}</Text>
                         ) : isActive ? (
-                          <Text style={styles.activeText}>{currentResearch!.turnsLeft} tur</Text>
+                          <Text style={styles.activeText}>{t('tech.turns', { n: currentResearch!.turnsLeft })}</Text>
                         ) : (
                           <>
                             <Text style={styles.techDesc} numberOfLines={2}>{tech.description}</Text>
@@ -124,7 +125,7 @@ export default function TechTreeModal({ visible, onClose }: Props) {
                                 </Text>
                               ))}
                             </View>
-                            <Text style={styles.turnsNeeded}>{tech.researchTurns} tur</Text>
+                            <Text style={styles.turnsNeeded}>{t('tech.turns', { n: tech.researchTurns })}</Text>
                           </>
                         )}
                       </TouchableOpacity>

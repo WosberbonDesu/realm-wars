@@ -8,6 +8,7 @@ import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import {
   RelationType, RELATION_NAMES, RELATION_ICONS, RELATION_COLORS,
 } from '../constants/diplomacy';
+import { useI18n } from '../i18n/useI18n';
 
 interface Props {
   visible: boolean;
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function DiplomacyModal({ visible, onClose }: Props) {
+  const { t } = useI18n();
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
   const players = useGameStore(s => s.players);
   const proposals = useGameStore(s => s.proposals);
@@ -32,11 +34,11 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
 
   const handleDeclareWar = (targetId: string, name: string) => {
     Alert.alert(
-      'Savas Ilani',
-      `${name}'a savas ilan etmek istediginize emin misiniz?`,
+      t('diplo.declareWarTitle'),
+      t('diplo.declareWarMsg', { name }),
       [
-        { text: 'Iptal', style: 'cancel' },
-        { text: 'Savas!', style: 'destructive', onPress: () => declareWar(targetId) },
+        { text: t('game.cancel'), style: 'cancel' },
+        { text: t('diplo.declareWarBtn'), style: 'destructive', onPress: () => declareWar(targetId) },
       ]
     );
   };
@@ -50,9 +52,9 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
       <View style={styles.overlay}>
         <View style={styles.panel}>
           <View style={styles.header}>
-            <Text style={styles.title}>Diplomasi</Text>
+            <Text style={styles.title}>{t('diplo.title')}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Text style={styles.closeText}>Kapat</Text>
+              <Text style={styles.closeText}>{t('diplo.close')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -60,16 +62,16 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
             {/* Gelen teklifler */}
             {myProposals.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>Gelen Teklifler</Text>
+                <Text style={styles.sectionTitle}>{t('diplo.proposals')}</Text>
                 {myProposals.map(prop => {
                   const from = players.find(p => p.id === prop.fromId);
-                  const actionText = prop.action === 'propose_alliance' ? 'Ittifak' : 'Saldirmazlik';
+                  const actionText = prop.action === 'propose_alliance' ? t('diplo.alliance') : t('diplo.nonAggression');
                   return (
                     <View key={prop.id} style={styles.proposalCard}>
                       <View style={styles.proposalInfo}>
                         <View style={[styles.dot, { backgroundColor: from?.color }]} />
                         <Text style={styles.proposalText}>
-                          {from?.name} {actionText} teklif ediyor
+                          {t('diplo.offer', { name: from?.name ?? '', action: actionText })}
                         </Text>
                         <Text style={styles.turnsLeft}>{prop.turnsLeft} tur</Text>
                       </View>
@@ -78,13 +80,13 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
                           style={styles.acceptBtn}
                           onPress={() => acceptProposal(prop.id)}
                         >
-                          <Text style={styles.acceptText}>Kabul</Text>
+                          <Text style={styles.acceptText}>{t('diplo.accept')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.rejectBtn}
                           onPress={() => rejectProposal(prop.id)}
                         >
-                          <Text style={styles.rejectText}>Reddet</Text>
+                          <Text style={styles.rejectText}>{t('diplo.reject')}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -94,7 +96,7 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
             )}
 
             {/* Oyuncu ilişkileri */}
-            <Text style={styles.sectionTitle}>Iliskiler</Text>
+            <Text style={styles.sectionTitle}>{t('diplo.relations')}</Text>
             {otherPlayers.map(target => {
               const rel = getRelation(currentPlayerId, target.id) as RelationType;
               const relName = RELATION_NAMES[rel] ?? 'Tarafsiz';
@@ -139,7 +141,7 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
                         style={[styles.actionBtn, { borderColor: '#4AD97A' }]}
                         onPress={() => proposeNonAggression(target.id)}
                       >
-                        <Text style={[styles.actionText, { color: '#4AD97A' }]}>Saldirmazlik</Text>
+                        <Text style={[styles.actionText, { color: '#4AD97A' }]}>{t('diplo.nonAggression')}</Text>
                       </TouchableOpacity>
                     )}
                     {isNonAgg && (
@@ -147,7 +149,7 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
                         style={[styles.actionBtn, { borderColor: '#FFD700' }]}
                         onPress={() => proposeAlliance(target.id)}
                       >
-                        <Text style={[styles.actionText, { color: '#FFD700' }]}>Ittifak</Text>
+                        <Text style={[styles.actionText, { color: '#FFD700' }]}>{t('diplo.alliance')}</Text>
                       </TouchableOpacity>
                     )}
                     {!isWar && (
@@ -155,7 +157,7 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
                         style={[styles.actionBtn, { borderColor: '#D94A4A' }]}
                         onPress={() => handleDeclareWar(target.id, target.name)}
                       >
-                        <Text style={[styles.actionText, { color: '#D94A4A' }]}>Savas</Text>
+                        <Text style={[styles.actionText, { color: '#D94A4A' }]}>{t('diplo.war')}</Text>
                       </TouchableOpacity>
                     )}
                     {!isWar && (
@@ -163,7 +165,7 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
                         style={[styles.actionBtn, { borderColor: '#D4A843' }]}
                         onPress={() => handleTribute(target.id)}
                       >
-                        <Text style={[styles.actionText, { color: '#D4A843' }]}>Harac (50g)</Text>
+                        <Text style={[styles.actionText, { color: '#D4A843' }]}>{t('diplo.tribute')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -172,7 +174,7 @@ export default function DiplomacyModal({ visible, onClose }: Props) {
             })}
 
             {otherPlayers.length === 0 && (
-              <Text style={styles.emptyText}>Hic rakip kalmadi.</Text>
+              <Text style={styles.emptyText}>{t('diplo.noRivals')}</Text>
             )}
           </ScrollView>
         </View>

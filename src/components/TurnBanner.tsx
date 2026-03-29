@@ -5,8 +5,11 @@ import Animated, {
   withDelay, runOnJS,
 } from 'react-native-reanimated';
 import { COLORS } from '../constants/theme';
+import { t } from '../i18n';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+const SPEED_MULT: Record<string, number> = { slow: 1.8, normal: 1, fast: 0.5 };
 
 interface Props {
   turn: number;
@@ -14,28 +17,33 @@ interface Props {
   playerColor: string;
   visible: boolean;
   onFinish: () => void;
+  animationSpeed?: 'slow' | 'normal' | 'fast';
 }
 
-export default function TurnBanner({ turn, playerName, playerColor, visible, onFinish }: Props) {
+export default function TurnBanner({ turn, playerName, playerColor, visible, onFinish, animationSpeed = 'normal' }: Props) {
+  const sm = SPEED_MULT[animationSpeed] ?? 1;
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(-60);
   const scaleX = useSharedValue(0.8);
 
   useEffect(() => {
     if (visible) {
+      const fadeIn = 200 * sm;
+      const hold = 1200 * sm;
+      const fadeOut = 300 * sm;
       opacity.value = withSequence(
-        withTiming(1, { duration: 200 }),
-        withDelay(1200, withTiming(0, { duration: 300 }, () => {
+        withTiming(1, { duration: fadeIn }),
+        withDelay(hold, withTiming(0, { duration: fadeOut }, () => {
           runOnJS(onFinish)();
         })),
       );
       translateY.value = withSequence(
-        withTiming(0, { duration: 250 }),
-        withDelay(1200, withTiming(-60, { duration: 300 })),
+        withTiming(0, { duration: fadeIn * 1.2 }),
+        withDelay(hold, withTiming(-60, { duration: fadeOut })),
       );
       scaleX.value = withSequence(
-        withTiming(1, { duration: 250 }),
-        withDelay(1200, withTiming(0.8, { duration: 300 })),
+        withTiming(1, { duration: fadeIn * 1.2 }),
+        withDelay(hold, withTiming(0.8, { duration: fadeOut })),
       );
     }
   }, [visible, turn]);
@@ -53,7 +61,7 @@ export default function TurnBanner({ turn, playerName, playerColor, visible, onF
   return (
     <Animated.View style={[styles.container, animStyle]}>
       <Animated.View style={[styles.banner, { borderLeftColor: playerColor }]}>
-        <Animated.Text style={styles.turnText}>Tur {turn}</Animated.Text>
+        <Animated.Text style={styles.turnText}>{t('turn.label', { n: turn })}</Animated.Text>
         <Animated.Text style={[styles.playerText, { color: playerColor }]}>
           {playerName}
         </Animated.Text>

@@ -206,6 +206,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
           playerColor={currentPlayer?.color ?? COLORS.primary}
           visible={showTurnBanner}
           onFinish={() => setShowTurnBanner(false)}
+          animationSpeed={settings.animationSpeed}
         />
 
         {actionLog.length > 0 && <ActionLog entries={actionLog} />}
@@ -232,7 +233,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         )}
 
         <AnimatedButton
-          label={t('game.endTurn')}
+          label={settings.autoEndTurn ? `${t('game.endTurn')} (Auto)` : t('game.endTurn')}
           onPress={() => { playSound('turnStart'); useGameStore.getState().endTurn(); }}
           variant="primary"
         />

@@ -6,6 +6,7 @@ import { useGameStore } from '../store/gameStore';
 import { HeroState, Resources } from '../types/game';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { HEROES, HeroId, HeroDefinition } from '../constants/heroes';
+import { t } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -55,16 +56,16 @@ export default function HeroModal({ visible, onClose }: Props) {
       <View style={styles.overlay}>
         <View style={styles.panel}>
           <View style={styles.header}>
-            <Text style={styles.title}>Kahramanlar</Text>
+            <Text style={styles.title}>{t('hero.title')}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Text style={styles.closeText}>Kapat</Text>
+              <Text style={styles.closeText}>{t('hero.close')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Sahip olunan kahramanlar */}
           {player.heroes.length > 0 && (
             <>
-              <Text style={styles.sectionTitle}>Kahramanlarim</Text>
+              <Text style={styles.sectionTitle}>{t('hero.myHeroes')}</Text>
               <ScrollView horizontal style={styles.ownedList} showsHorizontalScrollIndicator={false}>
                 {player.heroes.map(hero => {
                   const def = HEROES[hero.heroId as HeroId];
@@ -83,7 +84,7 @@ export default function HeroModal({ visible, onClose }: Props) {
                             style={styles.unassignBtn}
                             onPress={() => handleUnassign(hero.heroId)}
                           >
-                            <Text style={styles.unassignText}>Geri Cek</Text>
+                            <Text style={styles.unassignText}>{t('hero.unassign')}</Text>
                           </TouchableOpacity>
                         </View>
                       ) : (
@@ -92,7 +93,7 @@ export default function HeroModal({ visible, onClose }: Props) {
                           onPress={() => handleAssign(hero.heroId)}
                           disabled={!selectedHex}
                         >
-                          <Text style={styles.assignText}>Ata</Text>
+                          <Text style={styles.assignText}>{t('hero.assign')}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -103,7 +104,7 @@ export default function HeroModal({ visible, onClose }: Props) {
           )}
 
           {/* Kiralanabilir kahramanlar */}
-          <Text style={styles.sectionTitle}>Kirala</Text>
+          <Text style={styles.sectionTitle}>{t('hero.hire')}</Text>
           <ScrollView style={styles.hireList}>
             {Object.values(HEROES).map(hero => {
               const owned = ownedHeroIds.includes(hero.id);
@@ -118,14 +119,14 @@ export default function HeroModal({ visible, onClose }: Props) {
                       <Text style={styles.hireTitle}>{hero.title}</Text>
                     </View>
                     {owned ? (
-                      <Text style={styles.ownedBadge}>Sahip</Text>
+                      <Text style={styles.ownedBadge}>{t('hero.owned')}</Text>
                     ) : (
                       <TouchableOpacity
                         style={[styles.hireBuyBtn, !affordable && styles.btnDisabled]}
                         onPress={() => handleHire(hero.id)}
                         disabled={!affordable}
                       >
-                        <Text style={styles.hireBuyText}>Kirala</Text>
+                        <Text style={styles.hireBuyText}>{t('hero.hire')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -150,7 +151,7 @@ export default function HeroModal({ visible, onClose }: Props) {
                       <Text style={styles.abilityName}>{hero.ability.name}</Text>
                       <Text style={styles.abilityDesc}>{hero.ability.description}</Text>
                     </View>
-                    <Text style={styles.cooldownText}>{hero.ability.cooldown} tur</Text>
+                    <Text style={styles.cooldownText}>{t('hero.cooldown', { n: hero.ability.cooldown })}</Text>
                   </View>
 
                   {/* Maliyet */}

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { BattleResult } from '../engine/combat';
 import { COLORS } from '../constants/theme';
+import { t } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -20,19 +21,19 @@ export default function BattleResultModal({ visible, result, onClose }: Props) {
         <View style={styles.panel}>
           {/* Baslik */}
           <Text style={[styles.title, { color: isVictory ? COLORS.green : COLORS.red }]}>
-            {isVictory ? 'Zafer!' : 'Yenilgi!'}
+            {isVictory ? t('battle.victory') : t('battle.defeat')}
           </Text>
 
           {/* Sonuc detaylari */}
           <View style={styles.statsContainer}>
             {/* Saldiran */}
             <View style={styles.side}>
-              <Text style={styles.sideTitle}>Saldiran</Text>
+              <Text style={styles.sideTitle}>{t('battle.attacker')}</Text>
               <Text style={[styles.lossText, { color: COLORS.red }]}>
-                Kayip: %{Math.round(result.attackerLosses * 100)}
+                {t('battle.loss', { pct: Math.round(result.attackerLosses * 100) })}
               </Text>
               <Text style={styles.survivorText}>
-                Kalan birimler:
+                {t('battle.surviving')}
               </Text>
               {result.attackerSurvivors.map((u, i) => (
                 <Text key={i} style={styles.unitText}>
@@ -40,7 +41,7 @@ export default function BattleResultModal({ visible, result, onClose }: Props) {
                 </Text>
               ))}
               {result.attackerSurvivors.length === 0 && (
-                <Text style={styles.eliminatedText}>Tamamen yok edildi</Text>
+                <Text style={styles.eliminatedText}>{t('battle.destroyed')}</Text>
               )}
             </View>
 
@@ -48,12 +49,12 @@ export default function BattleResultModal({ visible, result, onClose }: Props) {
 
             {/* Savunan */}
             <View style={styles.side}>
-              <Text style={styles.sideTitle}>Savunan</Text>
+              <Text style={styles.sideTitle}>{t('battle.defender')}</Text>
               <Text style={[styles.lossText, { color: COLORS.red }]}>
-                Kayip: %{Math.round(result.defenderLosses * 100)}
+                {t('battle.loss', { pct: Math.round(result.defenderLosses * 100) })}
               </Text>
               <Text style={styles.survivorText}>
-                Kalan birimler:
+                {t('battle.surviving')}
               </Text>
               {result.defenderSurvivors.map((u, i) => (
                 <Text key={i} style={styles.unitText}>
@@ -61,7 +62,7 @@ export default function BattleResultModal({ visible, result, onClose }: Props) {
                 </Text>
               ))}
               {result.defenderSurvivors.length === 0 && (
-                <Text style={styles.eliminatedText}>Tamamen yok edildi</Text>
+                <Text style={styles.eliminatedText}>{t('battle.destroyed')}</Text>
               )}
             </View>
           </View>
@@ -78,12 +79,12 @@ export default function BattleResultModal({ visible, result, onClose }: Props) {
           {/* Bina hasari */}
           {result.buildingDamage > 0 && (
             <Text style={styles.buildingDmgText}>
-              Bina hasari: {result.buildingDamage} HP
+              {t('battle.buildingDmg', { val: result.buildingDamage })}
             </Text>
           )}
 
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>Tamam</Text>
+            <Text style={styles.closeBtnText}>{t('battle.ok')}</Text>
           </TouchableOpacity>
         </View>
       </View>

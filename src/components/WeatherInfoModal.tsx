@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { COLORS } from '../constants/theme';
+import { t } from '../i18n';
 import {
   Season, WeatherType, SEASONS, WEATHER_TYPES, TURNS_PER_SEASON,
 } from '../constants/weather';
@@ -41,7 +42,7 @@ export default function WeatherInfoModal({ visible, onClose }: Props) {
           <View style={styles.seasonHeader}>
             <Text style={styles.bigIcon}>{season.icon}</Text>
             <Text style={[styles.seasonName, { color: season.color }]}>{season.name}</Text>
-            <Text style={styles.turnsLeft}>{turnsLeft} tur kaldi</Text>
+            <Text style={styles.turnsLeft}>{t('weather.turnsLeft', { n: turnsLeft })}</Text>
           </View>
           <Text style={styles.desc}>{season.description}</Text>
 
@@ -54,15 +55,15 @@ export default function WeatherInfoModal({ visible, onClose }: Props) {
 
           {/* Toplam etkiler */}
           <View style={styles.effectsGrid}>
-            <EffectRow label="Hareket maliyeti" value={`x${totalMove.toFixed(1)}`} bad={totalMove > 1} />
-            <EffectRow label="Saldiri" value={formatMod(totalAtk)} bad={totalAtk < 0} />
-            <EffectRow label="Savunma" value={formatMod(totalDef)} bad={totalDef < 0} />
-            <EffectRow label="Gorus menzili" value={`${totalVis >= 0 ? '+' : ''}${totalVis}`} bad={totalVis < 0} />
-            <EffectRow label="Yiyecek uretimi" value={`x${totalFood.toFixed(1)}`} bad={totalFood < 1} />
+            <EffectRow label={t('weather.moveCost')} value={`x${totalMove.toFixed(1)}`} bad={totalMove > 1} />
+            <EffectRow label={t('weather.attack')} value={formatMod(totalAtk)} bad={totalAtk < 0} />
+            <EffectRow label={t('weather.defense')} value={formatMod(totalDef)} bad={totalDef < 0} />
+            <EffectRow label={t('weather.visibility')} value={`${totalVis >= 0 ? '+' : ''}${totalVis}`} bad={totalVis < 0} />
+            <EffectRow label={t('weather.foodProd')} value={`x${totalFood.toFixed(1)}`} bad={totalFood < 1} />
           </View>
 
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>Tamam</Text>
+            <Text style={styles.closeBtnText}>{t('weather.ok')}</Text>
           </TouchableOpacity>
         </View>
       </View>

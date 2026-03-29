@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Clipboard, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { ClipboardService } from '../services/clipboard';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
 import { t } from '../i18n';
 
@@ -24,7 +25,7 @@ export default function GameToolbar({
 }: Props) {
   const handleCopySeed = () => {
     if (!mapSeed) return;
-    Clipboard.setString(String(mapSeed));
+    ClipboardService.setString(String(mapSeed));
     Alert.alert(t('toolbar.seedCopied'), t('toolbar.seedCopiedMsg', { seed: mapSeed }));
   };
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, TextInput,
-  Clipboard, Alert,
+  View, Text, TouchableOpacity, StyleSheet, TextInput, Alert,
 } from 'react-native';
+import { ClipboardService } from '../services/clipboard';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { hasSave, getSaveInfo } from '../services/saveService';
@@ -61,7 +61,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
 
   const handlePasteSeed = async () => {
     try {
-      const text = await Clipboard.getString();
+      const text = await ClipboardService.getString();
       const num = parseInt(text.trim(), 10);
       if (!isNaN(num) && num > 0) {
         setSeedInput(String(num));

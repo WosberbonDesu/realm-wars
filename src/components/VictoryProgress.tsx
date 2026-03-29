@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { TechId } from '../types/game';
 import { COLORS } from '../constants/theme';
+import { t } from '../i18n';
 import {
   VICTORY_CONDITIONS, VictoryType,
   ECONOMIC_GOLD_THRESHOLD, ECONOMIC_TERRITORY_THRESHOLD,
@@ -30,25 +31,25 @@ export default function VictoryProgress({ expanded, onToggle }: Props) {
       ...VICTORY_CONDITIONS[VictoryType.Military],
       current: players.filter(p => p.castleCoord === null && p.id !== player.id).length,
       target: players.filter(p => p.id !== player.id).length,
-      label: 'Kaleler yikildi',
+      label: t('victory.castles'),
     },
     {
       ...VICTORY_CONDITIONS[VictoryType.Economic],
       current: Math.min(player.resources.gold, ECONOMIC_GOLD_THRESHOLD),
       target: ECONOMIC_GOLD_THRESHOLD,
-      label: `${player.resources.gold}/${ECONOMIC_GOLD_THRESHOLD} altin, ${player.territory.length}/${ECONOMIC_TERRITORY_THRESHOLD} toprak`,
+      label: t('victory.economic', { gold: player.resources.gold, goldReq: ECONOMIC_GOLD_THRESHOLD, territory: player.territory.length, territoryReq: ECONOMIC_TERRITORY_THRESHOLD }),
     },
     {
       ...VICTORY_CONDITIONS[VictoryType.Technology],
       current: player.researchedTechs.length,
       target: allTechCount,
-      label: `${player.researchedTechs.length}/${allTechCount} tech`,
+      label: t('victory.tech', { done: player.researchedTechs.length, total: allTechCount }),
     },
     {
       ...VICTORY_CONDITIONS[VictoryType.Domination],
       current: player.territory.length,
       target: Math.ceil(totalHexes * DOMINATION_TERRITORY_PERCENT),
-      label: `${player.territory.length}/${Math.ceil(totalHexes * DOMINATION_TERRITORY_PERCENT)} hex`,
+      label: t('victory.domination', { territory: player.territory.length, required: Math.ceil(totalHexes * DOMINATION_TERRITORY_PERCENT) }),
     },
   ];
 
@@ -73,8 +74,8 @@ export default function VictoryProgress({ expanded, onToggle }: Props) {
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={onToggle} style={styles.headerRow}>
-        <Text style={styles.headerText}>Zafer Ilerleme</Text>
-        <Text style={styles.collapseText}>Kucult</Text>
+        <Text style={styles.headerText}>{t('victory.title')}</Text>
+        <Text style={styles.collapseText}>{t('victory.collapse')}</Text>
       </TouchableOpacity>
       {progresses.map(p => {
         const pct = Math.min(100, Math.round((p.current / p.target) * 100));

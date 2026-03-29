@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { GameEvent } from '../constants/events';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
 import { Resources } from '../types/game';
+import { t } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -61,7 +62,7 @@ export default function EventModal({ visible, event, onClose }: Props) {
               <View key={i} style={styles.effectRow}>
                 {e.res === 'units' ? (
                   <Text style={[styles.effectText, { color: COLORS.red }]}>
-                    Birimler: {e.val}%
+                    {t('event.units', { val: e.val })}
                   </Text>
                 ) : (
                   <>
@@ -81,7 +82,7 @@ export default function EventModal({ visible, event, onClose }: Props) {
           </View>
 
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>Tamam</Text>
+            <Text style={styles.closeBtnText}>{t('event.ok')}</Text>
           </TouchableOpacity>
         </View>
       </View>
