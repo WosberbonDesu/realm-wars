@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import {
   GameState, GamePhase, Player, HexTile, HexCoord,
   BuildingType, UnitType, Building, Army, Unit, Resources,
-  TechId,
+  TechId, HeroState,
   hexKey,
 } from '../types/game';
 import { generateMap, findStartPositions } from '../engine/mapGenerator';
@@ -21,6 +21,7 @@ import { saveGame, loadGame } from '../services/saveService';
 import { TECH_TREE, BASE_UNITS } from '../constants/tech';
 import { rollEvent, applyEvent } from '../engine/events';
 import { GameEvent } from '../constants/events';
+import { HEROES, HeroId } from '../constants/heroes';
 
 // ===== HELPER FUNCTIONS =====
 
@@ -119,6 +120,10 @@ export interface GameActions {
   startResearch: (techId: TechId) => boolean;
   getAvailableTechs: (playerId: string) => TechId[];
   getUnlockedUnits: (playerId: string) => UnitType[];
+
+  // Kahramanlar
+  hireHero: (heroId: HeroId) => boolean;
+  assignHero: (heroId: string, hexCoord: HexCoord | null) => void;
 }
 
 export type GameStore = GameState & GameActions;
@@ -167,6 +172,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       castleCoord: null,
       researchedTechs: [],
       currentResearch: null,
+      heroes: [],
     };
     players.push(humanPlayer);
 
@@ -182,6 +188,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         castleCoord: null,
         researchedTechs: [],
         currentResearch: null,
+        heroes: [],
       };
       players.push(botPlayer);
     }
@@ -836,6 +843,68 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
     return Array.from(unlocked);
+  },
+
+  // ─── KAHRAMANLAR ───
+  hireHero: (heroId: HeroId): boolean => {
+    const state = get();
+    const player = state.players.find(p => p.id === state.currentPlayerId);
+    if (!player) return false;
+
+    const hero = HEROES[heroId];
+    if (!hero) return false;
+
+    // Zaten var mı?
+    if (player.heroes.some(h => h.heroId === heroId)) return false;
+
+    // Maliyet kontrolü
+    if (!canAfford(player.resources, hero.cost)) return false;
+
+    const newHero: HeroState = {
+      heroId,
+      assignedArmyHex: null,
+      abilityCooldown: 0,
+      isDisabled: false,
+    };
+
+    const newPlayers = state.players.map(p =>
+      p.id === player.id
+        ? {
+            ...p,
+            resources: subtractResources(p.resources, hero.cost),
+            heroes: [...p.heroes, newHero],
+          }
+        : p
+    );
+    set({ players: newPlayers });
+    return true;
+  },
+
+  assignHero: (heroId: string, hexCoord: HexCoord | null) => {
+    const state = get();
+    const player = state.players.find(p => p.id === state.currentPlayerId);
+    if (!player) return;
+
+    // Hedef hex'te ordu var mı kontrol et
+    if (hexCoord) {
+      const key = hexKey(hexCoord.q, hexCoord.r);
+      const tile = state.map.get(key);
+      if (!tile?.army || tile.army.ownerId !== player.id) return;
+    }
+
+    const newPlayers = state.players.map(p =>
+      p.id === player.id
+        ? {
+            ...p,
+            heroes: p.heroes.map(h =>
+              h.heroId === heroId
+                ? { ...h, assignedArmyHex: hexCoord }
+                : h
+            ),
+          }
+        : p
+    );
+    set({ players: newPlayers });
   },
 }));
 

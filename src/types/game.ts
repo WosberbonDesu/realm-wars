@@ -96,6 +96,14 @@ export interface TechProgress {
   turnsLeft: number;
 }
 
+// ===== HEROES =====
+export interface HeroState {
+  heroId: string;
+  assignedArmyHex: HexCoord | null;
+  abilityCooldown: number;
+  isDisabled: boolean;
+}
+
 // ===== PLAYERS =====
 export interface Player {
   id: string;
@@ -107,6 +115,7 @@ export interface Player {
   castleCoord: HexCoord | null;
   researchedTechs: TechId[];
   currentResearch: TechProgress | null;
+  heroes: HeroState[];
 }
 
 // ===== GAME STATE =====

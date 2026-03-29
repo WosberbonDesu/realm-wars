@@ -15,6 +15,7 @@ import AnimatedButton from '../components/AnimatedButton';
 import ResourceBar from '../components/ResourceBar';
 import TechTreeModal from '../components/TechTreeModal';
 import EventModal from '../components/EventModal';
+import HeroModal from '../components/HeroModal';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
@@ -36,6 +37,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const [battleModalVisible, setBattleModalVisible] = useState(false);
   const [techModalVisible, setTechModalVisible] = useState(false);
   const [eventModalVisible, setEventModalVisible] = useState(false);
+  const [heroModalVisible, setHeroModalVisible] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const pendingEvent = useGameStore(s => s.pendingEvent);
 
@@ -129,6 +131,9 @@ export default function GameScreen({ onBackToMenu }: Props) {
         <TouchableOpacity onPress={() => setTechModalVisible(true)}>
           <Text style={styles.techText}>Arastir</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => setHeroModalVisible(true)}>
+          <Text style={styles.heroText}>Kahramanlar</Text>
+        </TouchableOpacity>
         <Text style={styles.turnText}>Tur {turn}</Text>
         <View style={styles.playerBadge}>
           <View style={[styles.playerDot, { backgroundColor: currentPlayer?.color }]} />
@@ -214,6 +219,10 @@ export default function GameScreen({ onBackToMenu }: Props) {
         event={currentEvent}
         onClose={() => setEventModalVisible(false)}
       />
+      <HeroModal
+        visible={heroModalVisible}
+        onClose={() => setHeroModalVisible(false)}
+      />
     </View>
   );
 }
@@ -246,6 +255,11 @@ const styles = StyleSheet.create({
   },
   techText: {
     color: COLORS.primaryLight,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  heroText: {
+    color: '#D9A84A',
     fontSize: 13,
     fontWeight: '600',
   },
