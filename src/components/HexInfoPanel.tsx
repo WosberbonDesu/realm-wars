@@ -3,7 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { hexKey, HexTile } from '../types/game';
 import { COLORS, RESOURCE_COLORS, RESOURCE_ICONS } from '../constants/theme';
-import { TERRAIN_COLORS, BUILDING_ICONS, UNIT_ICONS } from '../constants/game';
+import {
+  TERRAIN_COLORS, BUILDING_ICONS, UNIT_ICONS,
+  MAX_BUILDING_LEVEL, LEVEL_NAMES,
+} from '../constants/game';
 import { TERRAIN_NAMES, TERRAIN_DEFENSE_BONUS } from '../constants/terrain';
 
 interface Props {
@@ -18,6 +21,8 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
   const players = useGameStore(s => s.players);
   const getBuildableTypes = useGameStore(s => s.getBuildableTypes);
+  const upgradeBuilding = useGameStore(s => s.upgradeBuilding);
+  const getUpgradeCost = useGameStore(s => s.getUpgradeCost);
 
   if (!selectedHex) return null;
 
@@ -29,6 +34,8 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
   const isMine = tile.ownerId === currentPlayerId;
   const canBuild = isMine && !tile.building && getBuildableTypes(selectedHex).length > 0;
   const canTrain = isMine && tile.building?.type === 'castle';
+  const upgradeCost = isMine && tile.building ? getUpgradeCost(selectedHex) : null;
+  const canUpgrade = upgradeCost !== null;
   const canMove = isMine && tile.army !== null && tile.army.ownerId === currentPlayerId;
   const defBonus = TERRAIN_DEFENSE_BONUS[tile.terrain];
 
@@ -59,16 +66,36 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
         <View style={styles.section}>
           <Text style={styles.sectionIcon}>{BUILDING_ICONS[tile.building.type]}</Text>
           <View style={styles.sectionInfo}>
-            <Text style={styles.sectionTitle}>
-              {tile.building.type.charAt(0).toUpperCase() + tile.building.type.slice(1)}
-              {' '}Lv.{tile.building.level}
-            </Text>
+            <View style={styles.buildingHeader}>
+              <Text style={styles.sectionTitle}>
+                {tile.building.type.charAt(0).toUpperCase() + tile.building.type.slice(1)}
+                {' '}Lv.{tile.building.level}
+              </Text>
+              {tile.building.level < MAX_BUILDING_LEVEL && (
+                <Text style={styles.levelBadge}>
+                  {LEVEL_NAMES[tile.building.level]} → {LEVEL_NAMES[tile.building.level + 1]}
+                </Text>
+              )}
+              {tile.building.level >= MAX_BUILDING_LEVEL && (
+                <Text style={styles.maxBadge}>MAX</Text>
+              )}
+            </View>
             <View style={styles.healthBar}>
               <View style={[
                 styles.healthFill,
                 { width: `${(tile.building.health / tile.building.maxHealth) * 100}%` },
               ]} />
             </View>
+            {/* Üretim bilgisi */}
+            {Object.keys(tile.building.productionPerTick).length > 0 && (
+              <View style={styles.prodRow}>
+                {Object.entries(tile.building.productionPerTick).map(([res, val]) => (
+                  val ? <Text key={res} style={styles.prodText}>
+                    {RESOURCE_ICONS[res as keyof typeof RESOURCE_ICONS]} +{val}/tur
+                  </Text> : null
+                ))}
+              </View>
+            )}
           </View>
         </View>
       )}
@@ -112,6 +139,21 @@ export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
           {canTrain && (
             <TouchableOpacity style={[styles.actionBtn, styles.actionBtnTrain]} onPress={onTrain}>
               <Text style={styles.actionText}>Birim Egit</Text>
+            </TouchableOpacity>
+          )}
+          {canUpgrade && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnUpgrade]}
+              onPress={() => upgradeBuilding(selectedHex)}
+            >
+              <Text style={styles.actionText}>Yukselt</Text>
+              <View style={styles.upgradeCostRow}>
+                {Object.entries(upgradeCost!).map(([res, val]) => (
+                  <Text key={res} style={styles.upgradeCostText}>
+                    {RESOURCE_ICONS[res as keyof typeof RESOURCE_ICONS]}{val}
+                  </Text>
+                ))}
+              </View>
             </TouchableOpacity>
           )}
           {canMove && (
@@ -264,8 +306,51 @@ const styles = StyleSheet.create({
   actionBtnTrain: {
     backgroundColor: '#2D5A27',
   },
+  actionBtnUpgrade: {
+    backgroundColor: '#5A4A2A',
+  },
   actionBtnMove: {
     backgroundColor: '#4A5A8A',
+  },
+  upgradeCostRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 2,
+  },
+  upgradeCostText: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  buildingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  levelBadge: {
+    color: COLORS.gold,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  maxBadge: {
+    color: COLORS.green,
+    fontSize: 9,
+    fontWeight: '800',
+    backgroundColor: '#1a2e1a',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  prodRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  prodText: {
+    color: COLORS.green,
+    fontSize: 10,
+    fontWeight: '600',
   },
   actionText: {
     color: COLORS.textPrimary,

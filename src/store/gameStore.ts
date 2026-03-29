@@ -13,6 +13,8 @@ import {
   MAP_RADIUS, STARTING_RESOURCES, PLAYER_COLORS, BOT_NAMES,
   BUILDING_COSTS, BUILDING_HEALTH, BUILDING_PRODUCTION,
   UNIT_STATS, VISIBILITY_RANGE, SCOUT_VISIBILITY_RANGE,
+  MAX_BUILDING_LEVEL, UPGRADE_COST_MULTIPLIER,
+  UPGRADE_PRODUCTION_MULTIPLIER, UPGRADE_HEALTH_MULTIPLIER,
 } from '../constants/game';
 import { TERRAIN_BUILDABLE } from '../constants/terrain';
 import { saveGame, loadGame } from '../services/saveService';
@@ -69,6 +71,10 @@ export interface GameActions {
 
   // Bina inşa
   buildStructure: (coord: HexCoord, type: BuildingType) => boolean;
+
+  // Bina yükselt
+  upgradeBuilding: (coord: HexCoord) => boolean;
+  getUpgradeCost: (coord: HexCoord) => Partial<Resources> | null;
 
   // Birim eğit
   trainUnit: (castleCoord: HexCoord, type: UnitType, count: number) => boolean;
@@ -304,6 +310,82 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({ map: newMap, players: newPlayers });
     return true;
+  },
+
+  // ─── BİNA YÜKSELT ───
+  upgradeBuilding: (coord: HexCoord): boolean => {
+    const state = get();
+    const key = hexKey(coord.q, coord.r);
+    const tile = state.map.get(key);
+    const player = state.players.find(p => p.id === state.currentPlayerId);
+
+    if (!tile || !player || !tile.building) return false;
+    if (tile.building.ownerId !== player.id) return false;
+    if (tile.building.level >= MAX_BUILDING_LEVEL) return false;
+
+    const nextLevel = tile.building.level + 1;
+    const baseCost = BUILDING_COSTS[tile.building.type];
+    const multiplier = UPGRADE_COST_MULTIPLIER[nextLevel] ?? 2;
+
+    // Yükseltme maliyeti
+    const cost: Partial<Resources> = {};
+    for (const [res, val] of Object.entries(baseCost)) {
+      cost[res as keyof Resources] = Math.ceil((val as number) * multiplier);
+    }
+
+    if (!canAfford(player.resources, cost)) return false;
+
+    // Yeni üretim değerleri
+    const baseProduction = BUILDING_PRODUCTION[tile.building.type];
+    const prodMultiplier = UPGRADE_PRODUCTION_MULTIPLIER[nextLevel] ?? 1;
+    const newProduction: Partial<Resources> = {};
+    for (const [res, val] of Object.entries(baseProduction)) {
+      newProduction[res as keyof Resources] = Math.ceil((val as number) * prodMultiplier);
+    }
+
+    // Yeni HP
+    const healthMultiplier = UPGRADE_HEALTH_MULTIPLIER[nextLevel] ?? 1;
+    const newMaxHealth = Math.ceil(BUILDING_HEALTH[tile.building.type] * healthMultiplier);
+
+    // Bina güncelle
+    const upgradedBuilding: Building = {
+      ...tile.building,
+      level: nextLevel,
+      health: newMaxHealth,
+      maxHealth: newMaxHealth,
+      productionPerTick: newProduction,
+    };
+
+    const newMap = new Map(state.map);
+    newMap.set(key, { ...tile, building: upgradedBuilding });
+
+    const newPlayers = state.players.map(p =>
+      p.id === player.id
+        ? { ...p, resources: subtractResources(p.resources, cost) }
+        : p
+    );
+
+    set({ map: newMap, players: newPlayers });
+    return true;
+  },
+
+  getUpgradeCost: (coord: HexCoord): Partial<Resources> | null => {
+    const state = get();
+    const key = hexKey(coord.q, coord.r);
+    const tile = state.map.get(key);
+
+    if (!tile?.building) return null;
+    if (tile.building.level >= MAX_BUILDING_LEVEL) return null;
+
+    const nextLevel = tile.building.level + 1;
+    const baseCost = BUILDING_COSTS[tile.building.type];
+    const multiplier = UPGRADE_COST_MULTIPLIER[nextLevel] ?? 2;
+
+    const cost: Partial<Resources> = {};
+    for (const [res, val] of Object.entries(baseCost)) {
+      cost[res as keyof Resources] = Math.ceil((val as number) * multiplier);
+    }
+    return cost;
   },
 
   // ─── BİRİM EĞİT ───

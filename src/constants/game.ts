@@ -74,6 +74,36 @@ export const BUILDING_ICONS: Record<BuildingType, string> = {
   [BuildingType.Market]: '🏪',
 };
 
+// ===== BUILDING UPGRADE =====
+export const MAX_BUILDING_LEVEL = 3;
+
+// Yükseltme maliyeti = bina maliyeti × çarpan
+export const UPGRADE_COST_MULTIPLIER: Record<number, number> = {
+  2: 1.5,  // Level 2: baz maliyetin 1.5 katı
+  3: 2.5,  // Level 3: baz maliyetin 2.5 katı
+};
+
+// Her level üretimi bu kadar artırır (çarpan)
+export const UPGRADE_PRODUCTION_MULTIPLIER: Record<number, number> = {
+  1: 1.0,
+  2: 1.6,
+  3: 2.5,
+};
+
+// Her level HP bu kadar artırır (çarpan)
+export const UPGRADE_HEALTH_MULTIPLIER: Record<number, number> = {
+  1: 1.0,
+  2: 1.5,
+  3: 2.0,
+};
+
+// Level isim ve ikon
+export const LEVEL_NAMES: Record<number, string> = {
+  1: '',
+  2: 'II',
+  3: 'III',
+};
+
 // ===== UNIT STATS =====
 export interface UnitStats {
   attack: number;
