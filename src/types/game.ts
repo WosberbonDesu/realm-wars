@@ -98,6 +98,9 @@ export interface GameState {
   phase: GamePhase;
   selectedHex: HexCoord | null;
   isPaused: boolean;
+  moveMode: boolean;
+  moveFrom: HexCoord | null;
+  moveTargets: HexCoord[];
 }
 
 export enum GamePhase {

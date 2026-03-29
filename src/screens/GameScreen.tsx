@@ -6,7 +6,9 @@ import HexMapRenderer from '../components/HexMapRenderer';
 import HexInfoPanel from '../components/HexInfoPanel';
 import BuildModal from '../components/BuildModal';
 import TrainModal from '../components/TrainModal';
+import BattleResultModal from '../components/BattleResultModal';
 import { GamePhase } from '../types/game';
+import { BattleResult } from '../engine/combat';
 
 interface Props {
   onBackToMenu: () => void;
@@ -21,6 +23,11 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
   const [buildModalVisible, setBuildModalVisible] = useState(false);
   const [trainModalVisible, setTrainModalVisible] = useState(false);
+  const [battleResult, setBattleResult] = useState<BattleResult | null>(null);
+  const [battleModalVisible, setBattleModalVisible] = useState(false);
+
+  const enterMoveMode = useGameStore(s => s.enterMoveMode);
+  const moveMode = useGameStore(s => s.moveMode);
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
 
@@ -56,14 +63,25 @@ export default function GameScreen({ onBackToMenu }: Props) {
         </View>
       </View>
 
+      {/* Hareket modu bilgisi */}
+      {moveMode && (
+        <View style={styles.moveBanner}>
+          <Text style={styles.moveBannerText}>Hedef hex'e dokun</Text>
+        </View>
+      )}
+
       {/* Harita */}
-      <HexMapRenderer />
+      <HexMapRenderer onBattleResult={(result) => {
+        setBattleResult(result);
+        setBattleModalVisible(true);
+      }} />
 
       {/* Hex bilgi paneli */}
-      {selectedHex && (
+      {selectedHex && !moveMode && (
         <HexInfoPanel
           onBuild={() => setBuildModalVisible(true)}
           onTrain={() => setTrainModalVisible(true)}
+          onMove={() => enterMoveMode(selectedHex)}
         />
       )}
 
@@ -98,6 +116,11 @@ export default function GameScreen({ onBackToMenu }: Props) {
       <TrainModal
         visible={trainModalVisible}
         onClose={() => setTrainModalVisible(false)}
+      />
+      <BattleResultModal
+        visible={battleModalVisible}
+        result={battleResult}
+        onClose={() => setBattleModalVisible(false)}
       />
     </View>
   );
@@ -143,6 +166,17 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  moveBanner: {
+    backgroundColor: COLORS.primaryDark,
+    paddingVertical: 8,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  moveBannerText: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   bottomBar: {
     paddingHorizontal: 16,

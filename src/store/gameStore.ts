@@ -88,6 +88,10 @@ export interface GameActions {
 
   // Hex'te yapılabilecek binaları getir
   getBuildableTypes: (coord: HexCoord) => BuildingType[];
+
+  // Ordu hareketi modu
+  enterMoveMode: (from: HexCoord) => void;
+  exitMoveMode: () => void;
 }
 
 export type GameStore = GameState & GameActions;
@@ -103,6 +107,9 @@ const initialState: GameState = {
   phase: GamePhase.Setup,
   selectedHex: null,
   isPaused: false,
+  moveMode: false,
+  moveFrom: null,
+  moveTargets: [],
 };
 
 // ===== STORE =====
@@ -215,6 +222,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       phase: GamePhase.Playing,
       selectedHex: null,
       isPaused: false,
+      moveMode: false,
+      moveFrom: null,
+      moveTargets: [],
     });
 
     // İnsan oyuncu için görünürlük aç
@@ -489,6 +499,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentPlayerId: state.players[nextIndex].id,
       turn: newTurn,
       selectedHex: null,
+      moveMode: false,
+      moveFrom: null,
+      moveTargets: [],
     });
 
     // 3. Eğer sıradaki bot ise, bot turunu oyna
@@ -576,6 +589,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (type === BuildingType.Castle) return false;
       return canAfford(player.resources, BUILDING_COSTS[type]);
     });
+  },
+
+  // ─── ORDU HAREKETİ MODU ───
+  enterMoveMode: (from: HexCoord) => {
+    const state = get();
+    const key = hexKey(from.q, from.r);
+    const tile = state.map.get(key);
+
+    if (!tile?.army || tile.army.ownerId !== state.currentPlayerId) return;
+
+    // Komşu hex'leri hareket hedefi olarak belirle
+    const neighbors = getNeighbors(from);
+    const targets = neighbors.filter(n => {
+      const nKey = hexKey(n.q, n.r);
+      const nTile = state.map.get(nKey);
+      if (!nTile) return false;
+      // Kendi binamız olan (ordusu olmayan) veya boş veya düşman hex'e gidilebilir
+      if (nTile.army && nTile.army.ownerId === state.currentPlayerId) return true; // birleşme
+      return true;
+    });
+
+    set({ moveMode: true, moveFrom: from, moveTargets: targets });
+  },
+
+  exitMoveMode: () => {
+    set({ moveMode: false, moveFrom: null, moveTargets: [] });
   },
 }));
 

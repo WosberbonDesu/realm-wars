@@ -9,9 +9,10 @@ import { TERRAIN_NAMES, TERRAIN_DEFENSE_BONUS } from '../constants/terrain';
 interface Props {
   onBuild: () => void;
   onTrain: () => void;
+  onMove: () => void;
 }
 
-export default function HexInfoPanel({ onBuild, onTrain }: Props) {
+export default function HexInfoPanel({ onBuild, onTrain, onMove }: Props) {
   const selectedHex = useGameStore(s => s.selectedHex);
   const map = useGameStore(s => s.map);
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
@@ -28,6 +29,7 @@ export default function HexInfoPanel({ onBuild, onTrain }: Props) {
   const isMine = tile.ownerId === currentPlayerId;
   const canBuild = isMine && !tile.building && getBuildableTypes(selectedHex).length > 0;
   const canTrain = isMine && tile.building?.type === 'castle';
+  const canMove = isMine && tile.army !== null && tile.army.ownerId === currentPlayerId;
   const defBonus = TERRAIN_DEFENSE_BONUS[tile.terrain];
 
   return (
@@ -110,6 +112,11 @@ export default function HexInfoPanel({ onBuild, onTrain }: Props) {
           {canTrain && (
             <TouchableOpacity style={[styles.actionBtn, styles.actionBtnTrain]} onPress={onTrain}>
               <Text style={styles.actionText}>Birim Egit</Text>
+            </TouchableOpacity>
+          )}
+          {canMove && (
+            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnMove]} onPress={onMove}>
+              <Text style={styles.actionText}>Ordu Tasi</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -256,6 +263,9 @@ const styles = StyleSheet.create({
   },
   actionBtnTrain: {
     backgroundColor: '#2D5A27',
+  },
+  actionBtnMove: {
+    backgroundColor: '#4A5A8A',
   },
   actionText: {
     color: COLORS.textPrimary,

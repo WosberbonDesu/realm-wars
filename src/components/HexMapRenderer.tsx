@@ -30,12 +30,21 @@ function makeHexPath(cx: number, cy: number, size: number): ReturnType<typeof Sk
   return path;
 }
 
-export default function HexMapRenderer() {
+interface Props {
+  onBattleResult?: (result: import('../engine/combat').BattleResult) => void;
+}
+
+export default function HexMapRenderer({ onBattleResult }: Props = {}) {
   const map = useGameStore(s => s.map);
   const selectedHex = useGameStore(s => s.selectedHex);
   const selectHex = useGameStore(s => s.selectHex);
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
   const players = useGameStore(s => s.players);
+  const moveMode = useGameStore(s => s.moveMode);
+  const moveFrom = useGameStore(s => s.moveFrom);
+  const moveTargets = useGameStore(s => s.moveTargets);
+  const moveArmy = useGameStore(s => s.moveArmy);
+  const exitMoveMode = useGameStore(s => s.exitMoveMode);
 
   // Camera: pan offset + zoom
   const translateX = useSharedValue(0);
@@ -79,7 +88,7 @@ export default function HexMapRenderer() {
       scale.value = Math.max(0.3, Math.min(3, newScale));
     });
 
-  // Tap gesture (hex secimi)
+  // Tap gesture (hex secimi veya hareket)
   const tapGesture = Gesture.Tap()
     .onEnd((e) => {
       // Ekran koordinatini harita koordinatina cevir
@@ -91,9 +100,24 @@ export default function HexMapRenderer() {
       const hexCoord = pixelToHex(mapX, mapY);
       const key = hexKey(hexCoord.q, hexCoord.r);
 
-      if (map.has(key)) {
-        selectHex(hexCoord);
+      if (!map.has(key)) return;
+
+      // Hareket modundaysa hedefe tasi
+      if (moveMode && moveFrom) {
+        const isTarget = moveTargets.some(t => t.q === hexCoord.q && t.r === hexCoord.r);
+        if (isTarget) {
+          const result = moveArmy(moveFrom, hexCoord);
+          exitMoveMode();
+          if (result && onBattleResult) {
+            onBattleResult(result);
+          }
+        } else {
+          exitMoveMode();
+        }
+        return;
       }
+
+      selectHex(hexCoord);
     });
 
   const composed = Gesture.Simultaneous(panGesture, pinchGesture);
@@ -114,6 +138,8 @@ export default function HexMapRenderer() {
       buildingIcon: string | null;
       armyIcon: string | null;
       armyCount: number;
+      isMoveTarget: boolean;
+      isAttackTarget: boolean;
     }[] = [];
 
     const playerColorMap = new Map<string, string>();
@@ -138,11 +164,22 @@ export default function HexMapRenderer() {
         color = blendColor(color, COLORS.fog, 0.6);
       }
 
+      // Hareket hedefi mi?
+      const isMoveTarget = moveMode && moveTargets.some(
+        t => t.q === tile.coord.q && t.r === tile.coord.r
+      );
+      const isAttackTarget = isMoveTarget && tile.army !== null &&
+        tile.army.ownerId !== currentPlayerId;
+
       // Secili hex
       const isSelected = selectedHex &&
         selectedHex.q === tile.coord.q &&
         selectedHex.r === tile.coord.r;
-      if (isSelected) {
+
+      if (isMoveTarget) {
+        borderColor = isAttackTarget ? COLORS.red : COLORS.green;
+        borderWidth = 2.5;
+      } else if (isSelected) {
         borderColor = COLORS.selection;
         borderWidth = 2;
       }
@@ -170,11 +207,12 @@ export default function HexMapRenderer() {
       data.push({
         key, path, color, borderColor, borderWidth,
         cx, cy, tile, ownerColor, buildingIcon, armyIcon, armyCount,
+        isMoveTarget, isAttackTarget,
       });
     }
 
     return data;
-  }, [map, selectedHex, players]);
+  }, [map, selectedHex, players, moveMode, moveTargets, currentPlayerId]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -215,6 +253,14 @@ export default function HexMapRenderer() {
                   <Path
                     path={hex.path}
                     color={hex.ownerColor + '30'}
+                    style="fill"
+                  />
+                )}
+                {/* Hareket/saldiri hedef overlay */}
+                {hex.isMoveTarget && (
+                  <Path
+                    path={hex.path}
+                    color={hex.isAttackTarget ? COLORS.attackHighlight : COLORS.moveHighlight}
                     style="fill"
                   />
                 )}
