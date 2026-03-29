@@ -20,6 +20,7 @@ import WeatherBadge from '../components/WeatherBadge';
 import WeatherInfoModal from '../components/WeatherInfoModal';
 import VictoryProgress from '../components/VictoryProgress';
 import GameToolbar from '../components/GameToolbar';
+import TutorialModal from '../components/TutorialModal';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
@@ -46,6 +47,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const [diplomacyModalVisible, setDiplomacyModalVisible] = useState(false);
   const [weatherModalVisible, setWeatherModalVisible] = useState(false);
   const [victoryExpanded, setVictoryExpanded] = useState(false);
+  const [tutorialVisible, setTutorialVisible] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const pendingEvent = useGameStore(s => s.pendingEvent);
 
@@ -59,6 +61,15 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const mapRef = useRef<HexMapRef>(null);
   const [showTurnBanner, setShowTurnBanner] = useState(false);
   const prevTurn = useRef(turn);
+
+  // Ilk tur -> tutorial goster
+  const tutorialShown = useRef(false);
+  useEffect(() => {
+    if (turn === 1 && !tutorialShown.current) {
+      tutorialShown.current = true;
+      setTutorialVisible(true);
+    }
+  }, [turn]);
 
   useEffect(() => {
     if (turn !== prevTurn.current) {
@@ -227,6 +238,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
       <HeroModal visible={heroModalVisible} onClose={() => setHeroModalVisible(false)} />
       <DiplomacyModal visible={diplomacyModalVisible} onClose={() => setDiplomacyModalVisible(false)} />
       <WeatherInfoModal visible={weatherModalVisible} onClose={() => setWeatherModalVisible(false)} />
+      <TutorialModal visible={tutorialVisible} onClose={() => setTutorialVisible(false)} />
     </View>
   );
 }
