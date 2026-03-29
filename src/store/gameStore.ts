@@ -23,6 +23,10 @@ import { rollEvent, applyEvent } from '../engine/events';
 import { GameEvent } from '../constants/events';
 import { HEROES, HeroId } from '../constants/heroes';
 import {
+  Season, WeatherType, SEASONS, WEATHER_TYPES,
+  TURNS_PER_SEASON, SEASON_ORDER, SEASON_WEATHER_CHANCES,
+} from '../constants/weather';
+import {
   RelationType, DiplomacyAction,
   NON_AGGRESSION_DURATION, ALLIANCE_DURATION, PROPOSAL_EXPIRE_TURNS,
   BOT_ACCEPT_NON_AGGRESSION_CHANCE, BOT_ACCEPT_ALLIANCE_CHANCE,
@@ -165,6 +169,9 @@ const initialState: GameState = {
   victoryInfo: null,
   relations: [],
   proposals: [],
+  currentSeason: Season.Spring,
+  currentWeather: WeatherType.Clear,
+  seasonTurnCounter: 0,
 };
 
 // ===== STORE =====
@@ -291,6 +298,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       victoryInfo: null,
       relations: [],
       proposals: [],
+      currentSeason: Season.Spring,
+      currentWeather: WeatherType.Clear,
+      seasonTurnCounter: 0,
     });
 
     // İnsan oyuncu için görünürlük aç
@@ -636,10 +646,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // 1.6 Rastgele olay
     triggerRandomEvent(get, set);
 
-    // 1.7 Diplomasi sureleri
+    // 1.7 Mevsim/hava guncelle
+    tickSeasonWeather(get, set);
+
+    // 1.8 Diplomasi sureleri
     tickDiplomacy(get, set);
 
-    // 1.8 Zafer kontrolu
+    // 1.9 Zafer kontrolu
     checkGameOver(get, set);
     if (get().phase === GamePhase.GameOver) return;
 
@@ -1210,6 +1223,55 @@ function executeBotTurn(
 }
 
 // ===== OYUN BİTTİ Mİ KONTROL =====
+
+// ===== MEVSİM / HAVA =====
+
+function rollWeather(season: Season): WeatherType {
+  const chances = SEASON_WEATHER_CHANCES[season];
+  const total = chances.reduce((s, c) => s + c.weight, 0);
+  let roll = Math.random() * total;
+  for (const c of chances) {
+    roll -= c.weight;
+    if (roll <= 0) return c.type;
+  }
+  return WeatherType.Clear;
+}
+
+function tickSeasonWeather(
+  get: () => GameStore,
+  set: (partial: Partial<GameState>) => void
+) {
+  const state = get();
+  const newCounter = state.seasonTurnCounter + 1;
+
+  if (newCounter >= TURNS_PER_SEASON) {
+    // Mevsim değişimi
+    const currentIdx = SEASON_ORDER.indexOf(state.currentSeason as Season);
+    const nextIdx = (currentIdx + 1) % SEASON_ORDER.length;
+    const nextSeason = SEASON_ORDER[nextIdx];
+    const nextWeather = rollWeather(nextSeason);
+    const seasonDef = SEASONS[nextSeason];
+
+    set({
+      currentSeason: nextSeason,
+      currentWeather: nextWeather,
+      seasonTurnCounter: 0,
+      actionLog: [...get().actionLog, {
+        id: `season-${Date.now()}`,
+        text: `${seasonDef.icon} ${seasonDef.name} geldi! ${seasonDef.description}`,
+        color: seasonDef.color,
+        icon: seasonDef.icon,
+      }],
+    });
+  } else {
+    // Her turda hava degisebilir (%30 sans)
+    let newWeather = state.currentWeather;
+    if (Math.random() < 0.3) {
+      newWeather = rollWeather(state.currentSeason as Season);
+    }
+    set({ seasonTurnCounter: newCounter, currentWeather: newWeather });
+  }
+}
 
 // ===== DİPLOMASİ SÜRE =====
 

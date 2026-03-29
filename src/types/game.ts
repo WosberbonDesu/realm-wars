@@ -136,6 +136,9 @@ export interface GameState {
   victoryInfo: { winnerId: string; victoryType: string } | null;
   relations: { playerId: string; targetId: string; type: string; turnsRemaining: number }[];
   proposals: { id: string; fromId: string; toId: string; action: string; tribute?: Partial<Resources>; turnsLeft: number }[];
+  currentSeason: string;
+  currentWeather: string;
+  seasonTurnCounter: number;
 }
 
 export enum GamePhase {

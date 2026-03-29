@@ -17,6 +17,8 @@ import TechTreeModal from '../components/TechTreeModal';
 import EventModal from '../components/EventModal';
 import HeroModal from '../components/HeroModal';
 import DiplomacyModal from '../components/DiplomacyModal';
+import WeatherBadge from '../components/WeatherBadge';
+import WeatherInfoModal from '../components/WeatherInfoModal';
 import VictoryProgress from '../components/VictoryProgress';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
@@ -42,6 +44,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [heroModalVisible, setHeroModalVisible] = useState(false);
   const [diplomacyModalVisible, setDiplomacyModalVisible] = useState(false);
+  const [weatherModalVisible, setWeatherModalVisible] = useState(false);
   const [victoryExpanded, setVictoryExpanded] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const pendingEvent = useGameStore(s => s.pendingEvent);
@@ -164,6 +167,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         <TouchableOpacity onPress={() => setDiplomacyModalVisible(true)}>
           <Text style={styles.diploText}>Diplomasi</Text>
         </TouchableOpacity>
+        <WeatherBadge onPress={() => setWeatherModalVisible(true)} />
         <Text style={styles.turnText}>Tur {turn}</Text>
         <View style={styles.playerBadge}>
           <View style={[styles.playerDot, { backgroundColor: currentPlayer?.color }]} />
@@ -261,6 +265,10 @@ export default function GameScreen({ onBackToMenu }: Props) {
       <DiplomacyModal
         visible={diplomacyModalVisible}
         onClose={() => setDiplomacyModalVisible(false)}
+      />
+      <WeatherInfoModal
+        visible={weatherModalVisible}
+        onClose={() => setWeatherModalVisible(false)}
       />
     </View>
   );
