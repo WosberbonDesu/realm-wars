@@ -17,7 +17,7 @@ import {
   UPGRADE_PRODUCTION_MULTIPLIER, UPGRADE_HEALTH_MULTIPLIER,
 } from '../constants/game';
 import { TERRAIN_BUILDABLE } from '../constants/terrain';
-import { saveGame, loadGame } from '../services/saveService';
+import { saveGame, loadGame, loadSettings } from '../services/saveService';
 import { TECH_TREE, BASE_UNITS } from '../constants/tech';
 import { rollEvent, applyEvent } from '../engine/events';
 import { GameEvent } from '../constants/events';
@@ -679,62 +679,64 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ─── TUR BİTİR ───
   endTurn: () => {
-    const state = get();
-    if (state.phase !== GamePhase.Playing) return;
+    if (get().phase !== GamePhase.Playing) return;
 
-    // 1. Mevcut oyuncunun kaynak üretimi
-    collectResources(state, set);
-
-    // 1.5 Araştırma ilerlet
+    // 1. Mevcut oyuncunun tur sonu islemleri
+    collectResources(get(), set);
     tickResearch(get, set);
-
-    // 1.6 Rastgele olay
     triggerRandomEvent(get, set);
-
-    // 1.7 Mevsim/hava guncelle
     tickSeasonWeather(get, set);
-
-    // 1.8 Diplomasi sureleri
     tickDiplomacy(get, set);
-
-    // 1.9 Zafer kontrolu
     checkGameOver(get, set);
     if (get().phase === GamePhase.GameOver) return;
 
-    // 2. Sıradaki oyuncuyu bul
-    const currentIndex = state.players.findIndex(p => p.id === state.currentPlayerId);
-    let nextIndex = (currentIndex + 1) % state.players.length;
+    // 2. Siradaki oyuncuyu bul ve bot turlarini iteratif isle
+    let safetyCounter = 0;
+    const maxIterations = get().players.length + 1;
 
-    // Elenmiş oyuncuları atla (kalesi olmayan)
-    let attempts = 0;
-    while (attempts < state.players.length) {
-      const nextPlayer = state.players[nextIndex];
-      if (nextPlayer.castleCoord !== null) break;
-      nextIndex = (nextIndex + 1) % state.players.length;
-      attempts++;
-    }
+    while (safetyCounter < maxIterations) {
+      safetyCounter++;
+      const state = get();
+      const currentIndex = state.players.findIndex(p => p.id === state.currentPlayerId);
+      let nextIndex = (currentIndex + 1) % state.players.length;
 
-    const isNewRound = nextIndex <= currentIndex;
-    const newTurn = isNewRound ? state.turn + 1 : state.turn;
+      // Elenmis oyunculari atla (kalesi olmayan)
+      let skipAttempts = 0;
+      while (skipAttempts < state.players.length) {
+        if (state.players[nextIndex].castleCoord !== null) break;
+        nextIndex = (nextIndex + 1) % state.players.length;
+        skipAttempts++;
+      }
 
-    set({
-      currentPlayerId: state.players[nextIndex].id,
-      turn: newTurn,
-      selectedHex: null,
-      moveMode: false,
-      moveFrom: null,
-      moveTargets: [],
-    });
+      const isNewRound = nextIndex <= currentIndex;
+      const newTurn = isNewRound ? state.turn + 1 : state.turn;
 
-    // 3. Eğer sıradaki bot ise, bot turunu oyna
-    const nextPlayer = get().players[nextIndex];
-    if (nextPlayer.isBot && nextPlayer.castleCoord !== null) {
-      executeBotTurn(get, set);
-      // Bot turunu bitir, bir sonrakine geç
-      get().endTurn();
-    } else {
-      // İnsan oyuncunun görünürlüğünü güncelle
-      get().updateVisibility(nextPlayer.id);
+      set({
+        currentPlayerId: state.players[nextIndex].id,
+        turn: newTurn,
+        selectedHex: null,
+        moveMode: false,
+        moveFrom: null,
+        moveTargets: [],
+      });
+
+      const nextPlayer = get().players[nextIndex];
+
+      if (nextPlayer.isBot && nextPlayer.castleCoord !== null) {
+        // Bot turu: oyna ve donguye devam (bir sonraki oyuncuya gec)
+        executeBotTurn(get, set);
+
+        // Bot icin de tur sonu islemleri
+        collectResources(get(), set);
+        tickResearch(get, set);
+        checkGameOver(get, set);
+        if (get().phase === GamePhase.GameOver) return;
+        // Dongu devam → siradaki oyuncuya gec
+      } else {
+        // Insan oyuncuya geldik → gorunurluk guncelle ve dur
+        get().updateVisibility(nextPlayer.id);
+        return;
+      }
     }
   },
 
@@ -852,8 +854,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadSavedGame: async (): Promise<boolean> => {
     const loaded = await loadGame();
     if (!loaded) return false;
+
+    // Guncel ayarlardan difficulty'yi oku (save'deki eski olabilir)
+    const currentSettings = await loadSettings();
+    if (currentSettings && (currentSettings as any).botDifficulty) {
+      loaded.botDifficulty = (currentSettings as any).botDifficulty;
+    }
+
     set(loaded);
-    // Gorunurluk guncelle
     get().updateVisibility(loaded.currentPlayerId);
     return true;
   },
