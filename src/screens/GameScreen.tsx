@@ -21,10 +21,10 @@ import WeatherInfoModal from '../components/WeatherInfoModal';
 import VictoryProgress from '../components/VictoryProgress';
 import GameToolbar from '../components/GameToolbar';
 import TutorialModal from '../components/TutorialModal';
+import GameOverScreen from '../components/GameOverScreen';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
-import { VICTORY_CONDITIONS, VictoryType } from '../constants/victory';
 
 interface Props {
   onBackToMenu: () => void;
@@ -119,34 +119,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const victoryInfo = useGameStore(s => s.victoryInfo);
 
   if (phase === GamePhase.GameOver) {
-    const winner = victoryInfo
-      ? players.find(p => p.id === victoryInfo.winnerId)
-      : players.find(p => p.castleCoord !== null);
-    const victory = victoryInfo
-      ? VICTORY_CONDITIONS[victoryInfo.victoryType as VictoryType]
-      : null;
-
-    return (
-      <View style={styles.gameOverContainer}>
-        {victory && <Text style={styles.victoryIcon}>{victory.icon}</Text>}
-        <Text style={[styles.gameOverTitle, victory && { color: victory.color }]}>
-          {victory ? victory.name : 'Oyun Bitti!'}
-        </Text>
-        <Text style={styles.gameOverWinner}>
-          {winner ? `${winner.name} Kazandi!` : 'Berabere!'}
-        </Text>
-        {victory && <Text style={styles.victoryDesc}>{victory.description}</Text>}
-        <Text style={styles.gameOverStats}>
-          Tur: {turn} | Toprak: {winner?.territory.length ?? 0}
-        </Text>
-        <AnimatedButton
-          label="Ana Menu"
-          onPress={onBackToMenu}
-          variant="primary"
-          style={{ paddingHorizontal: 40, marginTop: SPACE.xl }}
-        />
-      </View>
-    );
+    return <GameOverScreen onBackToMenu={onBackToMenu} />;
   }
 
   // Toolbar aksiyonları
@@ -278,40 +251,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     zIndex: 10,
-  },
-  // Game Over
-  gameOverContainer: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACE.xxl,
-  },
-  victoryIcon: {
-    fontSize: 56,
-    marginBottom: SPACE.lg,
-  },
-  gameOverTitle: {
-    fontSize: FONT.h1,
-    fontWeight: FONT.black,
-    color: COLORS.gold,
-    marginBottom: SPACE.sm,
-    textAlign: 'center',
-  },
-  gameOverWinner: {
-    fontSize: FONT.h2,
-    fontWeight: FONT.bold,
-    color: COLORS.textPrimary,
-    marginBottom: SPACE.sm,
-  },
-  victoryDesc: {
-    color: COLORS.textSecondary,
-    fontSize: FONT.body,
-    textAlign: 'center',
-    marginBottom: SPACE.sm,
-  },
-  gameOverStats: {
-    color: COLORS.textMuted,
-    fontSize: FONT.caption,
   },
 });
