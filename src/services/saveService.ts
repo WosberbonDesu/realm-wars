@@ -22,6 +22,14 @@ interface SerializedGameState {
   moveMode: boolean;
   moveFrom: HexCoord | null;
   moveTargets: HexCoord[];
+  actionLog: { id: string; text: string; color: string; icon: string }[];
+  pendingEvent: any;
+  victoryInfo: any;
+  relations: any[];
+  proposals: any[];
+  currentSeason: string;
+  currentWeather: string;
+  seasonTurnCounter: number;
 }
 
 export function serializeState(state: GameState): SerializedGameState {
@@ -37,6 +45,14 @@ export function serializeState(state: GameState): SerializedGameState {
     moveMode: false,
     moveFrom: null,
     moveTargets: [],
+    actionLog: [],
+    pendingEvent: null,
+    victoryInfo: null,
+    relations: state.relations ?? [],
+    proposals: state.proposals ?? [],
+    currentSeason: state.currentSeason ?? 'spring',
+    currentWeather: state.currentWeather ?? 'clear',
+    seasonTurnCounter: state.seasonTurnCounter ?? 0,
   };
 }
 
@@ -53,6 +69,14 @@ export function deserializeState(data: SerializedGameState): GameState {
     moveMode: false,
     moveFrom: null,
     moveTargets: [],
+    actionLog: [],
+    pendingEvent: null,
+    victoryInfo: null,
+    relations: (data as any).relations ?? [],
+    proposals: (data as any).proposals ?? [],
+    currentSeason: (data as any).currentSeason ?? 'spring',
+    currentWeather: (data as any).currentWeather ?? 'clear',
+    seasonTurnCounter: (data as any).seasonTurnCounter ?? 0,
   };
 }
 
