@@ -1,13 +1,15 @@
 // ===== HEX & MAP =====
 export enum HexTerrain {
+  Sea = 'sea',
+  Coast = 'coast',
   Plains = 'plains',
   Mountain = 'mountain',
   Forest = 'forest',
   River = 'river',
   Desert = 'desert',
   Swamp = 'swamp',
-  Sea = 'sea',
   Lake = 'lake',
+  Shore = 'shore',
   Hills = 'hills',
   Fertile = 'fertile',
 }

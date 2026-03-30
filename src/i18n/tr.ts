@@ -270,10 +270,16 @@ export const tr: Record<string, string> = {
   'settings.selectLang': 'Dil Secin',
 
   // ── TERRAIN NAMES ──
+  'terrain.sea': 'Deniz',
+  'terrain.coast': 'Kiyi',
   'terrain.plains': 'Ova',
   'terrain.mountain': 'Dag',
   'terrain.forest': 'Orman',
   'terrain.river': 'Nehir',
   'terrain.desert': 'Col',
   'terrain.swamp': 'Bataklik',
+  'terrain.lake': 'Gol',
+  'terrain.shore': 'Sahil',
+  'terrain.hills': 'Tepe',
+  'terrain.fertile': 'Verimli Toprak',
 };

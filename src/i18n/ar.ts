@@ -270,10 +270,16 @@ export const ar: Record<string, string> = {
   'settings.selectLang': 'اختر اللغة',
 
   // ── TERRAIN NAMES ──
+  'terrain.sea': 'بحر',
+  'terrain.coast': 'ساحل',
   'terrain.plains': 'سهول',
   'terrain.mountain': 'جبل',
   'terrain.forest': 'غابة',
   'terrain.river': 'نهر',
   'terrain.desert': 'صحراء',
   'terrain.swamp': 'مستنقع',
+  'terrain.lake': 'بحيرة',
+  'terrain.shore': 'شاطئ',
+  'terrain.hills': 'تلال',
+  'terrain.fertile': 'أرض خصبة',
 };

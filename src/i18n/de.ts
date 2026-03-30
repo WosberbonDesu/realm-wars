@@ -270,10 +270,16 @@ export const de: Record<string, string> = {
   'settings.selectLang': 'Sprache waehlen',
 
   // ── TERRAIN NAMES ──
+  'terrain.sea': 'Meer',
+  'terrain.coast': 'Kueste',
   'terrain.plains': 'Ebene',
   'terrain.mountain': 'Berg',
   'terrain.forest': 'Wald',
   'terrain.river': 'Fluss',
   'terrain.desert': 'Wueste',
   'terrain.swamp': 'Sumpf',
+  'terrain.lake': 'See',
+  'terrain.shore': 'Ufer',
+  'terrain.hills': 'Huegel',
+  'terrain.fertile': 'Fruchtbares Land',
 };

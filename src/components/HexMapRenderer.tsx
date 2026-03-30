@@ -359,17 +359,177 @@ function simpleRng(seed: number) {
   };
 }
 
+function makeSeaPaths(cx: number, cy: number, seed: number) {
+  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
+  const rng = simpleRng(seed);
+
+  // Derin su dalgaları — yumuşak, geniş, çok saydam
+  for (let i = 0; i < 3; i++) {
+    const wave = Skia.Path.Make();
+    const wy = cy - S * 0.25 + i * S * 0.18 + (rng() - 0.5) * 4;
+    const wx = cx - S * 0.4;
+    const amp = 1.5 + rng() * 1.5;
+    wave.moveTo(wx, wy);
+    wave.cubicTo(wx + S * 0.2, wy - amp, wx + S * 0.45, wy + amp, wx + S * 0.7, wy);
+    const alpha = Math.round(15 + rng() * 20).toString(16).padStart(2, '0');
+    paths.push({ path: wave, color: `#6090C0${alpha}` });
+  }
+  return paths;
+}
+
+function makeCoastPaths(cx: number, cy: number, seed: number) {
+  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
+  const rng = simpleRng(seed);
+
+  // Sığ su dalgacıkları
+  for (let i = 0; i < 2; i++) {
+    const wave = Skia.Path.Make();
+    const wy = cy + (rng() - 0.5) * S * 0.3;
+    const wx = cx - S * 0.3 + rng() * 3;
+    wave.moveTo(wx, wy);
+    wave.cubicTo(wx + S * 0.15, wy - 2, wx + S * 0.35, wy + 1.5, wx + S * 0.5, wy);
+    paths.push({ path: wave, color: '#80C8F830' });
+  }
+
+  // Köpük noktaları
+  for (let i = 0; i < 3; i++) {
+    const foam = Skia.Path.Make();
+    foam.addCircle(cx + (rng() - 0.5) * S * 0.5, cy + (rng() - 0.5) * S * 0.4, 0.8 + rng() * 0.6);
+    paths.push({ path: foam, color: '#FFFFFF20' });
+  }
+  return paths;
+}
+
+function makeLakePaths(cx: number, cy: number, seed: number) {
+  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
+  const rng = simpleRng(seed);
+
+  // Sakin su — küçük ışık parıltıları
+  for (let i = 0; i < 2; i++) {
+    const shimmer = Skia.Path.Make();
+    const sx = cx + (rng() - 0.5) * S * 0.4;
+    const sy = cy + (rng() - 0.5) * S * 0.3;
+    shimmer.moveTo(sx - 2, sy);
+    shimmer.cubicTo(sx - 1, sy - 1, sx + 1, sy - 1, sx + 2, sy);
+    paths.push({ path: shimmer, color: '#FFFFFF25' });
+  }
+
+  // Suyun yüzeyinde hafif dalga
+  const ripple = Skia.Path.Make();
+  const rx = cx + (rng() - 0.5) * S * 0.3;
+  const ry = cy + (rng() - 0.5) * S * 0.2;
+  ripple.addOval(Skia.XYWHRect(rx - 3, ry - 1.2, 6, 2.4));
+  paths.push({ path: ripple, color: '#80B0D820' });
+
+  return paths;
+}
+
+function makeShorePaths(cx: number, cy: number, seed: number) {
+  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
+  const rng = simpleRng(seed);
+
+  // Kumsal çizgileri
+  for (let i = 0; i < 2; i++) {
+    const sand = Skia.Path.Make();
+    const sy = cy + S * 0.05 + i * S * 0.15 + (rng() - 0.5) * 2;
+    const sx = cx - S * 0.35;
+    sand.moveTo(sx, sy);
+    sand.cubicTo(sx + S * 0.2, sy - 1.5, sx + S * 0.5, sy + 1, sx + S * 0.7, sy - 0.5);
+    paths.push({ path: sand, color: '#D4C09830' });
+  }
+
+  // Küçük çimen tutamları
+  for (let i = 0; i < 3; i++) {
+    const grass = Skia.Path.Make();
+    const gx = cx + (rng() - 0.5) * S * 0.5;
+    const gy = cy + (rng() - 0.5) * S * 0.35;
+    grass.moveTo(gx, gy);
+    grass.cubicTo(gx + (rng() - 0.5) * 2, gy - 2.5, gx + (rng() - 0.5) * 1.5, gy - 3.5, gx + (rng() - 0.5) * 3, gy - 4);
+    paths.push({ path: grass, color: '#70A85060' });
+  }
+
+  return paths;
+}
+
 function getTerrainDecorations(terrain: HexTerrain, cx: number, cy: number, q: number, r: number) {
-  const seed = q * 1000 + r * 31 + 7919; // deterministik
+  const seed = q * 1000 + r * 31 + 7919;
   switch (terrain) {
+    case HexTerrain.Sea: return makeSeaPaths(cx, cy, seed);
+    case HexTerrain.Coast: return makeCoastPaths(cx, cy, seed);
     case HexTerrain.Forest: return makeTreePaths(cx, cy, seed);
     case HexTerrain.Mountain: return makeMountainPaths(cx, cy, seed);
     case HexTerrain.River: return makeWavePaths(cx, cy, seed);
     case HexTerrain.Desert: return makeDesertPaths(cx, cy, seed);
     case HexTerrain.Swamp: return makeSwampPaths(cx, cy, seed);
     case HexTerrain.Plains: return makePlainsPaths(cx, cy, seed);
+    case HexTerrain.Lake: return makeLakePaths(cx, cy, seed);
+    case HexTerrain.Shore: return makeShorePaths(cx, cy, seed);
+    case HexTerrain.Hills: return makeHillsPaths(cx, cy, seed);
+    case HexTerrain.Fertile: return makeFertilePaths(cx, cy, seed);
     default: return [];
   }
+}
+
+function makeHillsPaths(cx: number, cy: number, seed: number) {
+  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
+  const rng = simpleRng(seed);
+
+  // Yumusak tepe siluetleri — 2-3 katman
+  const hillCount = 2 + Math.floor(rng() * 2);
+  for (let i = 0; i < hillCount; i++) {
+    const hill = Skia.Path.Make();
+    const hx = cx + (rng() - 0.5) * S * 0.4;
+    const hy = cy + S * 0.05 + i * S * 0.08;
+    const hw = S * (0.3 + rng() * 0.2);
+    const hh = S * (0.15 + rng() * 0.1);
+    hill.moveTo(hx - hw, hy);
+    hill.cubicTo(hx - hw * 0.3, hy - hh, hx + hw * 0.3, hy - hh * 0.8, hx + hw, hy);
+    const alpha = Math.round(25 + rng() * 30).toString(16).padStart(2, '0');
+    paths.push({ path: hill, color: `#5A7A38${alpha}` });
+  }
+
+  // Kucuk cimen
+  for (let i = 0; i < 3; i++) {
+    const g = Skia.Path.Make();
+    const gx = cx + (rng() - 0.5) * S * 0.6;
+    const gy = cy + (rng() - 0.5) * S * 0.4;
+    g.moveTo(gx, gy);
+    g.cubicTo(gx + (rng() - 0.5) * 2, gy - 2.5, gx + (rng() - 0.5) * 1.5, gy - 3.5, gx + (rng() - 0.5) * 2, gy - 4);
+    paths.push({ path: g, color: '#90B06050' });
+  }
+  return paths;
+}
+
+function makeFertilePaths(cx: number, cy: number, seed: number) {
+  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
+  const rng = simpleRng(seed);
+
+  // Yesil cimen kumesi — yogun
+  const clumpCount = 4 + Math.floor(rng() * 3);
+  for (let i = 0; i < clumpCount; i++) {
+    const gx = cx + (rng() - 0.5) * S * 0.7;
+    const gy = cy + (rng() - 0.5) * S * 0.5;
+    for (let j = 0; j < 3; j++) {
+      const blade = Skia.Path.Make();
+      const bx = gx + (rng() - 0.5) * 2.5;
+      const bh = 3 + rng() * 4;
+      blade.moveTo(bx, gy);
+      blade.cubicTo(bx + (rng() - 0.5) * 2.5, gy - bh * 0.5, bx + (rng() - 0.5) * 2, gy - bh * 0.8, bx + (rng() - 0.5) * 3, gy - bh);
+      paths.push({ path: blade, color: '#50A83060' });
+    }
+  }
+
+  // Cicekler — daha renkli
+  const flowerCount = 2 + Math.floor(rng() * 2);
+  for (let i = 0; i < flowerCount; i++) {
+    const flower = Skia.Path.Make();
+    const fx = cx + (rng() - 0.5) * S * 0.5;
+    const fy = cy + (rng() - 0.5) * S * 0.35;
+    flower.addCircle(fx, fy, 1.2 + rng() * 0.8);
+    const colors = ['#FFD54F80', '#FF8A6580', '#CE93D880', '#80DEEA80'];
+    paths.push({ path: flower, color: colors[Math.floor(rng() * colors.length)] });
+  }
+  return paths;
 }
 
 // ===== COMPONENT =====
