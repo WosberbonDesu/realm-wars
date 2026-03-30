@@ -12,7 +12,7 @@ import Animated, {
   runOnJS, type SharedValue,
 } from 'react-native-reanimated';
 import { useGameStore } from '../store/gameStore';
-import { hexToPixel, getHexCorners, pixelToHex } from '../engine/hexUtils';
+import { hexToPixel, getHexCorners, pixelToHex, getNeighbors } from '../engine/hexUtils';
 import { HexTile, HexCoord, HexTerrain, hexKey } from '../types/game';
 import { HEX_SIZE, TERRAIN_PALETTE, BUILDING_ICONS, UNIT_ICONS } from '../constants/game';
 import { COLORS } from '../constants/theme';
@@ -652,7 +652,17 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
   const composed = Gesture.Simultaneous(panGesture, pinchGesture);
   const allGestures = Gesture.Exclusive(tapGesture, composed);
 
-  // ===== RENDER DATA =====
+  // ===== NEIGHBOR-AWARE RENDER DATA =====
+  interface BlendEdge {
+    wedgePath: ReturnType<typeof Skia.Path.Make>;
+    edgeMidX: number; edgeMidY: number;
+    insetX: number; insetY: number;
+    neighborColor: string;
+    isCoast: boolean; // su-kara siniri mi
+  }
+
+  const WATER_TERRAINS = new Set([HexTerrain.Sea, HexTerrain.Coast, HexTerrain.Lake]);
+
   const hexRenderData = useMemo(() => {
     const data: {
       key: string;
@@ -668,6 +678,8 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
       isAttackTarget: boolean;
       isSelected: boolean;
       decorations: { path: ReturnType<typeof Skia.Path.Make>; color: string }[];
+      blendEdges: BlendEdge[];
+      microNoise: { path: ReturnType<typeof Skia.Path.Make>; color: string }[];
     }[] = [];
 
     const playerColorMap = new Map<string, string>();
@@ -699,15 +711,71 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
         armyCount = tile.army.units.reduce((s, u) => s + u.count, 0);
       }
 
-      // Terrain dekorasyonlari (sadece gorunur hex'ler icin)
+      // Terrain dekorasyonlari — overflow ile (sinirlari asar)
       const decorations = isVisible
         ? getTerrainDecorations(tile.terrain, cx, cy, tile.coord.q, tile.coord.r)
         : [];
 
+      // ── BLEND EDGES: komsu terrain gecisleri ──
+      const blendEdges: BlendEdge[] = [];
+      if (!isExploredOnly) {
+        const corners = getHexCorners(cx, cy, S);
+        const neighbors = getNeighbors(tile.coord);
+        for (let i = 0; i < 6; i++) {
+          const nCoord = neighbors[i];
+          const nKey = hexKey(nCoord.q, nCoord.r);
+          const nTile = map.get(nKey);
+          if (!nTile || nTile.terrain === tile.terrain) continue;
+
+          const nPalette = TERRAIN_PALETTE[nTile.terrain];
+          const c1 = corners[i];
+          const c2 = corners[(i + 1) % 6];
+
+          // Kenar orta noktasi
+          const emx = (c1.x + c2.x) / 2;
+          const emy = (c1.y + c2.y) / 2;
+          // Merkeze dogru %35 iceri
+          const inx = cx + (emx - cx) * 0.65;
+          const iny = cy + (emy - cy) * 0.65;
+
+          // Kama (wedge) path
+          const wedge = Skia.Path.Make();
+          wedge.moveTo(c1.x, c1.y);
+          wedge.lineTo(c2.x, c2.y);
+          wedge.lineTo(inx, iny);
+          wedge.close();
+
+          const isWater = WATER_TERRAINS.has(tile.terrain) !== WATER_TERRAINS.has(nTile.terrain);
+          blendEdges.push({
+            wedgePath: wedge,
+            edgeMidX: emx, edgeMidY: emy,
+            insetX: inx, insetY: iny,
+            neighborColor: nPalette.base,
+            isCoast: isWater,
+          });
+        }
+      }
+
+      // ── MICRO NOISE: ince renk varyasyonu ──
+      const microNoise: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
+      if (!isExploredOnly) {
+        const nRng = simpleRng(tile.coord.q * 997 + tile.coord.r * 53 + 1301);
+        const nCount = 5 + Math.floor(nRng() * 5);
+        for (let ni = 0; ni < nCount; ni++) {
+          const nx = cx + (nRng() - 0.5) * S * 1.3;
+          const ny = cy + (nRng() - 0.5) * S * 1.0;
+          const nr = 2 + nRng() * 4;
+          const nPath = Skia.Path.Make();
+          nPath.addCircle(nx, ny, nr);
+          const nColor = ni % 3 === 0 ? palette.light + '14' : palette.dark + '12';
+          microNoise.push({ path: nPath, color: nColor });
+        }
+      }
+
       data.push({
         key, cx, cy, tile, palette, isExploredOnly, ownerColor,
         buildingIcon, armyIcon, armyCount, isMoveTarget, isAttackTarget,
-        isSelected, decorations,
+        isSelected, decorations, blendEdges, microNoise,
       });
     }
     return data;
@@ -741,50 +809,62 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
           <Canvas style={styles.canvas}>
             {hexRenderData.map((hex) => {
               const { cx, cy, palette, isExploredOnly, tile } = hex;
-              const outerPath = makeHexPath(cx, cy, S - 1);
-              const innerPath = makeHexPathInset(cx, cy, S, 3);
-              const highlightPath = makeHexPathInset(cx, cy, S, 5);
-
-              // Kesfedilmis ama gorunmuyor -> koyulastir
+              // Biraz buyuk hex → komsularla overlap, bosluk yok
+              const basePath = makeHexPath(cx, cy, S + 0.5);
               const fogAlpha = isExploredOnly ? '60' : 'FF';
 
               return (
                 <Group key={hex.key}>
-                  {/* 1. Golge (3D derinlik) */}
-                  <Path
-                    path={makeHexPath(cx + 1.5, cy + 2, S - 1)}
-                    color={palette.shadow + '40'}
-                    style="fill"
-                  />
+                  {/* ═══ LAYER 1: Ustuste binen baz dolgu (bosluk yok) ═══ */}
+                  <Path path={basePath} color={palette.base + fogAlpha} style="fill" />
 
-                  {/* 2. Ana hex dolgu - gradient */}
-                  <Group clip={outerPath}>
-                    <Path path={outerPath} color={palette.base + fogAlpha} style="fill" />
-                    {/* Ust highlight (isik geliyor) */}
-                    <Path
-                      path={highlightPath}
-                      style="fill"
-                    >
+                  {/* Isik gradyani — ustten */}
+                  <Group clip={basePath}>
+                    <Path path={makeHexPathInset(cx, cy, S, 4)} style="fill">
                       <LinearGradient
                         start={vec(cx, cy - S)}
-                        end={vec(cx, cy + S * 0.3)}
-                        colors={[palette.light + '50', 'transparent']}
+                        end={vec(cx, cy + S * 0.4)}
+                        colors={[palette.light + '40', 'transparent']}
                       />
                     </Path>
-                    {/* Alt golge */}
-                    <Path
-                      path={innerPath}
-                      style="fill"
-                    >
+                    {/* Golge — alttan */}
+                    <Path path={makeHexPathInset(cx, cy, S, 3)} style="fill">
                       <LinearGradient
                         start={vec(cx, cy + S * 0.2)}
                         end={vec(cx, cy + S)}
-                        colors={['transparent', palette.dark + '40']}
+                        colors={['transparent', palette.dark + '30']}
                       />
                     </Path>
                   </Group>
 
-                  {/* 3. Terrain dekorasyonlari */}
+                  {/* ═══ LAYER 2: Terrain blend kenarlari ═══ */}
+                  {hex.blendEdges.map((edge, ei) => (
+                    <Group key={`bl-${ei}`} clip={edge.wedgePath}>
+                      <Path path={edge.wedgePath} style="fill">
+                        <LinearGradient
+                          start={vec(edge.edgeMidX, edge.edgeMidY)}
+                          end={vec(edge.insetX, edge.insetY)}
+                          colors={[edge.neighborColor + (isExploredOnly ? '40' : '90'), palette.base + '00']}
+                        />
+                      </Path>
+                      {/* Kiyi cizgisi — su-kara sinirinda ince beyaz kopuk */}
+                      {edge.isCoast && !isExploredOnly && (
+                        <Path
+                          path={edge.wedgePath}
+                          color="#FFFFFF18"
+                          style="stroke"
+                          strokeWidth={1.5}
+                        />
+                      )}
+                    </Group>
+                  ))}
+
+                  {/* ═══ LAYER 3: Micro-noise doku ═══ */}
+                  {hex.microNoise.map((mn, mi) => (
+                    <Path key={`mn-${mi}`} path={mn.path} color={mn.color} style="fill" />
+                  ))}
+
+                  {/* ═══ LAYER 4: Terrain dekorasyonlari (tasar!) ═══ */}
                   {!isExploredOnly && hex.decorations.map((dec, i) => (
                     <Path
                       key={`dec-${i}`}
@@ -796,71 +876,49 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
                     />
                   ))}
 
-                  {/* 4. Sahiplik overlay — yumusak renk yikama + ince kenar */}
+                  {/* ═══ LAYER 5: Sahiplik — yumusak radyal parlama ═══ */}
                   {hex.ownerColor && (showFogOfWar ? tile.visible : true) && (
-                    <>
-                      <Path
-                        path={outerPath}
-                        color={hex.ownerColor + '14'}
-                        style="fill"
+                    <Circle cx={cx} cy={cy} r={S * 0.85}>
+                      <RadialGradient
+                        c={vec(cx, cy)}
+                        r={S * 0.85}
+                        colors={[hex.ownerColor + '20', hex.ownerColor + '08', 'transparent']}
                       />
-                      <Path
-                        path={makeHexPathInset(cx, cy, S, 1)}
-                        color={hex.ownerColor + '35'}
-                        style="stroke"
-                        strokeWidth={1.2}
-                      />
-                    </>
+                    </Circle>
                   )}
 
-                  {/* 5. Hareket/saldiri hedef */}
+                  {/* ═══ LAYER 6: Hareket/saldiri hedef — yumusak daire ═══ */}
                   {hex.isMoveTarget && (
-                    <>
-                      <Path
-                        path={outerPath}
-                        color={hex.isAttackTarget ? COLORS.attackHighlight : COLORS.moveHighlight}
-                        style="fill"
+                    <Circle cx={cx} cy={cy} r={S * 0.7}>
+                      <RadialGradient
+                        c={vec(cx, cy)}
+                        r={S * 0.7}
+                        colors={[
+                          hex.isAttackTarget ? COLORS.red + '50' : COLORS.green + '50',
+                          hex.isAttackTarget ? COLORS.red + '15' : COLORS.green + '15',
+                          'transparent',
+                        ]}
                       />
-                      <Path
-                        path={outerPath}
-                        color={hex.isAttackTarget ? COLORS.red + '80' : COLORS.green + '80'}
-                        style="stroke"
-                        strokeWidth={2}
-                      />
-                    </>
+                    </Circle>
                   )}
 
-                  {/* 6. Secili hex - parlayan kenar */}
+                  {/* ═══ LAYER 7: Secim — radyal parlama (hex degil) ═══ */}
                   {hex.isSelected && (
                     <>
-                      <Path
-                        path={outerPath}
-                        color={COLORS.selectionFill}
-                        style="fill"
-                      />
-                      <Path
-                        path={makeHexPath(cx, cy, S + 1)}
-                        color={COLORS.selection + 'AA'}
-                        style="stroke"
-                        strokeWidth={2.5}
-                      />
-                      <Path
-                        path={makeHexPath(cx, cy, S + 3)}
+                      <Circle cx={cx} cy={cy} r={S * 0.9}>
+                        <RadialGradient
+                          c={vec(cx, cy)}
+                          r={S * 0.9}
+                          colors={[COLORS.selection + '50', COLORS.selection + '15', 'transparent']}
+                        />
+                      </Circle>
+                      <Circle
+                        cx={cx} cy={cy} r={S * 0.75}
                         color={COLORS.selection + '30'}
                         style="stroke"
-                        strokeWidth={2}
+                        strokeWidth={1.5}
                       />
                     </>
-                  )}
-
-                  {/* 7. Yumusak hex siniri — sadece koyu ince golge */}
-                  {showGrid && !hex.isSelected && !hex.isMoveTarget && (
-                    <Path
-                      path={outerPath}
-                      color={isExploredOnly ? '#0A101830' : '#0A101815'}
-                      style="stroke"
-                      strokeWidth={0.4}
-                    />
                   )}
                 </Group>
               );
