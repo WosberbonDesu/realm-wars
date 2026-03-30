@@ -6,6 +6,10 @@ export enum HexTerrain {
   River = 'river',
   Desert = 'desert',
   Swamp = 'swamp',
+  Sea = 'sea',
+  Lake = 'lake',
+  Hills = 'hills',
+  Fertile = 'fertile',
 }
 
 export interface HexCoord {

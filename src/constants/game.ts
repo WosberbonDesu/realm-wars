@@ -12,6 +12,10 @@ export const TERRAIN_COLORS: Record<HexTerrain, string> = {
   [HexTerrain.River]: '#4A90D9',
   [HexTerrain.Desert]: '#D4A843',
   [HexTerrain.Swamp]: '#5B6B4A',
+  [HexTerrain.Sea]: '#1B4F7A',
+  [HexTerrain.Lake]: '#3A80C8',
+  [HexTerrain.Hills]: '#8A9A60',
+  [HexTerrain.Fertile]: '#5AAF30',
 };
 
 // Fantastik harita - zengin renk paleti
@@ -64,6 +68,34 @@ export const TERRAIN_PALETTE: Record<HexTerrain, {
     accent: '#788858',
     shadow: '#1A2810',
   },
+  [HexTerrain.Sea]: {
+    base: '#1B4F7A',
+    light: '#2A6A9A',
+    dark: '#0E3358',
+    accent: '#3A8AC0',
+    shadow: '#081E38',
+  },
+  [HexTerrain.Lake]: {
+    base: '#3080B8',
+    light: '#50A0D8',
+    dark: '#1A5A90',
+    accent: '#70C0F0',
+    shadow: '#0C3860',
+  },
+  [HexTerrain.Hills]: {
+    base: '#7A9A50',
+    light: '#98B868',
+    dark: '#5A7A38',
+    accent: '#B0D080',
+    shadow: '#3A5A20',
+  },
+  [HexTerrain.Fertile]: {
+    base: '#4AA830',
+    light: '#68C848',
+    dark: '#308A18',
+    accent: '#90E870',
+    shadow: '#1A6008',
+  },
 };
 
 export const TERRAIN_ICONS: Record<HexTerrain, string> = {
@@ -73,6 +105,10 @@ export const TERRAIN_ICONS: Record<HexTerrain, string> = {
   [HexTerrain.River]: '💧',
   [HexTerrain.Desert]: '🏜️',
   [HexTerrain.Swamp]: '🌿',
+  [HexTerrain.Sea]: '🌊',
+  [HexTerrain.Lake]: '🏞️',
+  [HexTerrain.Hills]: '⛰️',
+  [HexTerrain.Fertile]: '🌱',
 };
 
 // ===== TERRAIN RESOURCE YIELDS =====
@@ -83,6 +119,10 @@ export const TERRAIN_RESOURCES: Record<HexTerrain, Partial<Resources>> = {
   [HexTerrain.River]: { gold: 2, food: 2 },
   [HexTerrain.Desert]: { gold: 3, stone: 1 },
   [HexTerrain.Swamp]: { food: 1, wood: 1 },
+  [HexTerrain.Sea]: {},
+  [HexTerrain.Lake]: { food: 2 },
+  [HexTerrain.Hills]: { stone: 2, food: 1 },
+  [HexTerrain.Fertile]: { food: 5, gold: 1 },
 };
 
 // ===== BUILDING STATS =====
