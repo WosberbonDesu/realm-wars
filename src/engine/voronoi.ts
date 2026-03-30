@@ -5,6 +5,74 @@
 
 import { MapPoint } from '../types/region';
 
+// ═══ JITTERED GRID (Azgaar yaklaşımı) ═══
+// Düzenli grid + rastgele offset → daha uniform Voronoi hücreleri
+
+export function jitteredGrid(
+  width: number,
+  height: number,
+  spacing: number,
+  seed: number,
+  jitter: number = 0.5, // 0=düzenli grid, 1=tamamen rastgele
+): MapPoint[] {
+  const rng = seedRng(seed);
+  const points: MapPoint[] = [];
+  const cols = Math.floor(width / spacing);
+  const rows = Math.floor(height / spacing);
+  const marginX = (width - cols * spacing) / 2;
+  const marginY = (height - rows * spacing) / 2;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = marginX + c * spacing + spacing * 0.5 + (rng() - 0.5) * spacing * jitter;
+      const y = marginY + r * spacing + spacing * 0.5 + (rng() - 0.5) * spacing * jitter;
+      if (x > 0 && x < width && y > 0 && y < height) {
+        points.push({ x, y });
+      }
+    }
+  }
+  return points;
+}
+
+// ═══ LLOYD RELAXATION ═══
+// Voronoi hücrelerini daha düzenli hale getirir (1-2 iterasyon yeterli)
+
+export function lloydRelaxation(
+  points: MapPoint[],
+  width: number,
+  height: number,
+  iterations: number = 2,
+): MapPoint[] {
+  let current = [...points];
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const cells = computeVoronoi(current, width, height);
+    const relaxed: MapPoint[] = [];
+
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      if (cell.vertices.length < 3) {
+        relaxed.push(current[i]);
+        continue;
+      }
+      // Hücrenin centroid'ine taşı
+      let cx = 0, cy = 0;
+      for (const v of cell.vertices) { cx += v.x; cy += v.y; }
+      cx /= cell.vertices.length;
+      cy /= cell.vertices.length;
+      // Sınırlar içinde tut
+      relaxed.push({
+        x: Math.max(1, Math.min(width - 1, cx)),
+        y: Math.max(1, Math.min(height - 1, cy)),
+      });
+    }
+
+    current = relaxed;
+  }
+
+  return current;
+}
+
 // ═══ POISSON DISK SAMPLING ═══
 // Rastgele ama eşit dağılmış noktalar üretir (birbirine çok yakın olmayan)
 

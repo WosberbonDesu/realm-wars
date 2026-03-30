@@ -15,7 +15,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withDecay, withTiming,
   runOnJS, type SharedValue,
 } from 'react-native-reanimated';
-import { Region, RegionTerrain, WorldMap, REGION_TERRAIN_COLORS } from '../types/region';
+import { Region, RegionTerrain, WorldMap, MapPoint, REGION_TERRAIN_COLORS } from '../types/region';
 import { COLORS } from '../constants/theme';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -70,6 +70,24 @@ function makeRawRegionPath(region: Region): ReturnType<typeof Skia.Path.Make> {
   }
   path.close();
   return path;
+}
+
+// ═══ HELPERS ═══
+
+function findSharedEdge(vertsA: MapPoint[], vertsB: MapPoint[]): MapPoint[] {
+  const shared: MapPoint[] = [];
+  const threshold = 2; // piksel tolerans
+  for (const va of vertsA) {
+    for (const vb of vertsB) {
+      const dx = va.x - vb.x;
+      const dy = va.y - vb.y;
+      if (dx * dx + dy * dy < threshold * threshold) {
+        shared.push(va);
+        break;
+      }
+    }
+  }
+  return shared;
 }
 
 // ═══ COMPONENT ═══
@@ -170,6 +188,57 @@ const RegionMapRenderer = forwardRef<RegionMapRef, Props>(function RegionMapRend
     return data;
   }, [world, playerColors]);
 
+  // Kıyı çizgisi path'i — kara/deniz sınırı boyunca izle (Azgaar tarzı)
+  const coastlinePath = useMemo(() => {
+    const path = Skia.Path.Make();
+    for (const [, region] of world.regions) {
+      if (!region.isCoast) continue;
+      // Bu bölgenin kenarlarında denize bakan olanları bul
+      for (let vi = 0; vi < region.vertices.length; vi++) {
+        const v1 = region.vertices[vi];
+        const v2 = region.vertices[(vi + 1) % region.vertices.length];
+        // Bu kenar deniz bölgesiyle paylaşılıyor mu kontrol et
+        // Basit yaklaşım: kenar çiz, deniz komşusu varsa
+        path.moveTo(v1.x, v1.y);
+        path.lineTo(v2.x, v2.y);
+      }
+    }
+    return path;
+  }, [world]);
+
+  // Sahiplik sınır path'leri — farklı sahipli komşu bölgeler arası kenarlar
+  const ownerBorderPaths = useMemo(() => {
+    const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
+    const drawnEdges = new Set<string>();
+
+    for (const [, region] of world.regions) {
+      if (!region.ownerId || !region.isLand) continue;
+      for (const nid of region.neighborIds) {
+        const neighbor = world.regions.get(nid);
+        if (!neighbor || !neighbor.isLand) continue;
+        if (neighbor.ownerId === region.ownerId) continue;
+
+        const edgeKey = [region.id, nid].sort().join('-');
+        if (drawnEdges.has(edgeKey)) continue;
+        drawnEdges.add(edgeKey);
+
+        // Shared edge vertices bul
+        // (Voronoi'de paylaşılan kenar = her iki hücrenin ortak köşeleri)
+        const sharedVerts = findSharedEdge(region.vertices, neighbor.vertices);
+        if (sharedVerts.length >= 2) {
+          const p = Skia.Path.Make();
+          p.moveTo(sharedVerts[0].x, sharedVerts[0].y);
+          for (let si = 1; si < sharedVerts.length; si++) {
+            p.lineTo(sharedVerts[si].x, sharedVerts[si].y);
+          }
+          const color = playerColors?.get(region.ownerId) ?? '#FFFFFF';
+          paths.push({ path: p, color });
+        }
+      }
+    }
+    return paths;
+  }, [world, playerColors]);
+
   // Nehir path'leri
   const riverPaths = useMemo(() => {
     return world.rivers.map(river => {
@@ -244,16 +313,15 @@ const RegionMapRenderer = forwardRef<RegionMapRef, Props>(function RegionMapRend
               />
             ))}
 
-            {/* ═══ PASS 4: Kıyı çizgisi — koyu organik ═══ */}
-            {regionRenderData.filter(d => d.region.isCoast).map(({ id, path }) => (
-              <Path
-                key={`coast-${id}`}
-                path={path}
-                color="#1A2A3A60"
-                style="stroke"
-                strokeWidth={1.5}
-              />
-            ))}
+            {/* ═══ PASS 4: Kıyı çizgisi — organik (Azgaar tarzı) ═══ */}
+            <Path
+              path={coastlinePath}
+              color="#1A2A3A70"
+              style="stroke"
+              strokeWidth={1.8}
+              strokeCap="round"
+              strokeJoin="round"
+            />
 
             {/* ═══ PASS 5: Nehirler ═══ */}
             {riverPaths.map((rp, i) => (
@@ -268,14 +336,16 @@ const RegionMapRenderer = forwardRef<RegionMapRef, Props>(function RegionMapRend
               />
             ))}
 
-            {/* ═══ PASS 6: Sahiplik sınırları — kalın renkli ═══ */}
-            {regionRenderData.filter(d => d.ownerColor).map(({ id, path, ownerColor }) => (
+            {/* ═══ PASS 6: Sahiplik sınırları — Voronoi kenar izleme (Azgaar tarzı) ═══ */}
+            {ownerBorderPaths.map((bp, i) => (
               <Path
-                key={`own-${id}`}
-                path={path}
-                color={ownerColor! + '60'}
+                key={`owb-${i}`}
+                path={bp.path}
+                color={bp.color + '90'}
                 style="stroke"
-                strokeWidth={2}
+                strokeWidth={2.5}
+                strokeCap="round"
+                strokeJoin="round"
               />
             ))}
 
