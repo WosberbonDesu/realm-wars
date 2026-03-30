@@ -11,13 +11,16 @@ import { BotDifficulty } from '../types/game';
 import { playSound } from '../services/soundService';
 import { useI18n } from '../i18n/useI18n';
 import { FACTIONS, FACTION_IDS, FactionId } from '../constants/factions';
+import { MapTemplate } from '../types/mapEditor';
 
 interface Props {
   onStartGame: () => void;
   onSettings: () => void;
+  onMapGallery?: () => void;
+  selectedMap?: MapTemplate | null;
 }
 
-export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
+export default function MainMenuScreen({ onStartGame, onSettings, onMapGallery, selectedMap }: Props) {
   const { t } = useI18n();
   const [playerName, setPlayerName] = useState('Komutan');
   const [botCount, setBotCount] = useState(2);
@@ -52,12 +55,40 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
 
   const handleStartGame = () => {
     playSound('click');
-    const parsedSeed = seedInput.trim() ? parseInt(seedInput.trim(), 10) : undefined;
-    if (seedInput.trim() && (isNaN(parsedSeed!) || parsedSeed! < 1)) {
-      Alert.alert(t('setup.invalidSeed'), t('setup.invalidSeedMsg'));
-      return;
+
+    // Custom harita secilmisse, onu store'a aktaracagiz
+    if (selectedMap && selectedMap.generatorType === 'custom') {
+      // Custom haritayi initGame'e seed olarak gecirebiliriz
+      // ama aslinda terrainData'yi kullanmamiz lazim
+      // Simdilik: selectedMap'in seed'ini kullan, radius'u al
+      initGame(
+        playerName || 'Komutan', botCount,
+        selectedMap.generatorSeed ?? Date.now(),
+        difficulty, selectedMap.radius, faction,
+      );
+      // Custom harita terrain verisini uygula
+      if (selectedMap.terrainData.length > 0) {
+        const store = useGameStore.getState();
+        const newMap = new Map(store.map);
+        for (const [q, r, terrain] of selectedMap.terrainData) {
+          const key = `${q},${r}`;
+          const tile = newMap.get(key);
+          if (tile) {
+            newMap.set(key, { ...tile, terrain });
+          }
+        }
+        useGameStore.setState({ map: newMap });
+      }
+    } else {
+      const parsedSeed = seedInput.trim() ? parseInt(seedInput.trim(), 10) : undefined;
+      if (seedInput.trim() && (isNaN(parsedSeed!) || parsedSeed! < 1)) {
+        Alert.alert(t('setup.invalidSeed'), t('setup.invalidSeedMsg'));
+        return;
+      }
+      const seed = selectedMap?.generatorSeed ?? parsedSeed;
+      const radius = selectedMap?.radius ?? mapSize;
+      initGame(playerName || 'Komutan', botCount, seed, difficulty, radius, faction);
     }
-    initGame(playerName || 'Komutan', botCount, parsedSeed, difficulty, mapSize, faction);
     onStartGame();
   };
 
@@ -187,7 +218,24 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
             {t(`setup.${difficulty}Desc`)}
           </Text>
 
-          {/* Seed */}
+          {/* Harita Seçimi */}
+          <Text style={styles.label}>HARITA</Text>
+          <TouchableOpacity
+            style={styles.mapSelectBtn}
+            onPress={() => onMapGallery?.()}
+          >
+            <Text style={styles.mapSelectIcon}>{selectedMap?.icon ?? '🎲'}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.mapSelectName}>{selectedMap?.name ?? 'Rastgele Dunya'}</Text>
+              <Text style={styles.mapSelectDesc}>
+                {selectedMap?.description ?? 'Prosedural uretilmis harita'}
+              </Text>
+            </View>
+            <Text style={styles.mapSelectArrow}>{'›'}</Text>
+          </TouchableOpacity>
+
+          {/* Seed (sadece prosedürel haritada göster) */}
+          {(!selectedMap || selectedMap.generatorType === 'procedural') && (<>
           <Text style={styles.label}>{t('setup.seedLabel')}</Text>
           <View style={styles.seedRow}>
             <TextInput
@@ -204,6 +252,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
             </TouchableOpacity>
           </View>
           <Text style={styles.seedHint}>{t('setup.seedHint')}</Text>
+          </>)}
 
           {/* Basla */}
           <AnimatedButton
@@ -411,6 +460,33 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: FONT.caption,
     fontWeight: FONT.bold,
+  },
+  mapSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACE.md,
+    marginBottom: SPACE.lg,
+    gap: SPACE.md,
+  },
+  mapSelectIcon: { fontSize: 28 },
+  mapSelectName: {
+    color: COLORS.textPrimary,
+    fontSize: FONT.body,
+    fontWeight: '700' as any,
+  },
+  mapSelectDesc: {
+    color: COLORS.textMuted,
+    fontSize: FONT.tiny,
+    marginTop: 1,
+  },
+  mapSelectArrow: {
+    color: COLORS.textMuted,
+    fontSize: 22,
+    fontWeight: '300' as any,
   },
   factionGrid: {
     flexDirection: 'row',
