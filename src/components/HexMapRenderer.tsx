@@ -734,14 +734,18 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
           // Kenar orta noktasi
           const emx = (c1.x + c2.x) / 2;
           const emy = (c1.y + c2.y) / 2;
-          // Merkeze dogru %35 iceri
-          const inx = cx + (emx - cx) * 0.65;
-          const iny = cy + (emy - cy) * 0.65;
+          // Merkeze dogru %60 iceri — genis blend alani
+          const inx = cx + (emx - cx) * 0.4;
+          const iny = cy + (emy - cy) * 0.4;
 
-          // Kama (wedge) path
+          // Genis kama (wedge) — kenara paralel genisletilmis
           const wedge = Skia.Path.Make();
-          wedge.moveTo(c1.x, c1.y);
-          wedge.lineTo(c2.x, c2.y);
+          const ex1 = c1.x + (c2.x - c1.x) * -0.15; // %15 disa tasir
+          const ey1 = c1.y + (c2.y - c1.y) * -0.15;
+          const ex2 = c2.x + (c1.x - c2.x) * -0.15;
+          const ey2 = c2.y + (c1.y - c2.y) * -0.15;
+          wedge.moveTo(ex1, ey1);
+          wedge.lineTo(ex2, ey2);
           wedge.lineTo(inx, iny);
           wedge.close();
 
@@ -760,14 +764,14 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
       const microNoise: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
       if (!isExploredOnly) {
         const nRng = simpleRng(tile.coord.q * 997 + tile.coord.r * 53 + 1301);
-        const nCount = 5 + Math.floor(nRng() * 5);
+        const nCount = 8 + Math.floor(nRng() * 6);
         for (let ni = 0; ni < nCount; ni++) {
-          const nx = cx + (nRng() - 0.5) * S * 1.3;
-          const ny = cy + (nRng() - 0.5) * S * 1.0;
-          const nr = 2 + nRng() * 4;
+          const nx = cx + (nRng() - 0.5) * S * 1.8;
+          const ny = cy + (nRng() - 0.5) * S * 1.5;
+          const nr = 3 + nRng() * 7;
           const nPath = Skia.Path.Make();
           nPath.addCircle(nx, ny, nr);
-          const nColor = ni % 3 === 0 ? palette.light + '14' : palette.dark + '12';
+          const nColor = ni % 3 === 0 ? palette.light + '1A' : palette.dark + '18';
           microNoise.push({ path: nPath, color: nColor });
         }
       }
@@ -807,64 +811,65 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
       <GestureDetector gesture={allGestures}>
         <Animated.View style={[styles.canvasWrapper, animatedStyle]}>
           <Canvas style={styles.canvas}>
+            {/* ═══ PASS 1: Yumusak terrain alani — buyuk dairelerle hex gizle ═══ */}
+            {hexRenderData.map((hex) => {
+              const { cx, cy, palette, isExploredOnly } = hex;
+              const fogAlpha = isExploredOnly ? '40' : 'CC';
+              return (
+                <Circle key={`bg-${hex.key}`} cx={cx} cy={cy} r={S * 1.35}>
+                  <RadialGradient
+                    c={vec(cx, cy)}
+                    r={S * 1.35}
+                    colors={[palette.base + fogAlpha, palette.base + '80', palette.base + '20']}
+                  />
+                </Circle>
+              );
+            })}
+
+            {/* ═══ PASS 2: Ust kat — detaylar, dekorasyonlar, blend ═══ */}
             {hexRenderData.map((hex) => {
               const { cx, cy, palette, isExploredOnly, tile } = hex;
-              // Biraz buyuk hex → komsularla overlap, bosluk yok
-              const basePath = makeHexPath(cx, cy, S + 0.5);
-              const fogAlpha = isExploredOnly ? '60' : 'FF';
+              const fogAlpha = isExploredOnly ? '30' : 'FF';
 
               return (
                 <Group key={hex.key}>
-                  {/* ═══ LAYER 1: Ustuste binen baz dolgu (bosluk yok) ═══ */}
-                  <Path path={basePath} color={palette.base + fogAlpha} style="fill" />
+                  {/* Hafif dolgu — daireler arasinda bosluk varsa kapansin */}
+                  <Path path={makeHexPath(cx, cy, S + 1)} color={palette.base + fogAlpha} style="fill" />
 
-                  {/* Isik gradyani — ustten */}
-                  <Group clip={basePath}>
-                    <Path path={makeHexPathInset(cx, cy, S, 4)} style="fill">
-                      <LinearGradient
-                        start={vec(cx, cy - S)}
-                        end={vec(cx, cy + S * 0.4)}
-                        colors={[palette.light + '40', 'transparent']}
-                      />
-                    </Path>
-                    {/* Golge — alttan */}
-                    <Path path={makeHexPathInset(cx, cy, S, 3)} style="fill">
-                      <LinearGradient
-                        start={vec(cx, cy + S * 0.2)}
-                        end={vec(cx, cy + S)}
-                        colors={['transparent', palette.dark + '30']}
-                      />
-                    </Path>
-                  </Group>
-
-                  {/* ═══ LAYER 2: Terrain blend kenarlari ═══ */}
+                  {/* Blend kenarlari — genis (%60 iceri) */}
                   {hex.blendEdges.map((edge, ei) => (
-                    <Group key={`bl-${ei}`} clip={edge.wedgePath}>
+                    <Group key={`bl-${ei}`} clip={makeHexPath(cx, cy, S + 2)}>
                       <Path path={edge.wedgePath} style="fill">
                         <LinearGradient
                           start={vec(edge.edgeMidX, edge.edgeMidY)}
                           end={vec(edge.insetX, edge.insetY)}
-                          colors={[edge.neighborColor + (isExploredOnly ? '40' : '90'), palette.base + '00']}
+                          colors={[
+                            edge.neighborColor + (isExploredOnly ? '30' : 'A0'),
+                            palette.base + '00',
+                          ]}
                         />
                       </Path>
-                      {/* Kiyi cizgisi — su-kara sinirinda ince beyaz kopuk */}
-                      {edge.isCoast && !isExploredOnly && (
-                        <Path
-                          path={edge.wedgePath}
-                          color="#FFFFFF18"
-                          style="stroke"
-                          strokeWidth={1.5}
-                        />
-                      )}
                     </Group>
                   ))}
 
-                  {/* ═══ LAYER 3: Micro-noise doku ═══ */}
+                  {/* Kiyi kopugu — su-kara sinirinda organik beyaz cizgi */}
+                  {hex.blendEdges.filter(e => e.isCoast && !isExploredOnly).map((edge, ci) => (
+                    <Circle key={`foam-${ci}`}
+                      cx={edge.edgeMidX} cy={edge.edgeMidY} r={3}>
+                      <RadialGradient
+                        c={vec(edge.edgeMidX, edge.edgeMidY)}
+                        r={3}
+                        colors={['#FFFFFF30', 'transparent']}
+                      />
+                    </Circle>
+                  ))}
+
+                  {/* Micro-noise doku */}
                   {hex.microNoise.map((mn, mi) => (
                     <Path key={`mn-${mi}`} path={mn.path} color={mn.color} style="fill" />
                   ))}
 
-                  {/* ═══ LAYER 4: Terrain dekorasyonlari (tasar!) ═══ */}
+                  {/* Terrain dekorasyonlari */}
                   {!isExploredOnly && hex.decorations.map((dec, i) => (
                     <Path
                       key={`dec-${i}`}
@@ -876,49 +881,41 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
                     />
                   ))}
 
-                  {/* ═══ LAYER 5: Sahiplik — yumusak radyal parlama ═══ */}
+                  {/* Sahiplik — cok yumusak radyal parlama */}
                   {hex.ownerColor && (showFogOfWar ? tile.visible : true) && (
-                    <Circle cx={cx} cy={cy} r={S * 0.85}>
+                    <Circle cx={cx} cy={cy} r={S * 1.0}>
                       <RadialGradient
                         c={vec(cx, cy)}
-                        r={S * 0.85}
-                        colors={[hex.ownerColor + '20', hex.ownerColor + '08', 'transparent']}
+                        r={S * 1.0}
+                        colors={[hex.ownerColor + '18', hex.ownerColor + '06', 'transparent']}
                       />
                     </Circle>
                   )}
 
-                  {/* ═══ LAYER 6: Hareket/saldiri hedef — yumusak daire ═══ */}
+                  {/* Hareket hedef */}
                   {hex.isMoveTarget && (
-                    <Circle cx={cx} cy={cy} r={S * 0.7}>
+                    <Circle cx={cx} cy={cy} r={S * 0.8}>
                       <RadialGradient
                         c={vec(cx, cy)}
-                        r={S * 0.7}
+                        r={S * 0.8}
                         colors={[
-                          hex.isAttackTarget ? COLORS.red + '50' : COLORS.green + '50',
-                          hex.isAttackTarget ? COLORS.red + '15' : COLORS.green + '15',
+                          hex.isAttackTarget ? COLORS.red + '45' : COLORS.green + '45',
+                          hex.isAttackTarget ? COLORS.red + '10' : COLORS.green + '10',
                           'transparent',
                         ]}
                       />
                     </Circle>
                   )}
 
-                  {/* ═══ LAYER 7: Secim — radyal parlama (hex degil) ═══ */}
+                  {/* Secim */}
                   {hex.isSelected && (
-                    <>
-                      <Circle cx={cx} cy={cy} r={S * 0.9}>
-                        <RadialGradient
-                          c={vec(cx, cy)}
-                          r={S * 0.9}
-                          colors={[COLORS.selection + '50', COLORS.selection + '15', 'transparent']}
-                        />
-                      </Circle>
-                      <Circle
-                        cx={cx} cy={cy} r={S * 0.75}
-                        color={COLORS.selection + '30'}
-                        style="stroke"
-                        strokeWidth={1.5}
+                    <Circle cx={cx} cy={cy} r={S * 0.85}>
+                      <RadialGradient
+                        c={vec(cx, cy)}
+                        r={S * 0.85}
+                        colors={[COLORS.selection + '40', COLORS.selection + '10', 'transparent']}
                       />
-                    </>
+                    </Circle>
                   )}
                 </Group>
               );
