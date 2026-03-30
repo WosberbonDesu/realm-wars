@@ -302,6 +302,33 @@ const RegionMapRenderer = forwardRef<RegionMapRef, Props>(function RegionMapRend
               </Group>
             ))}
 
+            {/* ═══ PASS 2.5: Delaunay blend üçgenleri — hücre sınırları kaybolur ═══ */}
+            {regionRenderData.map(({ id, region }) => {
+              if (region.vertices.length < 3) return null;
+              // Fan triangulate: center → v[i] → v[i+1]
+              return region.vertices.map((v, vi) => {
+                const v2 = region.vertices[(vi + 1) % region.vertices.length];
+                // Komşu farklı terrain mi kontrol et
+                const nid = region.neighborIds[vi % region.neighborIds.length];
+                const neighbor = world.regions.get(nid);
+                if (!neighbor || neighbor.terrain === region.terrain) return null;
+                const nColors = REGION_TERRAIN_COLORS[neighbor.terrain];
+                const triPath = Skia.Path.Make();
+                triPath.moveTo(region.center.x, region.center.y);
+                triPath.lineTo(v.x, v.y);
+                triPath.lineTo(v2.x, v2.y);
+                triPath.close();
+                return (
+                  <Path
+                    key={`bt-${id}-${vi}`}
+                    path={triPath}
+                    color={nColors.fill + '45'}
+                    style="fill"
+                  />
+                );
+              });
+            })}
+
             {/* ═══ PASS 3: Kara sınır çizgileri — ince gri ═══ */}
             {regionRenderData.filter(d => d.region.isLand).map(({ id, path }) => (
               <Path

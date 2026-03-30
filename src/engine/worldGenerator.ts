@@ -15,6 +15,7 @@ import { REGION_TERRAIN_PROPS } from '../types/region';
 import {
   jitteredGrid, lloydRelaxation, computeVoronoi,
   smoothPolygon, pointDistance, polygonArea,
+  densifyCoastline,
 } from './voronoi';
 import { createNoise2D } from './noise';
 
@@ -81,10 +82,26 @@ export function generateWorld(
   const config = TEMPLATES[template];
   const rng = seedRng(seed);
 
-  // ── 1. Jittered grid + Lloyd relaxation ──
+  // ── 1. Jittered grid + Lloyd relaxation + kıyı yoğunlaştırma ──
   const rawPoints = jitteredGrid(MAP_W, MAP_H, CELL_SPACING, seed, 0.45);
   const relaxedPoints = lloydRelaxation(rawPoints, MAP_W, MAP_H, 2);
-  const cells = computeVoronoi(relaxedPoints, MAP_W, MAP_H);
+
+  // İlk Voronoi'den kara/deniz tespiti yap
+  const preCells = computeVoronoi(relaxedPoints, MAP_W, MAP_H);
+  const preElevNoise = createNoise2D(seed);
+  const preLand: boolean[] = preCells.map(cell => {
+    const { x, y } = cell.center;
+    const edX = Math.min(x, MAP_W - x) / (MAP_W * 0.5);
+    const edY = Math.min(y, MAP_H - y) / (MAP_H * 0.5);
+    const f = Math.pow(Math.max(0, Math.min(edX, edY)), config.edgeFalloff);
+    const e = preElevNoise(x * config.noiseScale, y * config.noiseScale) * config.noiseWeight;
+    return (e * f + f * config.centerBoost) * f * 0.8 + 0.35 > config.seaLevel;
+  });
+
+  // Kıyı kenarlarına ekstra noktalar ekle → daha organik kıyı çizgisi
+  const densifiedPoints = densifyCoastline(relaxedPoints, preCells, preLand, seed, 2);
+  const finalPoints = lloydRelaxation(densifiedPoints, MAP_W, MAP_H, 1);
+  const cells = computeVoronoi(finalPoints, MAP_W, MAP_H);
 
   // ── 2. Noise katmanları ──
   const elevNoise = createNoise2D(seed);

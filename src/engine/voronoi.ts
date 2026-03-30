@@ -420,3 +420,113 @@ export function polygonArea(vertices: MapPoint[]): number {
   }
   return Math.abs(area) / 2;
 }
+
+// ═══ DELAUNAY TRIANGLE INTERPOLATION ═══
+// Azgaar'ın en etkili tekniği: her Voronoi hücresini üçgenlere böl,
+// komşu hücre rengiyle %33 oranında karıştır → hücre sınırları kaybolur
+
+export interface BlendTriangle {
+  p1: MapPoint; p2: MapPoint; p3: MapPoint;
+  color: string; // karışım rengi
+  alpha: number; // opaklık
+}
+
+export function generateBlendTriangles(
+  cells: VoronoiCell[],
+  cellColors: string[], // her hücrenin terrain rengi
+  blendRatio: number = 0.33,
+): BlendTriangle[] {
+  const triangles: BlendTriangle[] = [];
+
+  for (let ci = 0; ci < cells.length; ci++) {
+    const cell = cells[ci];
+    if (cell.vertices.length < 3) continue;
+    const center = cell.center;
+
+    // Hücreyi fan-triangulate et (center → v[i] → v[i+1])
+    for (let vi = 0; vi < cell.vertices.length; vi++) {
+      const v1 = cell.vertices[vi];
+      const v2 = cell.vertices[(vi + 1) % cell.vertices.length];
+
+      // Bu kenarı paylaşan komşu bul
+      let neighborColor = cellColors[ci]; // varsayılan: kendi rengi
+      for (const ni of cell.neighborIndices) {
+        if (ni >= cells.length) continue;
+        const nCell = cells[ni];
+        // Bu komşu v1-v2 kenarını paylaşıyor mu?
+        const sharesEdge = nCell.vertices.some(nv => {
+          const d1 = (nv.x - v1.x) ** 2 + (nv.y - v1.y) ** 2;
+          const d2 = (nv.x - v2.x) ** 2 + (nv.y - v2.y) ** 2;
+          return d1 < 4 || d2 < 4; // 2px tolerans
+        });
+        if (sharesEdge && cellColors[ni] !== cellColors[ci]) {
+          neighborColor = cellColors[ni];
+          break;
+        }
+      }
+
+      // Üçgeni ekle — kenar tarafında komşu rengine yaklaş
+      if (neighborColor !== cellColors[ci]) {
+        triangles.push({
+          p1: center,
+          p2: v1,
+          p3: v2,
+          color: neighborColor,
+          alpha: blendRatio,
+        });
+      }
+    }
+  }
+
+  return triangles;
+}
+
+// ═══ COASTLINE DENSIFICATION ═══
+// Kıyı kenarlarında ekstra noktalar ekle → daha organik kıyı çizgisi
+
+export function densifyCoastline(
+  points: MapPoint[],
+  cells: VoronoiCell[],
+  isLand: boolean[], // her hücre kara mı
+  seed: number,
+  subdivisions: number = 2,
+): MapPoint[] {
+  const rng = seedRng(seed + 3333);
+  const extraPoints: MapPoint[] = [];
+
+  for (let ci = 0; ci < cells.length; ci++) {
+    if (!isLand[ci]) continue;
+    const cell = cells[ci];
+
+    // Deniz komşusu olan kenarları bul
+    for (const ni of cell.neighborIndices) {
+      if (ni >= cells.length || isLand[ni]) continue;
+
+      // Bu kenarı bul ve subdivide et
+      for (let vi = 0; vi < cell.vertices.length; vi++) {
+        const v1 = cell.vertices[vi];
+        const v2 = cell.vertices[(vi + 1) % cell.vertices.length];
+
+        for (let s = 1; s <= subdivisions; s++) {
+          const t = s / (subdivisions + 1);
+          const mx = v1.x + (v2.x - v1.x) * t;
+          const my = v1.y + (v2.y - v1.y) * t;
+          // Rastgele swing ekle (kenar normaline dik)
+          const nx = -(v2.y - v1.y);
+          const ny = v2.x - v1.x;
+          const len = Math.sqrt(nx * nx + ny * ny);
+          if (len > 0) {
+            const swing = (rng() - 0.5) * 8; // ±4px swing
+            extraPoints.push({
+              x: mx + (nx / len) * swing,
+              y: my + (ny / len) * swing,
+            });
+          }
+        }
+      }
+      break; // Bir deniz komşusu yeterli
+    }
+  }
+
+  return [...points, ...extraPoints];
+}
