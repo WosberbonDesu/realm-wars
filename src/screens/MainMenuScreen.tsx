@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, TextInput, Alert,
+  View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView,
 } from 'react-native';
 import { ClipboardService } from '../services/clipboard';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
@@ -10,6 +10,7 @@ import AnimatedButton from '../components/AnimatedButton';
 import { BotDifficulty } from '../types/game';
 import { playSound } from '../services/soundService';
 import { useI18n } from '../i18n/useI18n';
+import { FACTIONS, FACTION_IDS, FactionId } from '../constants/factions';
 
 interface Props {
   onStartGame: () => void;
@@ -22,6 +23,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
   const [botCount, setBotCount] = useState(2);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('normal');
   const [mapSize, setMapSize] = useState<12 | 18 | 24>(18);
+  const [faction, setFaction] = useState<FactionId>('turkic');
   const [seedInput, setSeedInput] = useState('');
   const [savedExists, setSavedExists] = useState(false);
   const [saveInfo, setSaveInfo] = useState<{ turn: number; playerName: string } | null>(null);
@@ -55,7 +57,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
       Alert.alert(t('setup.invalidSeed'), t('setup.invalidSeedMsg'));
       return;
     }
-    initGame(playerName || 'Komutan', botCount, parsedSeed, difficulty, mapSize);
+    initGame(playerName || 'Komutan', botCount, parsedSeed, difficulty, mapSize, faction);
     onStartGame();
   };
 
@@ -78,6 +80,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
   if (showSetup) {
     return (
       <View style={styles.container}>
+        <ScrollView style={styles.setupScroll} contentContainerStyle={styles.setupScrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.setupPanel}>
           <Text style={styles.setupTitle}>{t('setup.title')}</Text>
 
@@ -126,6 +129,36 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
                 </Text>
                 <Text style={styles.mapSizeSub}>{opt.sub} hex</Text>
               </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Uygarlık Seçimi */}
+          <Text style={styles.label}>UYGARLIK</Text>
+          <View style={styles.factionGrid}>
+            {FACTION_IDS.map(fid => {
+              const f = FACTIONS[fid];
+              const isActive = faction === fid;
+              return (
+                <TouchableOpacity
+                  key={fid}
+                  style={[styles.factionCard, isActive && { borderColor: f.color, borderWidth: 2 }]}
+                  onPress={() => { playSound('click'); setFaction(fid); }}
+                >
+                  <Text style={styles.factionIcon}>{f.icon}</Text>
+                  <Text style={[styles.factionName, isActive && { color: f.color }]}>{f.name}</Text>
+                  <Text style={styles.factionTitle}>{f.title}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {/* Seçili faction detay */}
+          <View style={styles.factionDetail}>
+            <Text style={[styles.factionDetailName, { color: FACTIONS[faction].color }]}>
+              {FACTIONS[faction].icon} {FACTIONS[faction].title}
+            </Text>
+            <Text style={styles.factionDesc}>{FACTIONS[faction].description}</Text>
+            {FACTIONS[faction].bonuses.map((b, i) => (
+              <Text key={i} style={styles.factionBonus}>• {b.description}</Text>
             ))}
           </View>
 
@@ -187,6 +220,7 @@ export default function MainMenuScreen({ onStartGame, onSettings }: Props) {
             <Text style={styles.backButtonText}>{t('menu.back')}</Text>
           </TouchableOpacity>
         </View>
+        </ScrollView>
       </View>
     );
   }
@@ -275,6 +309,14 @@ const styles = StyleSheet.create({
     bottom: 24,
     color: COLORS.textMuted,
     fontSize: 12,
+  },
+  setupScroll: {
+    flex: 1,
+    width: '100%',
+  },
+  setupScrollContent: {
+    alignItems: 'center',
+    paddingVertical: 40,
   },
   setupPanel: {
     width: '100%',
@@ -369,6 +411,58 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: FONT.caption,
     fontWeight: FONT.bold,
+  },
+  factionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACE.sm,
+    marginBottom: SPACE.sm,
+  },
+  factionCard: {
+    width: '47%' as any,
+    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: SPACE.sm,
+    paddingHorizontal: SPACE.sm,
+    alignItems: 'center',
+  },
+  factionIcon: {
+    fontSize: 24,
+    marginBottom: 2,
+  },
+  factionName: {
+    color: COLORS.textPrimary,
+    fontSize: FONT.caption,
+    fontWeight: '700' as any,
+  },
+  factionTitle: {
+    color: COLORS.textMuted,
+    fontSize: 8,
+  },
+  factionDetail: {
+    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.md,
+    padding: SPACE.md,
+    marginBottom: SPACE.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  factionDetailName: {
+    fontSize: FONT.body,
+    fontWeight: '700' as any,
+    marginBottom: SPACE.xs,
+  },
+  factionDesc: {
+    color: COLORS.textSecondary,
+    fontSize: FONT.tiny,
+    marginBottom: SPACE.sm,
+  },
+  factionBonus: {
+    color: COLORS.green,
+    fontSize: FONT.tiny,
+    marginBottom: 2,
   },
   seedHint: {
     color: COLORS.textMuted,

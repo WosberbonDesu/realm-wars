@@ -889,7 +889,7 @@ export default HexMapRenderer;
 function EmojiOverlay({
   hexRenderData, translateX, translateY, scale, canvasWidth, canvasHeight,
 }: {
-  hexRenderData: { cx: number; cy: number; buildingIcon: string | null; armyIcon: string | null; armyCount: number; tile: HexTile }[];
+  hexRenderData: { cx: number; cy: number; buildingIcon: string | null; armyIcon: string | null; armyCount: number; ownerColor: string | null; tile: HexTile }[];
   translateX: SharedValue<number>;
   translateY: SharedValue<number>;
   scale: SharedValue<number>;
@@ -916,11 +916,16 @@ function EmojiOverlay({
             <Animated.Text style={styles.emojiText}>{hex.buildingIcon}</Animated.Text>
           )}
           {hex.armyIcon && (
-            <View style={styles.armyBadge}>
+            <View style={[styles.armyBadge, hex.ownerColor ? { borderColor: hex.ownerColor + '80', borderWidth: 1.5 } : undefined]}>
               <Animated.Text style={styles.emojiTextSmall}>{hex.armyIcon}</Animated.Text>
               <View style={styles.armyCountBg}>
                 <Animated.Text style={styles.armyCountText}>{hex.armyCount}</Animated.Text>
               </View>
+              {hex.tile.army && (
+                <View style={styles.armyPowerBg}>
+                  <Animated.Text style={styles.armyPowerText}>⚔{hex.tile.army.totalPower}</Animated.Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -986,5 +991,16 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.3,
+  },
+  armyPowerBg: {
+    backgroundColor: '#1A1A2ECC',
+    borderRadius: 3,
+    paddingHorizontal: 2,
+    paddingVertical: 0.5,
+  },
+  armyPowerText: {
+    color: '#FFD700',
+    fontSize: 6,
+    fontWeight: '800',
   },
 });

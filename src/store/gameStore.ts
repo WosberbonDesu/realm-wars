@@ -117,7 +117,7 @@ function getHeroBonusForArmy(
 
 export interface GameActions {
   // Oyun başlatma
-  initGame: (playerName: string, botCount: number, seed?: number, difficulty?: BotDifficulty, mapRadius?: number) => void;
+  initGame: (playerName: string, botCount: number, seed?: number, difficulty?: BotDifficulty, mapRadius?: number, factionId?: string) => void;
 
   // Hex seçimi
   selectHex: (coord: HexCoord | null) => void;
@@ -219,7 +219,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ...initialState,
 
   // ─── OYUN BAŞLATMA ───
-  initGame: (playerName: string, botCount: number, seed?: number, difficulty: BotDifficulty = 'normal', mapRadius?: number) => {
+  initGame: (playerName: string, botCount: number, seed?: number, difficulty: BotDifficulty = 'normal', mapRadius?: number, factionId?: string) => {
     const resolvedSeed = seed ?? Date.now();
     const resolvedRadius = mapRadius ?? MAP_RADIUS;
     const map = generateMap(resolvedSeed, resolvedRadius);
@@ -227,16 +227,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const startPositions = findStartPositions(map, totalPlayers, resolvedRadius);
     const resolvedDifficulty = difficulty;
 
+    const allFactionIds: string[] = ['turkic', 'norse', 'arab', 'slavic'];
+    const playerFaction = factionId || 'turkic';
+
+    // Bot'lara rastgele farklı factionlar ata
+    const availableFactions = allFactionIds.filter(f => f !== playerFaction);
+    const botFactions: string[] = [];
+    for (let i = 0; i < botCount; i++) {
+      botFactions.push(availableFactions[i % availableFactions.length]);
+    }
+
+    // Faction bonus kaynakları
+    const { FACTIONS } = require('../constants/factions');
+    const getFactionStartBonus = (fid: string): Partial<Resources> => {
+      return FACTIONS[fid]?.startBonus ?? {};
+    };
+
     // Oyuncuları oluştur
     const players: Player[] = [];
 
     // İnsan oyuncu
+    const humanStartRes = addResources(cloneResources(STARTING_RESOURCES), getFactionStartBonus(playerFaction));
     const humanPlayer: Player = {
       id: 'player-0',
       name: playerName,
-      color: PLAYER_COLORS[0],
+      color: FACTIONS[playerFaction]?.color ?? PLAYER_COLORS[0],
       isBot: false,
-      resources: cloneResources(STARTING_RESOURCES),
+      factionId: playerFaction,
+      resources: humanStartRes,
       territory: [],
       castleCoord: null,
       researchedTechs: [],
@@ -247,12 +265,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Bot oyuncular
     for (let i = 0; i < botCount; i++) {
+      const botFactionId = botFactions[i];
+      const botStartRes = addResources(cloneResources(STARTING_RESOURCES), getFactionStartBonus(botFactionId));
       const botPlayer: Player = {
         id: `bot-${i + 1}`,
-        name: BOT_NAMES[i] || `Bot ${i + 1}`,
-        color: PLAYER_COLORS[i + 1] || '#888888',
+        name: FACTIONS[botFactionId]?.name ?? BOT_NAMES[i] ?? `Bot ${i + 1}`,
+        color: FACTIONS[botFactionId]?.color ?? PLAYER_COLORS[i + 1] ?? '#888888',
         isBot: true,
-        resources: cloneResources(STARTING_RESOURCES),
+        factionId: botFactionId,
+        resources: botStartRes,
         territory: [],
         castleCoord: null,
         researchedTechs: [],

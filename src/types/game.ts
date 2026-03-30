@@ -116,8 +116,9 @@ export interface Player {
   name: string;
   color: string;
   isBot: boolean;
+  factionId: string;
   resources: Resources;
-  territory: HexCoord[];  // sahip olunan hex'ler
+  territory: HexCoord[];
   castleCoord: HexCoord | null;
   researchedTechs: TechId[];
   currentResearch: TechProgress | null;
