@@ -21,12 +21,14 @@ export default function TrainModal({ visible, onClose }: Props) {
   const trainUnit = useGameStore(s => s.trainUnit);
   const currentPlayerId = useGameStore(s => s.currentPlayerId);
   const players = useGameStore(s => s.players);
-  const [counts, setCounts] = useState<Record<UnitType, number>>({
+  const [counts, setCounts] = useState<Record<string, number>>({
     [UnitType.Warrior]: 1,
     [UnitType.Archer]: 1,
     [UnitType.Cavalry]: 1,
     [UnitType.Catapult]: 1,
     [UnitType.Scout]: 1,
+    [UnitType.Galley]: 1,
+    [UnitType.Warship]: 1,
   });
 
   if (!selectedHex) return null;

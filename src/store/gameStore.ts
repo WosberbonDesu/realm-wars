@@ -163,6 +163,10 @@ export interface GameActions {
   // Ordu hareketi
   moveArmy: (from: HexCoord, to: HexCoord) => BattleResult | null;
 
+  // Ordu bolme/birlestirme
+  splitArmy: (coord: HexCoord, unitsToSplit: { type: UnitType; count: number }[]) => boolean;
+  mergeArmies: (from: HexCoord, to: HexCoord) => boolean;
+
   // Tur bitir (legacy - artik gameTick kullaniliyor)
   endTurn: () => void;
 
@@ -1014,6 +1018,105 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   exitMoveMode: () => {
     set({ moveMode: false, moveFrom: null, moveTargets: [] });
+  },
+
+  // ─── ORDU BOLME ───
+  splitArmy: (coord: HexCoord, unitsToSplit: { type: UnitType; count: number }[]): boolean => {
+    const state = get();
+    const key = hexKey(coord.q, coord.r);
+    const tile = state.map.get(key);
+    if (!tile?.army || tile.army.ownerId !== state.currentPlayerId) return false;
+
+    // Bolunecek birimler yeterli mi
+    for (const req of unitsToSplit) {
+      const unit = tile.army.units.find(u => u.type === req.type);
+      if (!unit || unit.count < req.count) return false;
+    }
+
+    // Bos komsu hex bul (ordu yok, kara)
+    const neighbors = getNeighbors(coord);
+    let targetKey: string | null = null;
+    let targetCoord: HexCoord | null = null;
+    for (const n of neighbors) {
+      const nk = hexKey(n.q, n.r);
+      const nt = state.map.get(nk);
+      if (nt && !nt.army && nt.ownerId === state.currentPlayerId) {
+        targetKey = nk;
+        targetCoord = n;
+        break;
+      }
+    }
+    if (!targetKey || !targetCoord) return false;
+
+    const newMap = new Map(state.map);
+    const fromTile = { ...tile };
+    const toTile = { ...newMap.get(targetKey)! };
+
+    // Kaynak ordudan cikar
+    const remainingUnits = fromTile.army!.units.map(u => {
+      const split = unitsToSplit.find(s => s.type === u.type);
+      if (split) return { ...u, count: u.count - split.count };
+      return { ...u };
+    }).filter(u => u.count > 0);
+
+    // Yeni ordu olustur
+    const splitUnits: Unit[] = unitsToSplit.map(s => {
+      const original = tile.army!.units.find(u => u.type === s.type)!;
+      return { ...original, count: s.count };
+    });
+
+    fromTile.army = {
+      ownerId: state.currentPlayerId,
+      units: remainingUnits,
+      totalPower: calculateTotalPower(remainingUnits),
+    };
+
+    toTile.army = {
+      ownerId: state.currentPlayerId,
+      units: splitUnits,
+      totalPower: calculateTotalPower(splitUnits),
+    };
+
+    newMap.set(key, fromTile);
+    newMap.set(targetKey, toTile);
+    set({ map: newMap });
+    return true;
+  },
+
+  // ─── ORDU BIRLESTIRME ───
+  mergeArmies: (from: HexCoord, to: HexCoord): boolean => {
+    const state = get();
+    const fromKey = hexKey(from.q, from.r);
+    const toKey = hexKey(to.q, to.r);
+    const fromTile = state.map.get(fromKey);
+    const toTile = state.map.get(toKey);
+    if (!fromTile?.army || !toTile?.army) return false;
+    if (fromTile.army.ownerId !== state.currentPlayerId) return false;
+    if (toTile.army.ownerId !== state.currentPlayerId) return false;
+
+    const newMap = new Map(state.map);
+    const mergedUnits: Unit[] = [...toTile.army.units.map(u => ({ ...u }))];
+    for (const unit of fromTile.army.units) {
+      const existing = mergedUnits.find(u => u.type === unit.type);
+      if (existing) {
+        existing.count += unit.count;
+      } else {
+        mergedUnits.push({ ...unit });
+      }
+    }
+
+    const newFrom = { ...fromTile, army: null as Army | null };
+    const newTo = { ...toTile };
+    newTo.army = {
+      ownerId: state.currentPlayerId,
+      units: mergedUnits,
+      totalPower: calculateTotalPower(mergedUnits),
+    };
+
+    newMap.set(fromKey, newFrom);
+    newMap.set(toKey, newTo);
+    set({ map: newMap });
+    return true;
   },
 
   // ─── AKSIYON LOGU ───

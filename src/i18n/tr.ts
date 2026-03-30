@@ -91,12 +91,17 @@ export const tr: Record<string, string> = {
   'unit.catapult': 'Mancnik',
   'unit.scout': 'Kasif',
 
+  'unit.galley': 'Kadirga',
+  'unit.warship': 'Savas Gemisi',
+
   // ── UNIT DESCRIPTIONS ──
   'unit.warrior.desc': 'Dengeli piyade birimi',
   'unit.archer.desc': 'Yuksek saldiri, dusuk savunma',
   'unit.cavalry.desc': 'Hizli ve guclu',
   'unit.catapult.desc': 'Bina yikici, yavas',
   'unit.scout.desc': 'Genis gorus alani',
+  'unit.galley.desc': 'Deniz tasimaciligi, kara birimlerini tasir',
+  'unit.warship.desc': 'Guclu deniz savascisi, kiyi bombardimani',
 
   // ── HEX INFO ──
   'hex.army': 'Ordu',

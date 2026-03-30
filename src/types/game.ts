@@ -66,6 +66,8 @@ export enum UnitType {
   Cavalry = 'cavalry',     // süvari - hızlı
   Catapult = 'catapult',   // kuşatma - bina yıkıcı
   Scout = 'scout',         // kaşif - fog açar
+  Galley = 'galley',       // gemi - deniz geçişi
+  Warship = 'warship',     // savaş gemisi - deniz savaşı
 }
 
 export interface Unit {
@@ -95,6 +97,8 @@ export enum TechId {
   SteelWorking = 'steel_working',
   AdvancedFarming = 'advanced_farming',
   Cartography = 'cartography',
+  Navigation = 'navigation',
+  Shipbuilding = 'shipbuilding',
 }
 
 export interface TechProgress {

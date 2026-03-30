@@ -142,6 +142,32 @@ export const TECH_TREE: Record<TechId, TechDefinition> = {
       bonuses: ['visibility_range_2'],
     },
   },
+  [TechId.Navigation]: {
+    id: TechId.Navigation,
+    name: 'Denizcilik',
+    description: 'Kadirga uretimine izin verir, deniz kesfi baslar',
+    icon: '⛵',
+    cost: { gold: 60, wood: 30 },
+    researchTurns: 4,
+    prerequisites: [TechId.Commerce],
+    unlocks: {
+      units: [UnitType.Galley],
+      bonuses: ['naval_movement'],
+    },
+  },
+  [TechId.Shipbuilding]: {
+    id: TechId.Shipbuilding,
+    name: 'Gemi Insasi',
+    description: 'Savas gemisi uretimi, deniz bombardimani',
+    icon: '🚢',
+    cost: { gold: 100, wood: 50, iron: 30 },
+    researchTurns: 6,
+    prerequisites: [TechId.Navigation, TechId.SteelWorking],
+    unlocks: {
+      units: [UnitType.Warship],
+      bonuses: ['advanced_naval'],
+    },
+  },
 };
 
 // Tech agaci siralamasi (UI icin)
@@ -152,6 +178,8 @@ export const TECH_TIERS: TechId[][] = [
   [TechId.Commerce, TechId.Fortification, TechId.HorseRiding, TechId.Cartography],
   // Tier 3
   [TechId.AdvancedFarming, TechId.SteelWorking, TechId.SiegeEngines],
+  // Tier 4 - Deniz
+  [TechId.Navigation, TechId.Shipbuilding],
 ];
 
 // Baslangicta acik birimler (tech gerektirmeyen)

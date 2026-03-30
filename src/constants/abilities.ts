@@ -65,6 +65,22 @@ export const UNIT_ABILITIES: Record<UnitType, UnitAbility> = {
     passive: true,
     effect: { kind: 'ambush', dodgeChance: 0.3, bonusAttack: 5 },
   },
+  [UnitType.Galley]: {
+    id: AbilityType.Charge,
+    name: 'Deniz Tasimaciligi',
+    description: 'Deniz hex\'lerinde hareket edebilir, kara birimleri tasir',
+    icon: '⛵',
+    passive: true,
+    effect: { kind: 'charge_bonus', bonusAttack: 0, condition: 'naval' },
+  },
+  [UnitType.Warship]: {
+    id: AbilityType.SiegeBreaker,
+    name: 'Deniz Bombardimani',
+    description: 'Kiyidaki binalara 2x hasar, denizde guclu savunma',
+    icon: '🚢',
+    passive: true,
+    effect: { kind: 'building_damage', multiplier: 2.0 },
+  },
 };
 
 // Savas raporunda yetenek efektlerini gostermek icin

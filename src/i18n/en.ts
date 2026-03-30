@@ -96,7 +96,11 @@ export const en: Record<string, string> = {
   'unit.archer.desc': 'High attack, low defense',
   'unit.cavalry.desc': 'Fast and powerful',
   'unit.catapult.desc': 'Building destroyer, slow',
+  'unit.galley': 'Galley',
+  'unit.warship': 'Warship',
   'unit.scout.desc': 'Wide viewing range',
+  'unit.galley.desc': 'Naval transport, carries land units',
+  'unit.warship.desc': 'Powerful naval fighter, coastal bombardment',
 
   // ── HEX INFO ──
   'hex.army': 'Army',

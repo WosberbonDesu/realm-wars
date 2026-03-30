@@ -24,6 +24,7 @@ import GameOverScreen from '../components/GameOverScreen';
 import FloatingFeedback, { FeedbackItem } from '../components/FloatingFeedback';
 import ScreenFlash from '../components/ScreenFlash';
 import MapControls from '../components/MapControls';
+import GameToast, { ToastItem } from '../components/GameToast';
 import { GamePhase } from '../types/game';
 import { BattleResult } from '../engine/combat';
 import { GAME_EVENTS, GameEvent } from '../constants/events';
@@ -81,6 +82,19 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const [flashColor, setFlashColor] = useState<string | null>(null);
   let feedbackCounter = useRef(0);
 
+  // Toast notifications
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  let toastCounter = useRef(0);
+
+  const showToast = (icon: string, text: string, color: string, type: ToastItem['type'] = 'info') => {
+    toastCounter.current++;
+    setToasts(prev => [...prev, { id: `t-${toastCounter.current}`, icon, text, color, type }]);
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
   const showFeedback = (icon: string, text: string, color: string) => {
     feedbackCounter.current++;
     const item: FeedbackItem = { id: `fb-${feedbackCounter.current}`, icon, text, color };
@@ -129,6 +143,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         setCurrentEvent(event);
         setEventModalVisible(true);
         playSound('event');
+        showToast(event.icon, event.name, event.positive ? COLORS.green : COLORS.red, event.positive ? 'success' : 'warning');
       }
       useGameStore.setState({ pendingEvent: null });
     }
@@ -238,6 +253,12 @@ export default function GameScreen({ onBackToMenu }: Props) {
               won ? t('feedback.victory') : t('feedback.defeat'),
               won ? COLORS.green : COLORS.red,
             );
+            showToast(
+              won ? '⚔️' : '💀',
+              won ? t('feedback.victory') : t('feedback.defeat'),
+              won ? COLORS.green : COLORS.red,
+              won ? 'success' : 'danger',
+            );
           }}
         />
 
@@ -311,6 +332,9 @@ export default function GameScreen({ onBackToMenu }: Props) {
           </View>
         </View>
       </View>
+
+      {/* ═══ TOAST NOTIFICATIONS ═══ */}
+      <GameToast toasts={toasts} onDismiss={dismissToast} />
 
       {/* ═══ ANIMATION LAYERS ═══ */}
       <FloatingFeedback items={feedbackItems} onItemDone={removeFeedback} />

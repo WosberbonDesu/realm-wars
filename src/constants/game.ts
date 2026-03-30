@@ -246,6 +246,14 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
     attack: 3, defense: 3, health: 20, speed: 4,
     cost: { gold: 10, food: 5 },
   },
+  [UnitType.Galley]: {
+    attack: 5, defense: 8, health: 60, speed: 3,
+    cost: { gold: 50, wood: 40 },
+  },
+  [UnitType.Warship]: {
+    attack: 18, defense: 12, health: 80, speed: 2,
+    cost: { gold: 80, wood: 50, iron: 20 },
+  },
 };
 
 export const UNIT_ICONS: Record<UnitType, string> = {
@@ -254,7 +262,13 @@ export const UNIT_ICONS: Record<UnitType, string> = {
   [UnitType.Cavalry]: '🐴',
   [UnitType.Catapult]: '💥',
   [UnitType.Scout]: '👁️',
+  [UnitType.Galley]: '⛵',
+  [UnitType.Warship]: '🚢',
 };
+
+// ===== NAVAL: Deniz birlikleri hangi terrain'de hareket edebilir =====
+export const NAVAL_UNITS = new Set([UnitType.Galley, UnitType.Warship]);
+export const SEA_TERRAINS = new Set(['sea', 'coast', 'lake']);
 
 // ===== PLAYER COLORS =====
 export const PLAYER_COLORS = [
