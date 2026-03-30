@@ -31,6 +31,10 @@ interface SerializedGameState {
   currentSeason: string;
   currentWeather: string;
   seasonTurnCounter: number;
+  gameSpeed: number;
+  tickCount: number;
+  dayPhase: string;
+  dayTick: number;
 }
 
 export function serializeState(state: GameState): SerializedGameState {
@@ -56,6 +60,10 @@ export function serializeState(state: GameState): SerializedGameState {
     currentSeason: state.currentSeason ?? 'spring',
     currentWeather: state.currentWeather ?? 'clear',
     seasonTurnCounter: state.seasonTurnCounter ?? 0,
+    gameSpeed: 1,
+    tickCount: state.tickCount ?? 0,
+    dayPhase: (state as any).dayPhase ?? 'day',
+    dayTick: (state as any).dayTick ?? 6,
   };
 }
 
@@ -82,6 +90,10 @@ export function deserializeState(data: SerializedGameState): GameState {
     currentSeason: (data as any).currentSeason ?? 'spring',
     currentWeather: (data as any).currentWeather ?? 'clear',
     seasonTurnCounter: (data as any).seasonTurnCounter ?? 0,
+    gameSpeed: 1,
+    tickCount: (data as any).tickCount ?? 0,
+    dayPhase: (data as any).dayPhase ?? 'day',
+    dayTick: (data as any).dayTick ?? 6,
   };
 }
 

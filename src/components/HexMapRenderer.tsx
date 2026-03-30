@@ -544,10 +544,18 @@ interface Props {
   onBattleResult?: (result: import('../engine/combat').BattleResult) => void;
   showGrid?: boolean;
   showFogOfWar?: boolean;
+  dayPhase?: 'dawn' | 'day' | 'dusk' | 'night';
 }
 
+const DAY_TINT: Record<string, string> = {
+  dawn: '#FF880015',
+  day: '#00000000',
+  dusk: '#FF440020',
+  night: '#0A0A3040',
+};
+
 const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
-  onBattleResult, showGrid = true, showFogOfWar = true,
+  onBattleResult, showGrid = true, showFogOfWar = true, dayPhase = 'day',
 }, ref) {
   const map = useGameStore(s => s.map);
   const selectedHex = useGameStore(s => s.selectedHex);
@@ -869,6 +877,11 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
         </Animated.View>
       </GestureDetector>
 
+      {/* Day/night tint */}
+      {dayPhase !== 'day' && (
+        <View style={[styles.dayNightOverlay, { backgroundColor: DAY_TINT[dayPhase] }]} pointerEvents="none" />
+      )}
+
       {/* Emoji overlay */}
       <EmojiOverlay
         hexRenderData={hexRenderData}
@@ -948,6 +961,10 @@ const styles = StyleSheet.create({
     top: -1000,
   },
   canvas: { flex: 1 },
+  dayNightOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
   emojiOverlay: {
     position: 'absolute',
     width: 2000,

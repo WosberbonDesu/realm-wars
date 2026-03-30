@@ -135,8 +135,12 @@ export interface GameActions {
   // Ordu hareketi
   moveArmy: (from: HexCoord, to: HexCoord) => BattleResult | null;
 
-  // Tur bitir
+  // Tur bitir (legacy - artik gameTick kullaniliyor)
   endTurn: () => void;
+
+  // Real-time tick
+  gameTick: () => void;
+  setGameSpeed: (speed: number) => void;
 
   // Fog of war güncelle
   updateVisibility: (playerId: string) => void;
@@ -211,7 +215,32 @@ const initialState: GameState = {
   currentSeason: Season.Spring,
   currentWeather: WeatherType.Clear,
   seasonTurnCounter: 0,
+  gameSpeed: 1,
+  tickCount: 0,
+  dayPhase: 'day',
+  dayTick: 6,
 };
+
+// ── DAY/NIGHT CYCLE ──
+const TICKS_PER_DAY = 24;
+const DAY_PHASES: Record<number, 'dawn' | 'day' | 'dusk' | 'night'> = {
+  5: 'dawn', 6: 'day', 18: 'dusk', 20: 'night', 0: 'night',
+};
+function getDayPhase(tick: number): 'dawn' | 'day' | 'dusk' | 'night' {
+  if (tick >= 5 && tick < 7) return 'dawn';
+  if (tick >= 7 && tick < 18) return 'day';
+  if (tick >= 18 && tick < 20) return 'dusk';
+  return 'night';
+}
+
+// ── TICK INTERVALS ──
+// Her kac tick'te bir ne olacak
+const RESOURCE_TICK_INTERVAL = 6;    // 6 tick = 1/4 gun
+const BOT_ACTION_INTERVAL = 4;       // 4 tick'te bir bot aksiyon yapar
+const RESEARCH_TICK_INTERVAL = 12;   // 12 tick = yarim gun
+const EVENT_TICK_INTERVAL = 24;      // 24 tick = 1 gun
+const WEATHER_TICK_INTERVAL = 48;    // 48 tick = 2 gun
+const DIPLOMACY_TICK_INTERVAL = 24;  // 24 tick = 1 gun
 
 // ===== STORE =====
 
@@ -365,6 +394,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentSeason: Season.Spring,
       currentWeather: WeatherType.Clear,
       seasonTurnCounter: 0,
+      gameSpeed: 1,
+      tickCount: 0,
+      dayPhase: 'day' as const,
+      dayTick: 6,
     });
 
     // İnsan oyuncu için görünürlük aç
@@ -780,6 +813,71 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return;
       }
     }
+  },
+
+  // ─── REAL-TIME TICK ───
+  gameTick: () => {
+    const state = get();
+    if (state.phase !== GamePhase.Playing || state.gameSpeed === 0) return;
+
+    const tick = state.tickCount + 1;
+    const dayTick = tick % TICKS_PER_DAY;
+    const dayPhase = getDayPhase(dayTick);
+    const isNewDay = dayTick === 0 && tick > 0;
+    const turn = isNewDay ? state.turn + 1 : state.turn;
+
+    set({ tickCount: tick, dayTick, dayPhase, turn });
+
+    // Kaynak toplama (tum oyuncular icin)
+    if (tick % RESOURCE_TICK_INTERVAL === 0) {
+      for (const player of state.players) {
+        if (player.castleCoord === null) continue;
+        // Gece uretim %50 dusuk
+        const nightPenalty = dayPhase === 'night' ? 0.5 : 1;
+        collectResourcesForPlayer(get, set, player.id, nightPenalty);
+      }
+    }
+
+    // Arastirma ilerlet (tum oyuncular)
+    if (tick % RESEARCH_TICK_INTERVAL === 0) {
+      tickResearch(get, set);
+    }
+
+    // Bot aksiyonlari
+    if (tick % BOT_ACTION_INTERVAL === 0) {
+      for (const player of get().players) {
+        if (!player.isBot || player.castleCoord === null) continue;
+        executeBotTurn(get, set);
+      }
+    }
+
+    // Rastgele olay (gun basinda)
+    if (tick % EVENT_TICK_INTERVAL === 0 && tick > 0) {
+      triggerRandomEvent(get, set);
+    }
+
+    // Hava durumu
+    if (tick % WEATHER_TICK_INTERVAL === 0) {
+      tickSeasonWeather(get, set);
+    }
+
+    // Diplomasi
+    if (tick % DIPLOMACY_TICK_INTERVAL === 0) {
+      tickDiplomacy(get, set);
+    }
+
+    // Zafer kontrolu (her gun)
+    if (isNewDay) {
+      checkGameOver(get, set);
+    }
+
+    // Gorunurluk guncelle
+    const human = get().players.find(p => !p.isBot);
+    if (human) get().updateVisibility(human.id);
+  },
+
+  setGameSpeed: (speed: number) => {
+    set({ gameSpeed: Math.max(0, Math.min(3, speed)) });
   },
 
   // ─── FOG OF WAR ───
@@ -1266,6 +1364,49 @@ function collectResources(
       : p
   );
 
+  set({ players: newPlayers });
+}
+
+// ===== REAL-TIME RESOURCE COLLECTION =====
+
+function collectResourcesForPlayer(
+  get: () => GameStore,
+  set: (partial: Partial<GameState>) => void,
+  playerId: string,
+  multiplier: number = 1,
+) {
+  const state = get();
+  const player = state.players.find(p => p.id === playerId);
+  if (!player) return;
+
+  const season = SEASONS[state.currentSeason as Season];
+  const foodMult = (season?.foodProductionMultiplier ?? 1) * multiplier;
+
+  let income: Partial<Resources> = {};
+  for (const coord of player.territory) {
+    const tile = state.map.get(hexKey(coord.q, coord.r));
+    if (tile?.building && tile.building.ownerId === player.id) {
+      const prod = tile.building.productionPerTick;
+      // Real-time: uretim RESOURCE_TICK_INTERVAL'e bolunur (daha kucuk miktarlar)
+      const scale = multiplier / 4; // 4 tick = 1 tam tur uretimi
+      income = {
+        gold: (income.gold ?? 0) + Math.ceil((prod.gold ?? 0) * scale),
+        iron: (income.iron ?? 0) + Math.ceil((prod.iron ?? 0) * scale),
+        food: (income.food ?? 0) + Math.ceil((prod.food ?? 0) * foodMult * scale),
+        wood: (income.wood ?? 0) + Math.ceil((prod.wood ?? 0) * scale),
+        stone: (income.stone ?? 0) + Math.ceil((prod.stone ?? 0) * scale),
+      };
+    }
+  }
+
+  // Toprak geliri (kucuk)
+  income.gold = (income.gold ?? 0) + Math.max(1, Math.floor(player.territory.length * 0.1));
+
+  const newPlayers = state.players.map(p =>
+    p.id === playerId
+      ? { ...p, resources: addResources(p.resources, income) }
+      : p
+  );
   set({ players: newPlayers });
 }
 

@@ -62,6 +62,11 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const enterMoveMode = useGameStore(s => s.enterMoveMode);
   const moveMode = useGameStore(s => s.moveMode);
   const exitMoveMode = useGameStore(s => s.exitMoveMode);
+  const gameSpeed = useGameStore(s => s.gameSpeed);
+  const dayPhase = useGameStore(s => s.dayPhase);
+  const dayTick = useGameStore(s => s.dayTick);
+  const gameTick = useGameStore(s => s.gameTick);
+  const setGameSpeed = useGameStore(s => s.setGameSpeed);
   const saveCurrentGame = useGameStore(s => s.saveCurrentGame);
   const calculateIncome = useGameStore(s => s.calculateIncome);
   const actionLog = useGameStore(s => s.actionLog);
@@ -85,6 +90,18 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const removeFeedback = (id: string) => {
     setFeedbackItems(prev => prev.filter(f => f.id !== id));
   };
+
+  // ═══ REAL-TIME TICK TIMER ═══
+  useEffect(() => {
+    if (gameSpeed === 0 || phase !== GamePhase.Playing) return;
+    // Tick araligi: speed 1=3s, 2=1.5s, 3=0.75s
+    const intervals = [0, 3000, 1500, 750];
+    const ms = intervals[gameSpeed] ?? 3000;
+    const timer = setInterval(() => {
+      gameTick();
+    }, ms);
+    return () => clearInterval(timer);
+  }, [gameSpeed, phase, gameTick]);
 
   // Ilk tur -> tutorial goster
   const tutorialShown = useRef(false);
@@ -209,6 +226,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
           ref={mapRef}
           showGrid={settings.showGrid}
           showFogOfWar={settings.showFogOfWar}
+          dayPhase={dayPhase}
           onBattleResult={(result) => {
             setBattleResult(result);
             setBattleModalVisible(true);
@@ -255,7 +273,7 @@ export default function GameScreen({ onBackToMenu }: Props) {
         />
       )}
 
-      {/* ═══ BOTTOM BAR: resources + end turn ═══ */}
+      {/* ═══ BOTTOM BAR: resources + time controls ═══ */}
       <View style={styles.bottomBar}>
         <VictoryProgress
           expanded={victoryExpanded}
@@ -266,11 +284,32 @@ export default function GameScreen({ onBackToMenu }: Props) {
           <ResourceBar resources={currentPlayer.resources} income={income} />
         )}
 
-        <AnimatedButton
-          label={settings.autoEndTurn ? `${t('game.endTurn')} (Auto)` : t('game.endTurn')}
-          onPress={() => { playSound('turnStart'); useGameStore.getState().endTurn(); }}
-          variant="primary"
-        />
+        {/* Zaman kontrolleri */}
+        <View style={styles.timeBar}>
+          <View style={styles.dayInfo}>
+            <Text style={styles.dayIcon}>{dayPhase === 'night' ? '🌙' : dayPhase === 'dawn' ? '🌅' : dayPhase === 'dusk' ? '🌇' : '☀️'}</Text>
+            <View>
+              <Text style={styles.dayText}>
+                {dayPhase === 'night' ? 'Gece' : dayPhase === 'dawn' ? 'Safak' : dayPhase === 'dusk' ? 'Aksam' : 'Gunduz'}
+              </Text>
+              <Text style={styles.turnText}>Gun {turn} • {String(dayTick).padStart(2, '0')}:00</Text>
+            </View>
+          </View>
+
+          <View style={styles.speedControls}>
+            {[0, 1, 2, 3].map(spd => (
+              <TouchableOpacity
+                key={spd}
+                style={[styles.speedBtn, gameSpeed === spd && styles.speedBtnActive]}
+                onPress={() => { playSound('click'); setGameSpeed(spd); }}
+              >
+                <Text style={[styles.speedBtnText, gameSpeed === spd && styles.speedBtnTextActive]}>
+                  {spd === 0 ? '⏸' : spd === 1 ? '▶' : spd === 2 ? '▶▶' : '▶▶▶'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </View>
 
       {/* ═══ ANIMATION LAYERS ═══ */}
@@ -455,5 +494,55 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     zIndex: 10,
+  },
+  timeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACE.sm,
+  },
+  dayInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.sm,
+  },
+  dayIcon: {
+    fontSize: 22,
+  },
+  dayText: {
+    color: COLORS.textPrimary,
+    fontSize: FONT.caption,
+    fontWeight: '700' as any,
+  },
+  turnText: {
+    color: COLORS.textMuted,
+    fontSize: FONT.tiny,
+    marginTop: 1,
+  },
+  speedControls: {
+    flexDirection: 'row',
+    gap: SPACE.xs,
+  },
+  speedBtn: {
+    paddingHorizontal: SPACE.md,
+    paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.bgCard,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    minWidth: 42,
+    alignItems: 'center',
+  },
+  speedBtnActive: {
+    backgroundColor: COLORS.primaryDark,
+    borderColor: COLORS.primary,
+  },
+  speedBtnText: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '700' as any,
+  },
+  speedBtnTextActive: {
+    color: COLORS.gold,
   },
 });

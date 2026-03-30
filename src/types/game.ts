@@ -150,6 +150,11 @@ export interface GameState {
   currentSeason: string;
   currentWeather: string;
   seasonTurnCounter: number;
+  // Real-time tick sistemi
+  gameSpeed: number;       // 0=pause, 1=normal, 2=fast, 3=ultra
+  tickCount: number;       // toplam tick sayisi
+  dayPhase: 'dawn' | 'day' | 'dusk' | 'night';
+  dayTick: number;         // gun icindeki tick (0-23 gibi)
 }
 
 export enum GamePhase {
