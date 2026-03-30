@@ -73,7 +73,7 @@ export function deserializeState(data: SerializedGameState): GameState {
     mapRadius: data.mapRadius,
     mapSeed: data.mapSeed ?? 0,
     botDifficulty: (data as any).botDifficulty ?? 'normal',
-    players: data.players,
+    players: data.players.map((p: any) => ({ ...p, factionId: p.factionId || 'turkic' })),
     currentPlayerId: data.currentPlayerId,
     turn: data.turn,
     phase: data.phase,

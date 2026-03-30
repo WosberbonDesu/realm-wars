@@ -215,6 +215,22 @@ export function generateMap(seed: number = Date.now(), radius: number = MAP_RADI
     }
   }
 
+  // ── 6. ADIM: Harita dogrulama — yeterli kara var mi? ──
+  const landTypes = new Set([
+    HexTerrain.Plains, HexTerrain.Forest, HexTerrain.Desert,
+    HexTerrain.Swamp, HexTerrain.Hills, HexTerrain.Fertile,
+    HexTerrain.Shore, HexTerrain.River,
+  ]);
+  let landCount = 0;
+  for (const [, tile] of map) {
+    if (landTypes.has(tile.terrain)) landCount++;
+  }
+  const minLandRatio = 0.2; // En az %20 kara olmali
+  if (landCount < map.size * minLandRatio) {
+    // Yetersiz kara → seed'i kaydirip yeniden uret (1 deneme)
+    return generateMap(seed + 7, radius);
+  }
+
   return map;
 }
 
@@ -241,15 +257,19 @@ export function findStartPositions(
     let bestQ = Math.round(spawnRadius * Math.cos(angle));
     let bestR = Math.round(spawnRadius * Math.sin(angle));
 
-    // En yakın kara (Plains/Shore/Forest) hex'i bul
-    const searchRange = 6;
+    // En yakın kara hex'i bul — genis arama
+    const spawnableTerrains = new Set([
+      HexTerrain.Plains, HexTerrain.Shore, HexTerrain.Forest,
+      HexTerrain.Hills, HexTerrain.Fertile,
+    ]);
+    const searchRange = Math.max(8, Math.floor(radius * 0.4));
     let found = false;
     let bestDist = Infinity;
     for (let dq = -searchRange; dq <= searchRange; dq++) {
       for (let dr = -searchRange; dr <= searchRange; dr++) {
         const key = hexKey(bestQ + dq, bestR + dr);
         const tile = map.get(key);
-        if (tile && (tile.terrain === HexTerrain.Plains || tile.terrain === HexTerrain.Shore || tile.terrain === HexTerrain.Forest)) {
+        if (tile && spawnableTerrains.has(tile.terrain)) {
           const dist = Math.abs(dq) + Math.abs(dr);
           if (dist < bestDist) {
             bestDist = dist;

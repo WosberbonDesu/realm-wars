@@ -76,6 +76,34 @@ function calculateTotalPower(units: Unit[]): number {
   return units.reduce((sum, u) => sum + (u.attack + u.defense) * u.count, 0);
 }
 
+/** Get faction bonuses for a player */
+function getFactionBonuses(factionId: string): {
+  attackMult: number;
+  defenseMult: number;
+  productionMult: number;
+  movementMult: number;
+  researchMult: number;
+  incomeMult: number;
+} {
+  const result = { attackMult: 0, defenseMult: 0, productionMult: 0, movementMult: 0, researchMult: 0, incomeMult: 0 };
+  try {
+    const { FACTIONS } = require('../constants/factions');
+    const faction = FACTIONS[factionId];
+    if (!faction) return result;
+    for (const bonus of faction.bonuses) {
+      switch (bonus.type) {
+        case 'attack': result.attackMult += bonus.value; break;
+        case 'defense': result.defenseMult += bonus.value; break;
+        case 'production': result.productionMult += bonus.value; break;
+        case 'movement': result.movementMult += bonus.value; break;
+        case 'research': result.researchMult += bonus.value; break;
+        case 'income': result.incomeMult += bonus.value; break;
+      }
+    }
+  } catch { /* fallback to 0 bonuses */ }
+  return result;
+}
+
 /** Get hero combat bonus for an army at the given hex */
 function getHeroBonusForArmy(
   players: Player[],
@@ -627,23 +655,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const atkHero = getHeroBonusForArmy(state.players, state.currentPlayerId, from);
       const defHero = getHeroBonusForArmy(state.players, newToTile.army.ownerId, to);
 
-      // Mevsim + hava saldiri/savunma modifier'lari hero bonusuna ekle
+      // Faction bonuslari
+      const atkPlayer = state.players.find(p => p.id === state.currentPlayerId);
+      const defPlayer = state.players.find(p => p.id === newToTile.army!.ownerId);
+      const atkFaction = getFactionBonuses(atkPlayer?.factionId ?? '');
+      const defFaction = getFactionBonuses(defPlayer?.factionId ?? '');
+
+      // Mevsim + hava saldiri/savunma modifier'lari
       const seasonDef = SEASONS[state.currentSeason as Season];
       const weatherDef = WEATHER_TYPES[state.currentWeather as WeatherType];
       const envAtkMod = (seasonDef?.attackModifier ?? 0) + (weatherDef?.attackBonus ?? 0);
       const envDefMod = (seasonDef?.defenseModifier ?? 0) + (weatherDef?.defenseBonus ?? 0);
 
+      // Hero + Faction + Environment birlesimi
       const atkHeroWithEnv: HeroCombatBonus = {
         attackBonus: (atkHero?.attackBonus ?? 0),
         defenseBonus: (atkHero?.defenseBonus ?? 0),
-        attackMult: (atkHero?.attackMult ?? 0) + envAtkMod,
-        defenseMult: (atkHero?.defenseMult ?? 0) + envDefMod,
+        attackMult: (atkHero?.attackMult ?? 0) + atkFaction.attackMult + envAtkMod,
+        defenseMult: (atkHero?.defenseMult ?? 0) + atkFaction.defenseMult + envDefMod,
       };
       const defHeroWithEnv: HeroCombatBonus = {
         attackBonus: (defHero?.attackBonus ?? 0),
         defenseBonus: (defHero?.defenseBonus ?? 0),
-        attackMult: (defHero?.attackMult ?? 0) + envAtkMod,
-        defenseMult: (defHero?.defenseMult ?? 0) + envDefMod,
+        attackMult: (defHero?.attackMult ?? 0) + defFaction.attackMult + envAtkMod,
+        defenseMult: (defHero?.defenseMult ?? 0) + defFaction.defenseMult + envDefMod,
       };
 
       battleResult = simulateBattle(fromTile.army, newToTile.army, newToTile.terrain, newToTile.building, atkHeroWithEnv, defHeroWithEnv);
@@ -843,11 +878,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       tickResearch(get, set);
     }
 
-    // Bot aksiyonlari
+    // Bot aksiyonlari — her bota kendi ID'si ile
     if (tick % BOT_ACTION_INTERVAL === 0) {
       for (const player of get().players) {
         if (!player.isBot || player.castleCoord === null) continue;
-        executeBotTurn(get, set);
+        executeBotTurn(get, set, player.id);
       }
     }
 
@@ -1281,46 +1316,44 @@ function tickResearch(
   set: (partial: Partial<GameState>) => void
 ) {
   const state = get();
-  const player = state.players.find(p => p.id === state.currentPlayerId);
-  if (!player?.currentResearch) return;
+  const logs: { id: string; text: string; color: string; icon: string }[] = [];
 
-  const { techId, turnsLeft } = player.currentResearch;
+  // TUM oyuncular icin arastirma ilerlet
+  const newPlayers = state.players.map(p => {
+    if (!p.currentResearch || p.castleCoord === null) return p;
 
-  if (turnsLeft <= 1) {
-    // Araştırma tamamlandı
-    const newPlayers = state.players.map(p =>
-      p.id === player.id
-        ? {
-            ...p,
-            researchedTechs: [...p.researchedTechs, techId],
-            currentResearch: null,
-          }
-        : p
-    );
-    set({ players: newPlayers });
+    const { techId, turnsLeft } = p.currentResearch;
 
-    // Log ekle
-    const tech = TECH_TREE[techId];
-    const currentLogs = get().actionLog;
-    set({
-      actionLog: [...currentLogs, {
-        id: `research-${Date.now()}`,
-        text: `${tech.name} arastirmasi tamamlandi!`,
-        color: player.color,
+    // Faction arastirma bonusu: turnsLeft'i daha hizli azalt
+    const fBonus = getFactionBonuses(p.factionId ?? '');
+    const researchSpeed = 1 + fBonus.researchMult; // ornegin 1.25 = %25 hizli
+    const decrement = Math.max(1, Math.round(researchSpeed));
+
+    if (turnsLeft <= decrement) {
+      // Arastirma tamamlandi
+      const tech = TECH_TREE[techId];
+      logs.push({
+        id: `research-${Date.now()}-${p.id}`,
+        text: `${p.name}: ${tech.name} tamamlandi!`,
+        color: p.color,
         icon: tech.icon,
-      }],
-    });
-  } else {
-    // Bir tur ilerlet
-    const newPlayers = state.players.map(p =>
-      p.id === player.id
-        ? {
-            ...p,
-            currentResearch: { techId, turnsLeft: turnsLeft - 1 },
-          }
-        : p
-    );
-    set({ players: newPlayers });
+      });
+      return {
+        ...p,
+        researchedTechs: [...p.researchedTechs, techId],
+        currentResearch: null,
+      };
+    } else {
+      return {
+        ...p,
+        currentResearch: { techId, turnsLeft: turnsLeft - decrement },
+      };
+    }
+  });
+
+  set({ players: newPlayers });
+  if (logs.length > 0) {
+    set({ actionLog: [...get().actionLog, ...logs] });
   }
 }
 
@@ -1382,25 +1415,30 @@ function collectResourcesForPlayer(
   const season = SEASONS[state.currentSeason as Season];
   const foodMult = (season?.foodProductionMultiplier ?? 1) * multiplier;
 
+  // Faction uretim ve gelir bonuslari
+  const factionBonus = getFactionBonuses(player.factionId ?? '');
+  const prodMult = 1 + factionBonus.productionMult;
+  const incomeMult = 1 + factionBonus.incomeMult;
+
   let income: Partial<Resources> = {};
   for (const coord of player.territory) {
     const tile = state.map.get(hexKey(coord.q, coord.r));
     if (tile?.building && tile.building.ownerId === player.id) {
       const prod = tile.building.productionPerTick;
-      // Real-time: uretim RESOURCE_TICK_INTERVAL'e bolunur (daha kucuk miktarlar)
-      const scale = multiplier / 4; // 4 tick = 1 tam tur uretimi
+      // Real-time: uretim tick basina olceklenir
+      const scale = multiplier / RESOURCE_TICK_INTERVAL;
       income = {
-        gold: (income.gold ?? 0) + Math.ceil((prod.gold ?? 0) * scale),
-        iron: (income.iron ?? 0) + Math.ceil((prod.iron ?? 0) * scale),
-        food: (income.food ?? 0) + Math.ceil((prod.food ?? 0) * foodMult * scale),
-        wood: (income.wood ?? 0) + Math.ceil((prod.wood ?? 0) * scale),
-        stone: (income.stone ?? 0) + Math.ceil((prod.stone ?? 0) * scale),
+        gold: (income.gold ?? 0) + Math.ceil((prod.gold ?? 0) * scale * incomeMult),
+        iron: (income.iron ?? 0) + Math.ceil((prod.iron ?? 0) * scale * prodMult),
+        food: (income.food ?? 0) + Math.ceil((prod.food ?? 0) * foodMult * scale * prodMult),
+        wood: (income.wood ?? 0) + Math.ceil((prod.wood ?? 0) * scale * prodMult),
+        stone: (income.stone ?? 0) + Math.ceil((prod.stone ?? 0) * scale * prodMult),
       };
     }
   }
 
-  // Toprak geliri (kucuk)
-  income.gold = (income.gold ?? 0) + Math.max(1, Math.floor(player.territory.length * 0.1));
+  // Toprak geliri (faction incomeMult uygulanir)
+  income.gold = (income.gold ?? 0) + Math.max(1, Math.floor(player.territory.length * 0.1 * incomeMult));
 
   const newPlayers = state.players.map(p =>
     p.id === playerId
@@ -1414,14 +1452,18 @@ function collectResourcesForPlayer(
 
 function executeBotTurn(
   get: () => GameStore,
-  set: (partial: Partial<GameState>) => void
+  set: (partial: Partial<GameState>) => void,
+  botPlayerId?: string,
 ) {
   const state = get();
-  const bot = state.players.find(p => p.id === state.currentPlayerId);
+  const targetId = botPlayerId ?? state.currentPlayerId;
+  const bot = state.players.find(p => p.id === targetId);
   if (!bot || !bot.isBot) return;
 
-  // Önce bot'un kaynaklarını topla
-  collectResources(state, set);
+  // Real-time modda: gecici olarak currentPlayerId'yi bu bot'a cevir
+  // boylece buildStructure/trainUnit/moveArmy dogru oyuncuyu hedefler
+  const prevPlayerId = state.currentPlayerId;
+  if (botPlayerId) set({ currentPlayerId: targetId });
 
   const logs: { id: string; text: string; color: string; icon: string }[] = [];
   let logId = 0;
@@ -1467,7 +1509,10 @@ function executeBotTurn(
 
   botTakeTurn(get(), bot, actions, get().botDifficulty);
 
-  // Logları mevcut loglara ekle
+  // currentPlayerId'yi geri al
+  if (botPlayerId) set({ currentPlayerId: prevPlayerId });
+
+  // Loglari mevcut loglara ekle
   const currentLogs = get().actionLog;
   set({ actionLog: [...currentLogs, ...logs] });
 }
