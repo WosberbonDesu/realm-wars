@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import HexMapRenderer, { HexMapRef } from '../components/HexMapRenderer';
+import RegionMapRenderer, { RegionMapRef } from '../components/RegionMapRenderer';
 import HexInfoPanel from '../components/HexInfoPanel';
+import RegionInfoPanel from '../components/RegionInfoPanel';
 import BuildModal from '../components/BuildModal';
 import TrainModal from '../components/TrainModal';
 import BattleResultModal from '../components/BattleResultModal';
@@ -73,7 +75,16 @@ export default function GameScreen({ onBackToMenu }: Props) {
   const actionLog = useGameStore(s => s.actionLog);
   const clearActionLog = useGameStore(s => s.clearActionLog);
 
+  const worldMap = useGameStore(s => s.worldMap);
+  const useRegionMap = useGameStore(s => s.useRegionMap);
+  const selectedRegionId = useGameStore(s => s.selectedRegionId);
+  const selectRegion = useGameStore(s => s.selectRegion);
+  const moveArmyRegion = useGameStore(s => s.moveArmyRegion);
+  const buildOnRegion = useGameStore(s => s.buildOnRegion);
+  const trainOnRegion = useGameStore(s => s.trainOnRegion);
+
   const mapRef = useRef<HexMapRef>(null);
+  const regionMapRef = useRef<RegionMapRef>(null);
   const [showTurnBanner, setShowTurnBanner] = useState(false);
   const prevTurn = useRef(turn);
 
@@ -237,38 +248,41 @@ export default function GameScreen({ onBackToMenu }: Props) {
 
       {/* ═══ MAP AREA ═══ */}
       <View style={styles.mapContainer}>
-        <HexMapRenderer
-          ref={mapRef}
-          showGrid={settings.showGrid}
-          showFogOfWar={settings.showFogOfWar}
-          dayPhase={dayPhase}
-          onBattleResult={(result) => {
-            setBattleResult(result);
-            setBattleModalVisible(true);
-            playSound('battle');
-            setFlashColor('#FF4444');
-            const won = result.winner === 'attacker';
-            showFeedback(
-              won ? '⚔️' : '💀',
-              won ? t('feedback.victory') : t('feedback.defeat'),
-              won ? COLORS.green : COLORS.red,
-            );
-            showToast(
-              won ? '⚔️' : '💀',
-              won ? t('feedback.victory') : t('feedback.defeat'),
-              won ? COLORS.green : COLORS.red,
-              won ? 'success' : 'danger',
-            );
-          }}
-        />
-
-        {/* Minimap */}
-        <Minimap onTapHex={(q, r) => mapRef.current?.focusOnHex(q, r)} />
+        {useRegionMap && worldMap ? (
+          <RegionMapRenderer
+            ref={regionMapRef}
+            world={worldMap}
+            selectedRegionId={selectedRegionId}
+            onSelectRegion={(rid) => selectRegion(rid)}
+            dayPhase={dayPhase}
+            playerColors={(() => {
+              const m = new Map<string, string>();
+              for (const p of players) m.set(p.id, p.color);
+              return m;
+            })()}
+          />
+        ) : (
+          <HexMapRenderer
+            ref={mapRef}
+            showGrid={settings.showGrid}
+            showFogOfWar={settings.showFogOfWar}
+            dayPhase={dayPhase}
+            onBattleResult={(result) => {
+              setBattleResult(result);
+              setBattleModalVisible(true);
+              playSound('battle');
+              setFlashColor('#FF4444');
+              const won = result.winner === 'attacker';
+              showFeedback(won ? '⚔️' : '💀', won ? t('feedback.victory') : t('feedback.defeat'), won ? COLORS.green : COLORS.red);
+              showToast(won ? '⚔️' : '💀', won ? t('feedback.victory') : t('feedback.defeat'), won ? COLORS.green : COLORS.red, won ? 'success' : 'danger');
+            }}
+          />
+        )}
 
         {/* Zoom controls */}
         <MapControls
-          onZoomIn={() => mapRef.current?.zoomIn()}
-          onZoomOut={() => mapRef.current?.zoomOut()}
+          onZoomIn={() => { regionMapRef.current?.zoomIn(); mapRef.current?.zoomIn(); }}
+          onZoomOut={() => { regionMapRef.current?.zoomOut(); mapRef.current?.zoomOut(); }}
           onCenterCastle={handleCenterCastle}
         />
 
@@ -285,14 +299,24 @@ export default function GameScreen({ onBackToMenu }: Props) {
         {actionLog.length > 0 && <ActionLog entries={actionLog} />}
       </View>
 
-      {/* ═══ HEX INFO PANEL — positioned above bottom bar ═══ */}
-      {selectedHex && !moveMode && (
+      {/* ═══ INFO PANEL ═══ */}
+      {useRegionMap && selectedRegionId ? (
+        <RegionInfoPanel
+          onBuild={() => setBuildModalVisible(true)}
+          onTrain={() => setTrainModalVisible(true)}
+          onMove={() => {
+            // Region move mode: komşuları highlight et
+            const neighbors = useGameStore.getState().getRegionNeighbors(selectedRegionId);
+            // TODO: region move mode UI
+          }}
+        />
+      ) : selectedHex && !moveMode ? (
         <HexInfoPanel
           onBuild={() => setBuildModalVisible(true)}
           onTrain={() => setTrainModalVisible(true)}
           onMove={() => enterMoveMode(selectedHex)}
         />
-      )}
+      ) : null}
 
       {/* ═══ BOTTOM BAR: resources + time controls ═══ */}
       <View style={styles.bottomBar}>

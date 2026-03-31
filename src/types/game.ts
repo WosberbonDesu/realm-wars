@@ -133,9 +133,14 @@ export interface Player {
 export type BotDifficulty = 'easy' | 'normal' | 'hard';
 
 export interface GameState {
+  // Eski hex map (geriye uyumluluk)
   map: Map<string, HexTile>;
   mapRadius: number;
   mapSeed: number;
+  // Yeni Voronoi region map
+  worldMap: import('./region').WorldMap | null;
+  useRegionMap: boolean;
+  selectedRegionId: string | null;
   botDifficulty: BotDifficulty;
   players: Player[];
   currentPlayerId: string;

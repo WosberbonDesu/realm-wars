@@ -6,6 +6,8 @@ import {
   hexKey,
 } from '../types/game';
 import { generateMap, findStartPositions } from '../engine/mapGenerator';
+import { generateWorld, findRegionStartPositions, MapTemplate as WorldTemplate } from '../engine/worldGenerator';
+import { Region, REGION_TERRAIN_PROPS } from '../types/region';
 import { simulateBattle, BattleResult, HeroCombatBonus } from '../engine/combat';
 import { botTakeTurn, BotActions } from '../engine/botAI';
 import { hexesInRange, getNeighbors } from '../engine/hexUtils';
@@ -167,6 +169,13 @@ export interface GameActions {
   splitArmy: (coord: HexCoord, unitsToSplit: { type: UnitType; count: number }[]) => boolean;
   mergeArmies: (from: HexCoord, to: HexCoord) => boolean;
 
+  // Region-based aksiyonlar
+  selectRegion: (regionId: string | null) => void;
+  buildOnRegion: (regionId: string, type: BuildingType) => boolean;
+  trainOnRegion: (regionId: string, type: UnitType, count: number) => boolean;
+  moveArmyRegion: (fromRegionId: string, toRegionId: string) => any;
+  getRegionNeighbors: (regionId: string) => string[];
+
   // Tur bitir (legacy - artik gameTick kullaniliyor)
   endTurn: () => void;
 
@@ -229,6 +238,9 @@ const initialState: GameState = {
   map: new Map(),
   mapRadius: MAP_RADIUS,
   mapSeed: 0,
+  worldMap: null,
+  useRegionMap: true,
+  selectedRegionId: null,
   botDifficulty: 'normal',
   players: [],
   currentPlayerId: '',
@@ -432,7 +444,83 @@ export const useGameStore = create<GameStore>((set, get) => ({
       dayTick: 6,
     });
 
-    // İnsan oyuncu için görünürlük aç
+    // ── Voronoi WorldMap oluştur ──
+    const world = generateWorld(resolvedSeed, 'continents');
+    const regionStarts = findRegionStartPositions(world, players.length);
+
+    // Her oyuncuya başlangıç bölgesi ata
+    for (let pi = 0; pi < players.length; pi++) {
+      const startRegionId = regionStarts[pi];
+      if (!startRegionId) continue;
+      const region = world.regions.get(startRegionId);
+      if (!region) continue;
+
+      // Bölgeyi oyuncuya ver
+      region.ownerId = players[pi].id;
+      region.visible = true;
+      region.explored = true;
+
+      // Başlangıç binası (kale)
+      region.building = {
+        type: BuildingType.Castle,
+        level: 1,
+        ownerId: players[pi].id,
+        health: BUILDING_HEALTH[BuildingType.Castle],
+        maxHealth: BUILDING_HEALTH[BuildingType.Castle],
+        productionPerTick: BUILDING_PRODUCTION[BuildingType.Castle],
+      };
+
+      // Başlangıç ordusu
+      region.army = {
+        ownerId: players[pi].id,
+        units: [
+          { type: UnitType.Warrior, count: 5, attack: UNIT_STATS[UnitType.Warrior].attack, defense: UNIT_STATS[UnitType.Warrior].defense, health: UNIT_STATS[UnitType.Warrior].health, speed: UNIT_STATS[UnitType.Warrior].speed },
+          { type: UnitType.Scout, count: 2, attack: UNIT_STATS[UnitType.Scout].attack, defense: UNIT_STATS[UnitType.Scout].defense, health: UNIT_STATS[UnitType.Scout].health, speed: UNIT_STATS[UnitType.Scout].speed },
+        ],
+        totalPower: 0,
+      };
+      region.army.totalPower = calculateTotalPower(region.army.units);
+
+      // Komşu bölgeleri de ver
+      for (const nid of region.neighborIds) {
+        const nr = world.regions.get(nid);
+        if (nr && nr.isLand && !nr.ownerId) {
+          nr.ownerId = players[pi].id;
+          nr.visible = true;
+          nr.explored = true;
+        }
+      }
+
+      // Görünürlük: 2-hop komşulara aç
+      const visibleIds = new Set<string>();
+      const queue = [startRegionId];
+      const visited = new Set<string>();
+      let depth = 0;
+      while (queue.length > 0 && depth < 3) {
+        const batch = [...queue];
+        queue.length = 0;
+        for (const rid of batch) {
+          if (visited.has(rid)) continue;
+          visited.add(rid);
+          visibleIds.add(rid);
+          const r = world.regions.get(rid);
+          if (r) {
+            for (const nrid of r.neighborIds) {
+              if (!visited.has(nrid)) queue.push(nrid);
+            }
+          }
+        }
+        depth++;
+      }
+      for (const vid of visibleIds) {
+        const vr = world.regions.get(vid);
+        if (vr) { vr.visible = true; vr.explored = true; }
+      }
+    }
+
+    set({ worldMap: world, useRegionMap: true, selectedRegionId: null });
+
+    // Eski hex sistemi görünürlük
     get().updateVisibility(players[0].id);
   },
 
@@ -1117,6 +1205,170 @@ export const useGameStore = create<GameStore>((set, get) => ({
     newMap.set(toKey, newTo);
     set({ map: newMap });
     return true;
+  },
+
+  // ─── REGION ACTIONS ───
+  selectRegion: (regionId: string | null) => {
+    set({ selectedRegionId: regionId });
+  },
+
+  buildOnRegion: (regionId: string, type: BuildingType): boolean => {
+    const state = get();
+    if (!state.worldMap) return false;
+    const region = state.worldMap.regions.get(regionId);
+    if (!region || !region.isLand) return false;
+    if (region.ownerId !== state.currentPlayerId) return false;
+    if (region.building) return false;
+
+    const player = state.players.find(p => p.id === state.currentPlayerId);
+    if (!player) return false;
+
+    const cost = BUILDING_COSTS[type];
+    if (!canAfford(player.resources, cost)) return false;
+
+    const props = REGION_TERRAIN_PROPS[region.terrain];
+    if (!props.buildable) return false;
+
+    region.building = {
+      type, level: 1, ownerId: player.id,
+      health: BUILDING_HEALTH[type], maxHealth: BUILDING_HEALTH[type],
+      productionPerTick: BUILDING_PRODUCTION[type],
+    };
+
+    const newPlayers = state.players.map(p =>
+      p.id === player.id ? { ...p, resources: subtractResources(p.resources, cost) } : p
+    );
+    set({ players: newPlayers, worldMap: { ...state.worldMap } });
+    return true;
+  },
+
+  trainOnRegion: (regionId: string, type: UnitType, count: number): boolean => {
+    const state = get();
+    if (!state.worldMap) return false;
+    const region = state.worldMap.regions.get(regionId);
+    if (!region || region.ownerId !== state.currentPlayerId) return false;
+    if (!region.building || region.building.type !== BuildingType.Castle) return false;
+
+    const player = state.players.find(p => p.id === state.currentPlayerId);
+    if (!player) return false;
+
+    const stats = UNIT_STATS[type];
+    const totalCost: Partial<Resources> = {};
+    for (const [k, v] of Object.entries(stats.cost)) {
+      (totalCost as any)[k] = (v as number) * count;
+    }
+    if (!canAfford(player.resources, totalCost)) return false;
+
+    // Mevcut ordu var mı
+    if (!region.army) {
+      region.army = { ownerId: player.id, units: [], totalPower: 0 };
+    }
+    const existing = region.army.units.find(u => u.type === type);
+    if (existing) {
+      existing.count += count;
+    } else {
+      region.army.units.push({
+        type, count,
+        attack: stats.attack, defense: stats.defense,
+        health: stats.health, speed: stats.speed,
+      });
+    }
+    region.army.totalPower = calculateTotalPower(region.army.units);
+
+    const newPlayers = state.players.map(p =>
+      p.id === player.id ? { ...p, resources: subtractResources(p.resources, totalCost) } : p
+    );
+    set({ players: newPlayers, worldMap: { ...state.worldMap } });
+    return true;
+  },
+
+  moveArmyRegion: (fromId: string, toId: string): any => {
+    const state = get();
+    if (!state.worldMap) return null;
+    const fromRegion = state.worldMap.regions.get(fromId);
+    const toRegion = state.worldMap.regions.get(toId);
+    if (!fromRegion?.army || !toRegion) return null;
+    if (fromRegion.army.ownerId !== state.currentPlayerId) return null;
+    if (!fromRegion.neighborIds.includes(toId)) return null;
+
+    let battleResult = null;
+
+    if (toRegion.army && toRegion.army.ownerId !== state.currentPlayerId) {
+      // SAVAŞ!
+      const atkPlayer = state.players.find(p => p.id === state.currentPlayerId);
+      const defPlayer = state.players.find(p => p.id === toRegion.army!.ownerId);
+      const atkFaction = getFactionBonuses(atkPlayer?.factionId ?? '');
+      const defFaction = getFactionBonuses(defPlayer?.factionId ?? '');
+      const atkHero = getHeroBonusForArmy(state.players, state.currentPlayerId, { q: 0, r: 0 });
+      const defHero = getHeroBonusForArmy(state.players, toRegion.army!.ownerId, { q: 0, r: 0 });
+
+      const atkBonus: HeroCombatBonus = {
+        attackBonus: (atkHero?.attackBonus ?? 0),
+        defenseBonus: (atkHero?.defenseBonus ?? 0),
+        attackMult: (atkHero?.attackMult ?? 0) + atkFaction.attackMult,
+        defenseMult: (atkHero?.defenseMult ?? 0) + atkFaction.defenseMult,
+      };
+      const defBonus: HeroCombatBonus = {
+        attackBonus: (defHero?.attackBonus ?? 0),
+        defenseBonus: (defHero?.defenseBonus ?? 0),
+        attackMult: (defHero?.attackMult ?? 0) + defFaction.attackMult,
+        defenseMult: (defHero?.defenseMult ?? 0) + defFaction.defenseMult,
+      };
+
+      // Terrain'i HexTerrain'e map et (combat uyumu)
+      const terrainMap: Record<string, string> = {
+        plains: 'plains', forest: 'forest', dense_forest: 'forest',
+        hills: 'mountain', mountain: 'mountain', desert: 'desert',
+        swamp: 'swamp', grassland: 'plains', beach: 'plains',
+      };
+      const hexTerrain = (terrainMap[toRegion.terrain] ?? 'plains') as any;
+
+      battleResult = simulateBattle(
+        fromRegion.army, toRegion.army, hexTerrain,
+        toRegion.building, atkBonus, defBonus,
+      );
+
+      if (battleResult.winner === 'attacker') {
+        toRegion.army = {
+          ownerId: state.currentPlayerId,
+          units: battleResult.attackerSurvivors,
+          totalPower: calculateTotalPower(battleResult.attackerSurvivors),
+        };
+        toRegion.ownerId = state.currentPlayerId;
+        fromRegion.army = null;
+      } else {
+        toRegion.army = {
+          ownerId: toRegion.army.ownerId,
+          units: battleResult.defenderSurvivors,
+          totalPower: calculateTotalPower(battleResult.defenderSurvivors),
+        };
+        fromRegion.army = null;
+      }
+    } else if (toRegion.army && toRegion.army.ownerId === state.currentPlayerId) {
+      // Kendi orduyla birleştir
+      for (const unit of fromRegion.army.units) {
+        const existing = toRegion.army.units.find(u => u.type === unit.type);
+        if (existing) existing.count += unit.count;
+        else toRegion.army.units.push({ ...unit });
+      }
+      toRegion.army.totalPower = calculateTotalPower(toRegion.army.units);
+      fromRegion.army = null;
+    } else {
+      // Boş bölgeye taşı
+      toRegion.army = { ...fromRegion.army };
+      if (!toRegion.ownerId) toRegion.ownerId = state.currentPlayerId;
+      fromRegion.army = null;
+    }
+
+    set({ worldMap: { ...state.worldMap }, selectedRegionId: toId });
+    return battleResult;
+  },
+
+  getRegionNeighbors: (regionId: string): string[] => {
+    const state = get();
+    if (!state.worldMap) return [];
+    const region = state.worldMap.regions.get(regionId);
+    return region?.neighborIds ?? [];
   },
 
   // ─── AKSIYON LOGU ───
