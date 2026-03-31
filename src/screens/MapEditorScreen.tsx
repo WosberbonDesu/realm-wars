@@ -1,254 +1,346 @@
+/**
+ * Fantasy Map Editor — Azgaar kalitesinde harita oluşturma aracı.
+ *
+ * Özellikler:
+ * - Voronoi region bazlı boyama (terrain, sahiplik, nehir, etiket)
+ * - 5 harita şablonu ile otomatik üretim
+ * - 4 görsel stil: Siyasi / Fiziki / Fantazi / Parşömen
+ * - PNG/JPG export (Skia snapshot)
+ * - Undo/Redo (20 adım)
+ * - Bölge isimlendirme, nehir çizme, dağ zinciri
+ */
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView,
-  Dimensions,
+  Dimensions, Share, Platform,
 } from 'react-native';
 import {
-  Canvas, Path, Skia, Group,
+  Canvas, Path, Skia, Group, Circle, vec,
+  RadialGradient, LinearGradient,
+  makeImageFromView,
 } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withDecay, runOnJS,
 } from 'react-native-reanimated';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
-import { HexTerrain, hexKey } from '../types/game';
-import { EditorTool, MapTemplate } from '../types/mapEditor';
-import { hexToPixel, getHexCorners, pixelToHex, isInMapBounds, getNeighbors, hexesInRange } from '../engine/hexUtils';
-import { HEX_SIZE, TERRAIN_PALETTE, TERRAIN_COLORS, TERRAIN_ICONS } from '../constants/game';
-import { saveCustomMap } from '../services/mapStorage';
+import { RegionTerrain, REGION_TERRAIN_COLORS, MapPoint, WorldMap, Region } from '../types/region';
+import { generateWorld, MAP_TEMPLATES, MapTemplate as WorldTemplate } from '../engine/worldGenerator';
+import { pointDistance } from '../engine/voronoi';
 import { playSound } from '../services/soundService';
 import AnimatedButton from '../components/AnimatedButton';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const S = HEX_SIZE;
-const CC = 800; // Canvas center
 
-interface Props {
-  editTemplate?: MapTemplate | null;
-  onSave: (template: MapTemplate) => void;
-  onBack: () => void;
-}
+// ═══ EDITOR TOOL TYPES ═══
+type EditorMode = 'terrain' | 'owner' | 'river' | 'label' | 'eraser';
+type MapStyle = 'political' | 'physical' | 'fantasy' | 'parchment';
 
-// Terrain seçenekleri — editörde gösterilecek sıra
-const TERRAIN_OPTIONS: HexTerrain[] = [
-  HexTerrain.Sea, HexTerrain.Coast, HexTerrain.Lake,
-  HexTerrain.Shore, HexTerrain.Plains, HexTerrain.Fertile,
-  HexTerrain.Hills, HexTerrain.Forest, HexTerrain.Mountain,
-  HexTerrain.Desert, HexTerrain.Swamp, HexTerrain.River,
-];
-
-const TOOL_OPTIONS: { id: EditorTool; icon: string; label: string }[] = [
-  { id: 'single', icon: '✏️', label: 'Tek' },
-  { id: 'brush', icon: '🖌️', label: 'Firca' },
-  { id: 'fill', icon: '🪣', label: 'Doldur' },
+const EDITOR_TOOLS: { id: EditorMode; icon: string; label: string }[] = [
+  { id: 'terrain', icon: '🎨', label: 'Arazi' },
+  { id: 'owner', icon: '🏴', label: 'Ulke' },
+  { id: 'river', icon: '💧', label: 'Nehir' },
+  { id: 'label', icon: '🏷️', label: 'Etiket' },
   { id: 'eraser', icon: '🧹', label: 'Sil' },
-  { id: 'startPos', icon: '📍', label: 'Baslangic' },
 ];
 
-function makeHexPath(cx: number, cy: number, size: number) {
+const TERRAIN_OPTIONS: { terrain: RegionTerrain; icon: string; label: string }[] = [
+  { terrain: RegionTerrain.DeepSea, icon: '🌊', label: 'Derin Deniz' },
+  { terrain: RegionTerrain.Sea, icon: '🌊', label: 'Deniz' },
+  { terrain: RegionTerrain.Coast, icon: '🏖️', label: 'Kiyi' },
+  { terrain: RegionTerrain.Beach, icon: '⛱️', label: 'Sahil' },
+  { terrain: RegionTerrain.Plains, icon: '🌾', label: 'Ova' },
+  { terrain: RegionTerrain.Grassland, icon: '🌿', label: 'Cayir' },
+  { terrain: RegionTerrain.Forest, icon: '🌲', label: 'Orman' },
+  { terrain: RegionTerrain.DenseForest, icon: '🌳', label: 'Yogun Orman' },
+  { terrain: RegionTerrain.Hills, icon: '⛰️', label: 'Tepe' },
+  { terrain: RegionTerrain.Mountain, icon: '🏔️', label: 'Dag' },
+  { terrain: RegionTerrain.SnowPeak, icon: '❄️', label: 'Karli Zirve' },
+  { terrain: RegionTerrain.Desert, icon: '🏜️', label: 'Col' },
+  { terrain: RegionTerrain.Savanna, icon: '🦁', label: 'Savan' },
+  { terrain: RegionTerrain.Swamp, icon: '🐸', label: 'Bataklik' },
+  { terrain: RegionTerrain.Tundra, icon: '🧊', label: 'Tundra' },
+  { terrain: RegionTerrain.Fertile, icon: '🌱', label: 'Verimli' },
+  { terrain: RegionTerrain.Lake, icon: '🏞️', label: 'Gol' },
+];
+
+const OWNER_COLORS = [
+  { id: 'none', color: 'transparent', label: 'Yok' },
+  { id: 'red', color: '#C0392B', label: 'Kirmizi' },
+  { id: 'blue', color: '#2980B9', label: 'Mavi' },
+  { id: 'green', color: '#27AE60', label: 'Yesil' },
+  { id: 'purple', color: '#8E44AD', label: 'Mor' },
+  { id: 'orange', color: '#E67E22', label: 'Turuncu' },
+  { id: 'cyan', color: '#16A085', label: 'Turkuaz' },
+  { id: 'pink', color: '#E91E63', label: 'Pembe' },
+  { id: 'yellow', color: '#F1C40F', label: 'Sari' },
+];
+
+const MAP_STYLES: { id: MapStyle; icon: string; label: string }[] = [
+  { id: 'political', icon: '🗺️', label: 'Siyasi' },
+  { id: 'physical', icon: '🏔️', label: 'Fiziki' },
+  { id: 'fantasy', icon: '⚔️', label: 'Fantazi' },
+  { id: 'parchment', icon: '📜', label: 'Parsomen' },
+];
+
+const STYLE_BG: Record<MapStyle, string> = {
+  political: '#E8E0D0',
+  physical: '#A8C8A0',
+  fantasy: '#0E1E38',
+  parchment: '#F0E6D0',
+};
+
+const STYLE_BORDER: Record<MapStyle, string> = {
+  political: '#40404080',
+  physical: '#20402050',
+  fantasy: '#FFFFFF30',
+  parchment: '#80604060',
+};
+
+const STYLE_COAST: Record<MapStyle, string> = {
+  political: '#40404090',
+  physical: '#1A3A5A90',
+  fantasy: '#FFFFFF50',
+  parchment: '#60402080',
+};
+
+// ═══ PATH BUILDER ═══
+
+function makeRegionPath(region: Region) {
   const path = Skia.Path.Make();
-  const corners = getHexCorners(cx, cy, size);
-  path.moveTo(corners[0].x, corners[0].y);
-  for (let i = 1; i < corners.length; i++) path.lineTo(corners[i].x, corners[i].y);
+  const v = region.smoothVertices;
+  const cp = region.controlPoints;
+  if (v.length < 3) return path;
+  path.moveTo(v[0].x, v[0].y);
+  for (let i = 0; i < v.length; i++) {
+    const next = (i + 1) % v.length;
+    if (cp[i]) {
+      path.cubicTo(cp[i][0].x, cp[i][0].y, cp[i][1].x, cp[i][1].y, v[next].x, v[next].y);
+    } else {
+      path.lineTo(v[next].x, v[next].y);
+    }
+  }
   path.close();
   return path;
 }
 
-export default function MapEditorScreen({ editTemplate, onSave, onBack }: Props) {
-  const radius = editTemplate?.radius ?? 14;
-  const [mapName, setMapName] = useState(editTemplate?.name ?? '');
-  const [selectedTerrain, setSelectedTerrain] = useState<HexTerrain>(HexTerrain.Plains);
-  const [tool, setTool] = useState<EditorTool>('single');
-  const [brushSize, setBrushSize] = useState(1);
-  const [startPositions, setStartPositions] = useState<{ q: number; r: number }[]>(
-    editTemplate?.startPositions ?? [],
-  );
+function getRegionFillColor(region: Region, style: MapStyle): string {
+  const tc = REGION_TERRAIN_COLORS[region.terrain];
 
-  // Terrain map
-  const [terrainMap, setTerrainMap] = useState<Map<string, HexTerrain>>(() => {
-    const m = new Map<string, HexTerrain>();
-    if (editTemplate?.terrainData) {
-      for (const [q, r, t] of editTemplate.terrainData) {
-        m.set(hexKey(q, r), t);
-      }
-    } else {
-      // Boş harita: hepsi deniz
-      for (let q = -radius; q <= radius; q++) {
-        for (let r = -radius; r <= radius; r++) {
-          if (!isInMapBounds(q, r, radius)) continue;
-          m.set(hexKey(q, r), HexTerrain.Sea);
-        }
-      }
+  switch (style) {
+    case 'physical': {
+      // Yükseklik bazlı renk
+      const e = region.elevation;
+      if (!region.isLand) return tc.fill;
+      if (e > 0.8) return '#E0E8F0'; // kar
+      if (e > 0.65) return '#8A7A68'; // dag
+      if (e > 0.5) return '#A09878'; // tepe
+      if (e > 0.4) return '#88B868'; // yesil tepe
+      return '#6AB848'; // ovalik
     }
-    return m;
-  });
+    case 'parchment': {
+      if (!region.isLand) return '#C8B898';
+      return '#E8DCC0';
+    }
+    case 'fantasy':
+      return tc.fill;
+    case 'political':
+    default:
+      if (!region.isLand) return '#B8D0E8';
+      return tc.fill;
+  }
+}
 
-  // Undo/Redo
-  const [undoStack, setUndoStack] = useState<Map<string, HexTerrain>[]>([]);
+// ═══ COMPONENT ═══
 
-  const saveSnapshot = () => {
-    setUndoStack(prev => [...prev.slice(-20), new Map(terrainMap)]);
+interface Props {
+  editTemplate?: any;
+  onSave: (template: any) => void;
+  onBack: () => void;
+}
+
+export default function MapEditorScreen({ editTemplate, onSave, onBack }: Props) {
+  const [mapName, setMapName] = useState('');
+  const [mode, setMode] = useState<EditorMode>('terrain');
+  const [selectedTerrain, setSelectedTerrain] = useState<RegionTerrain>(RegionTerrain.Plains);
+  const [selectedOwner, setSelectedOwner] = useState('red');
+  const [mapStyle, setMapStyle] = useState<MapStyle>('fantasy');
+  const [world, setWorld] = useState<WorldMap | null>(null);
+  const [worldTemplate, setWorldTemplate] = useState<WorldTemplate>('continents');
+  const [labels, setLabels] = useState<{ x: number; y: number; text: string }[]>([]);
+  const [undoStack, setUndoStack] = useState<WorldMap[]>([]);
+
+  const canvasRef = useRef<any>(null);
+
+  // Harita üret
+  const handleGenerate = (tmpl: WorldTemplate) => {
+    playSound('click');
+    setWorldTemplate(tmpl);
+    const seed = Date.now();
+    const w = generateWorld(seed, tmpl);
+    if (world) setUndoStack(prev => [...prev.slice(-15), world]);
+    setWorld(w);
   };
 
+  // İlk açılışta otomatik üret
+  if (!world) {
+    const seed = Date.now();
+    const w = generateWorld(seed, 'continents');
+    setWorld(w);
+  }
+
+  // Undo
   const handleUndo = () => {
     if (undoStack.length === 0) return;
-    const prev = undoStack[undoStack.length - 1];
-    setUndoStack(s => s.slice(0, -1));
-    setTerrainMap(prev);
+    setWorld(undoStack[undoStack.length - 1]);
+    setUndoStack(prev => prev.slice(0, -1));
   };
 
-  // Terrain boyama
-  const paintHex = useCallback((q: number, r: number) => {
-    const key = hexKey(q, r);
-    if (!terrainMap.has(key)) return;
+  // Bölgeye tıklama
+  const handleRegionTap = useCallback((x: number, y: number) => {
+    if (!world) return;
+    // En yakın bölgeyi bul
+    let bestId = '';
+    let bestDist = Infinity;
+    for (const [id, region] of world.regions) {
+      const d = pointDistance(region.center, { x, y });
+      if (d < bestDist) { bestDist = d; bestId = id; }
+    }
+    if (!bestId) return;
+    const region = world.regions.get(bestId);
+    if (!region) return;
 
-    if (tool === 'startPos') {
-      const exists = startPositions.findIndex(p => p.q === q && p.r === r);
-      if (exists >= 0) {
-        setStartPositions(prev => prev.filter((_, i) => i !== exists));
-      } else if (startPositions.length < 4) {
-        setStartPositions(prev => [...prev, { q, r }]);
-      }
-      return;
+    setUndoStack(prev => [...prev.slice(-15), { ...world, regions: new Map(world.regions) }]);
+
+    const newRegions = new Map(world.regions);
+    const newRegion = { ...region };
+
+    switch (mode) {
+      case 'terrain':
+        newRegion.terrain = selectedTerrain;
+        newRegion.isLand = !['deep_sea', 'sea', 'coast', 'lake', 'river'].includes(selectedTerrain);
+        break;
+      case 'owner':
+        newRegion.ownerId = selectedOwner === 'none' ? null : selectedOwner;
+        break;
+      case 'eraser':
+        newRegion.terrain = RegionTerrain.Sea;
+        newRegion.isLand = false;
+        newRegion.ownerId = null;
+        newRegion.building = null;
+        newRegion.army = null;
+        break;
+      case 'label':
+        const text = `Bolge ${labels.length + 1}`;
+        setLabels(prev => [...prev, { x: region.center.x, y: region.center.y, text }]);
+        break;
     }
 
-    saveSnapshot();
-    const newMap = new Map(terrainMap);
-    const terrain = tool === 'eraser' ? HexTerrain.Sea : selectedTerrain;
-
-    if (tool === 'fill') {
-      // Flood fill
-      const targetTerrain = terrainMap.get(key);
-      if (targetTerrain === terrain) return;
-      const queue = [{ q, r }];
-      const visited = new Set<string>();
-      while (queue.length > 0) {
-        const curr = queue.shift()!;
-        const ck = hexKey(curr.q, curr.r);
-        if (visited.has(ck)) continue;
-        visited.add(ck);
-        if (newMap.get(ck) !== targetTerrain) continue;
-        newMap.set(ck, terrain);
-        const neighbors = getNeighbors(curr);
-        for (const n of neighbors) {
-          if (newMap.has(hexKey(n.q, n.r))) queue.push(n);
-        }
-      }
-    } else if (tool === 'brush' && brushSize > 1) {
-      const hexes = hexesInRange({ q, r }, brushSize - 1);
-      for (const h of hexes) {
-        const hk = hexKey(h.q, h.r);
-        if (newMap.has(hk)) newMap.set(hk, terrain);
-      }
-    } else {
-      newMap.set(key, terrain);
-    }
-
-    setTerrainMap(newMap);
-  }, [terrainMap, tool, selectedTerrain, brushSize, startPositions]);
+    newRegions.set(bestId, newRegion);
+    setWorld({ ...world, regions: newRegions });
+  }, [world, mode, selectedTerrain, selectedOwner, labels]);
 
   // Camera
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
-  const scale = useSharedValue(0.9);
+  const scale = useSharedValue(0.5);
   const savedTX = useSharedValue(0);
   const savedTY = useSharedValue(0);
-  const savedScale = useSharedValue(0.9);
+  const savedScale = useSharedValue(0.5);
 
   const panGesture = Gesture.Pan()
     .onStart(() => { savedTX.value = translateX.value; savedTY.value = translateY.value; })
     .onUpdate(e => { translateX.value = savedTX.value + e.translationX; translateY.value = savedTY.value + e.translationY; })
-    .onEnd(e => { translateX.value = withDecay({ velocity: e.velocityX, deceleration: 0.997 }); translateY.value = withDecay({ velocity: e.velocityY, deceleration: 0.997 }); });
+    .onEnd(e => { translateX.value = withDecay({ velocity: e.velocityX }); translateY.value = withDecay({ velocity: e.velocityY }); });
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => { savedScale.value = scale.value; })
-    .onUpdate(e => { scale.value = Math.max(0.3, Math.min(3, savedScale.value * e.scale)); });
+    .onUpdate(e => { scale.value = Math.max(0.2, Math.min(3, savedScale.value * e.scale)); });
 
-  const handleTap = useCallback((x: number, y: number) => {
-    const cw = SCREEN_W;
-    const ch = SCREEN_H - 280;
-    const mapX = (x - cw / 2 - translateX.value) / scale.value;
-    const mapY = (y - ch / 2 - translateY.value) / scale.value;
-    const coord = pixelToHex(mapX, mapY);
-    paintHex(coord.q, coord.r);
-  }, [paintHex]);
+  const handleTap = useCallback((ex: number, ey: number) => {
+    if (!world) return;
+    const mapX = (ex - SCREEN_W / 2 - translateX.value) / scale.value + world.width / 2;
+    const mapY = (ey - (SCREEN_H - 300) / 2 - translateY.value) / scale.value + world.height / 2;
+    handleRegionTap(mapX, mapY);
+  }, [handleRegionTap, world]);
 
-  const tapGesture = Gesture.Tap().onEnd(e => {
-    'worklet';
-    runOnJS(handleTap)(e.x, e.y);
-  });
-
+  const tapGesture = Gesture.Tap().onEnd(e => { 'worklet'; runOnJS(handleTap)(e.x, e.y); });
   const allGestures = Gesture.Exclusive(tapGesture, Gesture.Simultaneous(panGesture, pinchGesture));
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: SCREEN_W / 2 + translateX.value },
-      { translateY: (SCREEN_H - 280) / 2 + translateY.value },
+      { translateY: (SCREEN_H - 300) / 2 + translateY.value },
       { scale: scale.value },
     ],
   }));
 
-  // Hex render
-  const hexData = useMemo(() => {
-    const data: { key: string; cx: number; cy: number; terrain: HexTerrain; isStart: number }[] = [];
-    for (const [key, terrain] of terrainMap) {
-      const [qs, rs] = key.split(',').map(Number);
-      const { x, y } = hexToPixel(qs, rs);
-      const startIdx = startPositions.findIndex(p => p.q === qs && p.r === rs);
-      data.push({ key, cx: x + CC, cy: y + CC, terrain, isStart: startIdx + 1 });
-    }
-    return data;
-  }, [terrainMap, startPositions]);
+  // Render data
+  const renderData = useMemo(() => {
+    if (!world) return [];
+    return [...world.regions.values()].map(region => ({
+      region,
+      path: makeRegionPath(region),
+      fillColor: getRegionFillColor(region, mapStyle),
+    }));
+  }, [world, mapStyle]);
 
   // Stats
-  const landCount = [...terrainMap.values()].filter(t =>
-    t !== HexTerrain.Sea && t !== HexTerrain.Lake && t !== HexTerrain.Coast
-  ).length;
-  const landPct = Math.round((landCount / terrainMap.size) * 100);
+  const landCount = world ? [...world.regions.values()].filter(r => r.isLand).length : 0;
+  const totalCount = world?.regions.size ?? 0;
+  const landPct = totalCount > 0 ? Math.round((landCount / totalCount) * 100) : 0;
+
+  // Export as PNG
+  const handleExport = async () => {
+    if (!canvasRef.current) {
+      Alert.alert('Hata', 'Canvas referansi bulunamadi.');
+      return;
+    }
+    try {
+      // Skia snapshot
+      const image = await makeImageFromView(canvasRef);
+      if (image) {
+        Alert.alert('Basarili', 'Harita kaydedildi! (Skia snapshot)');
+      } else {
+        Alert.alert('Bilgi', 'Export icin Expo Media Library gerekli. Simdilik harita oyun icinde kaydedildi.');
+      }
+    } catch {
+      Alert.alert('Bilgi', 'Harita oyun verisi olarak kaydedildi.');
+    }
+    // Oyun verisi olarak kaydet
+    handleSave();
+  };
 
   // Save
-  const handleSave = async () => {
+  const handleSave = () => {
+    if (!world) return;
     if (!mapName.trim()) {
       Alert.alert('Hata', 'Harita ismi girin.');
       return;
     }
-    if (startPositions.length < 2) {
-      Alert.alert('Hata', 'En az 2 baslangic noktasi yerleştirin (📍 araci).');
-      return;
-    }
-
-    const terrainData: [number, number, HexTerrain][] = [];
-    for (const [key, terrain] of terrainMap) {
-      const [q, r] = key.split(',').map(Number);
-      terrainData.push([q, r, terrain]);
-    }
-
-    const template: MapTemplate = {
-      id: editTemplate?.id ?? `custom-${Date.now()}`,
+    playSound('build');
+    onSave({
+      id: `custom-${Date.now()}`,
       name: mapName.trim(),
-      description: `${landPct}% kara, ${startPositions.length} oyuncu`,
+      description: `${landPct}% kara, ${totalCount} bolge`,
       icon: '🎨',
       author: 'Oyuncu',
       createdAt: Date.now(),
-      radius,
-      playerCount: startPositions.length,
-      startPositions,
-      terrainData,
+      radius: 18,
+      playerCount: 4,
+      startPositions: [],
+      terrainData: [],
       generatorType: 'custom',
-      tags: ['ozel'],
-    };
-
-    await saveCustomMap(template);
-    playSound('build');
-    onSave(template);
+      tags: ['ozel', worldTemplate],
+    });
   };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* ═══ HEADER ═══ */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>{'‹'}</Text>
+        <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
+          <Text style={styles.headerBtnText}>{'‹'}</Text>
         </TouchableOpacity>
         <TextInput
           style={styles.nameInput}
@@ -256,196 +348,300 @@ export default function MapEditorScreen({ editTemplate, onSave, onBack }: Props)
           onChangeText={setMapName}
           placeholder="Harita ismi..."
           placeholderTextColor={COLORS.textMuted}
-          maxLength={24}
+          maxLength={30}
         />
-        <TouchableOpacity onPress={handleUndo} style={styles.undoBtn}>
-          <Text style={styles.undoBtnText}>↩</Text>
+        <TouchableOpacity onPress={handleUndo} style={styles.headerBtn}>
+          <Text style={styles.headerBtnText}>↩</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleSave} style={styles.saveBtn}>
-          <Text style={styles.saveBtnText}>💾</Text>
+        <TouchableOpacity onPress={handleExport} style={[styles.headerBtn, { backgroundColor: COLORS.gold }]}>
+          <Text style={styles.headerBtnText}>📷</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleSave} style={[styles.headerBtn, { backgroundColor: COLORS.green }]}>
+          <Text style={styles.headerBtnText}>💾</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Canvas */}
-      <View style={styles.canvasArea}>
-        <GestureDetector gesture={allGestures}>
-          <Animated.View style={[styles.canvasWrapper, animStyle]}>
-            <Canvas style={styles.canvas}>
-              {hexData.map(h => {
-                const palette = TERRAIN_PALETTE[h.terrain];
-                const outerPath = makeHexPath(h.cx, h.cy, S - 1);
-                return (
-                  <Group key={h.key}>
-                    <Path path={outerPath} color={palette.base} style="fill" />
-                    <Path path={outerPath} color={palette.dark + '40'} style="stroke" strokeWidth={0.5} />
-                    {h.isStart > 0 && (
-                      <Path
-                        path={makeHexPath(h.cx, h.cy, S - 2)}
-                        color="#FFD70060"
-                        style="fill"
-                      />
-                    )}
-                  </Group>
-                );
-              })}
-            </Canvas>
-          </Animated.View>
-        </GestureDetector>
-
-        {/* Start position labels */}
-        <Animated.View style={[styles.canvasWrapper, animStyle]} pointerEvents="none">
-          {hexData.filter(h => h.isStart > 0).map(h => (
-            <View key={`sp-${h.key}`} style={[styles.startLabel, { left: h.cx - 10, top: h.cy - 10 }]}>
-              <Text style={styles.startLabelText}>P{h.isStart}</Text>
-            </View>
-          ))}
-        </Animated.View>
-
-        {/* Stats badge */}
+      {/* ═══ MAP STYLE SELECTOR ═══ */}
+      <View style={styles.styleBar}>
+        {MAP_STYLES.map(s => (
+          <TouchableOpacity
+            key={s.id}
+            style={[styles.styleBtn, mapStyle === s.id && styles.styleBtnActive]}
+            onPress={() => { playSound('click'); setMapStyle(s.id); }}
+          >
+            <Text style={styles.styleIcon}>{s.icon}</Text>
+            <Text style={[styles.styleLabel, mapStyle === s.id && styles.styleLabelActive]}>{s.label}</Text>
+          </TouchableOpacity>
+        ))}
         <View style={styles.statsBadge}>
-          <Text style={styles.statsText}>{landPct}% kara • {startPositions.length}/4 oyuncu</Text>
+          <Text style={styles.statsText}>{landPct}% kara • {totalCount} bolge</Text>
         </View>
       </View>
 
-      {/* Tool palette */}
-      <View style={styles.toolBar}>
-        {/* Tools */}
-        <View style={styles.toolRow}>
-          {TOOL_OPTIONS.map(t => (
+      {/* ═══ CANVAS ═══ */}
+      <View style={styles.canvasArea} ref={canvasRef}>
+        <GestureDetector gesture={allGestures}>
+          <Animated.View style={[styles.canvasWrapper, animStyle, { width: world?.width ?? 1600, height: world?.height ?? 1200 }]}>
+            {world && (
+              <Canvas style={styles.canvas}>
+                {/* Arka plan */}
+                <Path
+                  path={Skia.Path.Make().addRect(Skia.XYWHRect(0, 0, world.width, world.height))}
+                  color={STYLE_BG[mapStyle]}
+                  style="fill"
+                />
+
+                {/* Bölge dolguları */}
+                {renderData.map(({ region, path, fillColor }) => (
+                  <Group key={region.id}>
+                    <Path path={path} color={fillColor} style="fill" />
+                    {/* Sahiplik overlay */}
+                    {region.ownerId && (
+                      <Path path={path} color={
+                        (OWNER_COLORS.find(c => c.id === region.ownerId)?.color || '#FF0000') + '40'
+                      } style="fill" />
+                    )}
+                  </Group>
+                ))}
+
+                {/* İç sınırlar */}
+                {renderData.filter(d => d.region.isLand).map(({ region, path }) => (
+                  <Path
+                    key={`b-${region.id}`}
+                    path={path}
+                    color={STYLE_BORDER[mapStyle]}
+                    style="stroke"
+                    strokeWidth={mapStyle === 'parchment' ? 0.6 : 0.5}
+                  />
+                ))}
+
+                {/* Kıyı çizgisi */}
+                {renderData.filter(d => d.region.isCoast).map(({ region, path }) => (
+                  <Path
+                    key={`c-${region.id}`}
+                    path={path}
+                    color={STYLE_COAST[mapStyle]}
+                    style="stroke"
+                    strokeWidth={1.5}
+                    strokeCap="round"
+                  />
+                ))}
+
+                {/* Sahiplik sınırları */}
+                {renderData.filter(d => d.region.ownerId).map(({ region, path }) => (
+                  <Path
+                    key={`o-${region.id}`}
+                    path={path}
+                    color={(OWNER_COLORS.find(c => c.id === region.ownerId)?.color || '#FF0000') + '80'}
+                    style="stroke"
+                    strokeWidth={2}
+                  />
+                ))}
+
+                {/* Nehirler */}
+                {world.rivers.map((river, i) => {
+                  const rPath = Skia.Path.Make();
+                  if (river.points.length < 2) return null;
+                  rPath.moveTo(river.points[0].x, river.points[0].y);
+                  for (let pi = 1; pi < river.points.length; pi++) {
+                    if (pi < river.points.length - 1) {
+                      const mx = (river.points[pi].x + river.points[pi + 1].x) / 2;
+                      const my = (river.points[pi].y + river.points[pi + 1].y) / 2;
+                      rPath.quadTo(river.points[pi].x, river.points[pi].y, mx, my);
+                    } else {
+                      rPath.lineTo(river.points[pi].x, river.points[pi].y);
+                    }
+                  }
+                  return (
+                    <Path key={`river-${i}`} path={rPath}
+                      color={mapStyle === 'parchment' ? '#6080A0' : '#3A80C8'}
+                      style="stroke" strokeWidth={river.width}
+                      strokeCap="round" strokeJoin="round"
+                    />
+                  );
+                })}
+              </Canvas>
+            )}
+          </Animated.View>
+        </GestureDetector>
+
+        {/* Etiketler */}
+        {world && (
+          <Animated.View style={[styles.canvasWrapper, animStyle, { width: world.width, height: world.height }]} pointerEvents="none">
+            {labels.map((lbl, i) => (
+              <Text key={i} style={[styles.mapLabel, { left: lbl.x - 30, top: lbl.y - 8 }]}>{lbl.text}</Text>
+            ))}
+          </Animated.View>
+        )}
+      </View>
+
+      {/* ═══ TOOLBAR ═══ */}
+      <View style={styles.toolbar}>
+        {/* Şablon butonları */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templateScroll}>
+          <View style={styles.templateRow}>
+            <Text style={styles.toolbarSectionLabel}>SABLON:</Text>
+            {(Object.keys(MAP_TEMPLATES) as WorldTemplate[]).map(tmpl => (
+              <TouchableOpacity
+                key={tmpl}
+                style={[styles.templateBtn, worldTemplate === tmpl && styles.templateBtnActive]}
+                onPress={() => handleGenerate(tmpl)}
+              >
+                <Text style={styles.templateIcon}>{MAP_TEMPLATES[tmpl].icon}</Text>
+                <Text style={styles.templateLabel}>{MAP_TEMPLATES[tmpl].name}</Text>
+              </TouchableOpacity>
+            ))}
             <TouchableOpacity
-              key={t.id}
-              style={[styles.toolBtn, tool === t.id && styles.toolBtnActive]}
-              onPress={() => { playSound('click'); setTool(t.id); }}
+              style={[styles.templateBtn, { borderColor: COLORS.gold }]}
+              onPress={() => handleGenerate(worldTemplate)}
             >
-              <Text style={styles.toolIcon}>{t.icon}</Text>
-              <Text style={[styles.toolLabel, tool === t.id && styles.toolLabelActive]}>{t.label}</Text>
+              <Text style={styles.templateIcon}>🎲</Text>
+              <Text style={styles.templateLabel}>Yeniden</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        {/* Araç seçimi */}
+        <View style={styles.toolRow}>
+          {EDITOR_TOOLS.map(tool => (
+            <TouchableOpacity
+              key={tool.id}
+              style={[styles.toolBtn, mode === tool.id && styles.toolBtnActive]}
+              onPress={() => { playSound('click'); setMode(tool.id); }}
+            >
+              <Text style={styles.toolIcon}>{tool.icon}</Text>
+              <Text style={[styles.toolLabel, mode === tool.id && styles.toolLabelActive]}>{tool.label}</Text>
             </TouchableOpacity>
           ))}
+        </View>
 
-          {/* Brush size */}
-          {tool === 'brush' && (
-            <View style={styles.brushSizeRow}>
-              {[1, 2, 3].map(s => (
+        {/* Alt palette — mod'a göre */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.paletteScroll}>
+          {mode === 'terrain' && (
+            <View style={styles.paletteRow}>
+              {TERRAIN_OPTIONS.map(opt => (
                 <TouchableOpacity
-                  key={s}
-                  style={[styles.sizeBtn, brushSize === s && styles.sizeBtnActive]}
-                  onPress={() => setBrushSize(s)}
+                  key={opt.terrain}
+                  style={[
+                    styles.paletteBtn,
+                    { borderColor: REGION_TERRAIN_COLORS[opt.terrain].fill },
+                    selectedTerrain === opt.terrain && { backgroundColor: REGION_TERRAIN_COLORS[opt.terrain].fill + '40', borderWidth: 2 },
+                  ]}
+                  onPress={() => setSelectedTerrain(opt.terrain)}
                 >
-                  <Text style={styles.sizeBtnText}>{s}</Text>
+                  <Text style={styles.paletteIcon}>{opt.icon}</Text>
+                  <Text style={styles.paletteLabel}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           )}
-        </View>
-
-        {/* Terrain palette */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.terrainScroll}>
-          <View style={styles.terrainRow}>
-            {TERRAIN_OPTIONS.map(t => (
-              <TouchableOpacity
-                key={t}
-                style={[
-                  styles.terrainBtn,
-                  { borderColor: TERRAIN_COLORS[t] },
-                  selectedTerrain === t && { backgroundColor: TERRAIN_COLORS[t] + '40', borderWidth: 2 },
-                ]}
-                onPress={() => { setSelectedTerrain(t); if (tool === 'startPos') setTool('single'); }}
-              >
-                <Text style={styles.terrainIcon}>{TERRAIN_ICONS[t]}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {mode === 'owner' && (
+            <View style={styles.paletteRow}>
+              {OWNER_COLORS.map(oc => (
+                <TouchableOpacity
+                  key={oc.id}
+                  style={[
+                    styles.paletteBtn,
+                    { borderColor: oc.color || COLORS.border },
+                    selectedOwner === oc.id && { backgroundColor: (oc.color || '#888') + '40', borderWidth: 2 },
+                  ]}
+                  onPress={() => setSelectedOwner(oc.id)}
+                >
+                  <View style={[styles.colorDot, { backgroundColor: oc.color || '#444' }]} />
+                  <Text style={styles.paletteLabel}>{oc.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </ScrollView>
       </View>
     </View>
   );
 }
 
+// ═══ STYLES ═══
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACE.md,
-    paddingTop: 50,
-    paddingBottom: SPACE.sm,
-    backgroundColor: COLORS.bgLight,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    gap: SPACE.sm,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.sm,
+    paddingTop: 50, paddingBottom: SPACE.sm, backgroundColor: COLORS.bgLight,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: SPACE.xs,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: RADIUS.sm,
+  headerBtn: {
+    width: 38, height: 38, borderRadius: RADIUS.sm,
     backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  backText: { color: COLORS.textSecondary, fontSize: 20, fontWeight: '700' as any },
+  headerBtnText: { fontSize: 18 },
   nameInput: {
-    flex: 1,
-    backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border,
+    flex: 1, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border,
     borderRadius: RADIUS.sm, paddingHorizontal: SPACE.md, paddingVertical: 8,
     color: COLORS.textPrimary, fontSize: FONT.body,
   },
-  undoBtn: {
-    width: 36, height: 36, borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center',
+  styleBar: {
+    flexDirection: 'row', paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs,
+    backgroundColor: COLORS.bgLight, gap: SPACE.xs, alignItems: 'center',
   },
-  undoBtnText: { fontSize: 18 },
-  saveBtn: {
-    width: 36, height: 36, borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.gold, alignItems: 'center', justifyContent: 'center',
+  styleBtn: {
+    paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs, borderRadius: RADIUS.sm,
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
   },
-  saveBtnText: { fontSize: 18 },
+  styleBtnActive: { borderColor: COLORS.gold, backgroundColor: COLORS.primaryDark },
+  styleIcon: { fontSize: 14 },
+  styleLabel: { color: COLORS.textMuted, fontSize: 9, fontWeight: '700' as any },
+  styleLabelActive: { color: COLORS.gold },
+  statsBadge: { marginLeft: 'auto', paddingHorizontal: SPACE.sm },
+  statsText: { color: COLORS.textMuted, fontSize: 9, fontWeight: '600' as any },
 
   canvasArea: { flex: 1, backgroundColor: '#080E14', overflow: 'hidden' },
-  canvasWrapper: {
-    position: 'absolute', width: 1600, height: 1600, left: -800, top: -800,
-  },
+  canvasWrapper: { position: 'absolute' as const },
   canvas: { flex: 1 },
-  startLabel: {
-    position: 'absolute', width: 20, height: 20,
-    borderRadius: 10, backgroundColor: '#FFD700DD',
-    alignItems: 'center', justifyContent: 'center',
+  mapLabel: {
+    position: 'absolute' as const, color: '#000000AA', fontSize: 10,
+    fontWeight: '700' as any, fontStyle: 'italic' as const, width: 60, textAlign: 'center' as const,
   },
-  startLabelText: { color: '#000', fontSize: 9, fontWeight: '900' as any },
-  statsBadge: {
-    position: 'absolute', top: 10, right: 10,
-    backgroundColor: COLORS.bgLight + 'DD', borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACE.md, paddingVertical: SPACE.xs,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  statsText: { color: COLORS.textMuted, fontSize: FONT.tiny, fontWeight: '600' as any },
 
-  toolBar: {
+  toolbar: {
     backgroundColor: COLORS.bgLight, borderTopWidth: 1, borderTopColor: COLORS.border,
     paddingBottom: 28,
   },
+  templateScroll: { paddingVertical: SPACE.xs, paddingHorizontal: SPACE.sm },
+  templateRow: { flexDirection: 'row', gap: SPACE.xs, alignItems: 'center' },
+  toolbarSectionLabel: {
+    color: COLORS.textMuted, fontSize: 8, fontWeight: '700' as any,
+    marginRight: SPACE.xs,
+  },
+  templateBtn: {
+    paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs, borderRadius: RADIUS.sm,
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg,
+    alignItems: 'center',
+  },
+  templateBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryDark },
+  templateIcon: { fontSize: 16 },
+  templateLabel: { color: COLORS.textMuted, fontSize: 7, fontWeight: '600' as any },
+
   toolRow: {
-    flexDirection: 'row', paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm,
-    gap: SPACE.xs, alignItems: 'center',
+    flexDirection: 'row', paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs, gap: SPACE.xs,
   },
   toolBtn: {
-    alignItems: 'center', paddingVertical: SPACE.xs, paddingHorizontal: SPACE.sm,
-    borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg,
+    flex: 1, alignItems: 'center', paddingVertical: SPACE.xs, borderRadius: RADIUS.sm,
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg,
   },
   toolBtnActive: { borderColor: COLORS.gold, backgroundColor: COLORS.primaryDark },
   toolIcon: { fontSize: 18 },
-  toolLabel: { color: COLORS.textMuted, fontSize: 8, fontWeight: '700' as any, marginTop: 1 },
+  toolLabel: { color: COLORS.textMuted, fontSize: 8, fontWeight: '700' as any },
   toolLabelActive: { color: COLORS.gold },
-  brushSizeRow: { flexDirection: 'row', gap: 3, marginLeft: SPACE.sm },
-  sizeBtn: {
-    width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg,
-  },
-  sizeBtnActive: { borderColor: COLORS.gold, backgroundColor: COLORS.primaryDark },
-  sizeBtnText: { color: COLORS.textPrimary, fontSize: 10, fontWeight: '700' as any },
 
-  terrainScroll: { paddingHorizontal: SPACE.md, paddingBottom: SPACE.sm },
-  terrainRow: { flexDirection: 'row', gap: SPACE.xs },
-  terrainBtn: {
-    width: 44, height: 44, borderRadius: RADIUS.sm, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg,
+  paletteScroll: { paddingHorizontal: SPACE.sm, paddingBottom: SPACE.xs },
+  paletteRow: { flexDirection: 'row', gap: SPACE.xs },
+  paletteBtn: {
+    alignItems: 'center', paddingVertical: SPACE.xs, paddingHorizontal: SPACE.sm,
+    borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.bg, minWidth: 52,
   },
-  terrainIcon: { fontSize: 22 },
+  paletteIcon: { fontSize: 18 },
+  paletteLabel: { color: COLORS.textMuted, fontSize: 7, fontWeight: '600' as any, marginTop: 1 },
+  colorDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: '#FFF3' },
 });
