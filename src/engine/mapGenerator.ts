@@ -23,7 +23,10 @@ import { generateMarkers, Marker } from './markerGenerator';
 import { generatePopulation, PopulationResult } from './populationGenerator';
 import { generateIce, IceResult } from './iceGenerator';
 import { generateWind, WindResult } from './windGenerator';
-import { TERRAIN_RESOURCES, MAP_RADIUS } from '../constants/game';
+import { generateZones, Zone, ZoneResult } from './zoneGenerator';
+import { generateEmblems, Emblem } from './emblemGenerator';
+import { generateReliefIcons, ReliefIcon } from './reliefIcons';
+import { TERRAIN_RESOURCES, MAP_RADIUS, HEX_SIZE } from '../constants/game';
 
 // ===== Pipeline çıktısı =====
 export interface GeneratedMap {
@@ -42,6 +45,9 @@ export interface GeneratedMap {
   population: PopulationResult;
   ice: IceResult;
   wind: WindResult;
+  zones: Zone[];
+  emblems: Emblem[];
+  reliefIcons: ReliefIcon[];
   seed: number;
   stats: MapStats;
 }
@@ -268,6 +274,20 @@ export function generateMap(
     burgResult.burgMap, rng,
   );
 
+  // --- Aşama 19: Zones (dinamik olaylar) ---
+  const zoneResult = generateZones(
+    elevationMap, terrainMap, stateResult.states, stateResult.stateMap,
+    riverResult.riverCells, featureResult.coastCells, radius, rng,
+  );
+
+  // --- Aşama 20: Emblems (hanedan armaları) ---
+  const emblems = generateEmblems(stateResult.states.length, rng);
+
+  // --- Aşama 21: Relief icons ---
+  const reliefIconList = generateReliefIcons(
+    elevationMap, terrainMap, temperatureMap, radius, rng, HEX_SIZE,
+  );
+
   // Stats
   let landTiles = 0;
   let waterTiles = 0;
@@ -305,6 +325,9 @@ export function generateMap(
     population: populationResult,
     ice: iceResult,
     wind: windResult,
+    zones: zoneResult.zones,
+    emblems,
+    reliefIcons: reliefIconList,
     seed,
     stats,
   };
