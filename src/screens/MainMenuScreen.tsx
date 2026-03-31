@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView,
+  View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { ClipboardService } from '../services/clipboard';
 import { COLORS, FONT, SPACE, RADIUS } from '../constants/theme';
@@ -53,43 +53,54 @@ export default function MainMenuScreen({ onStartGame, onSettings, onMapGallery, 
     if (success) onStartGame();
   };
 
+  const [loading, setLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState('');
+
   const handleStartGame = () => {
     playSound('click');
+    setLoading(true);
+    setLoadingText(t('loading.generating') || 'Dunya olusturuluyor...');
 
-    // Custom harita secilmisse, onu store'a aktaracagiz
-    if (selectedMap && selectedMap.generatorType === 'custom') {
-      // Custom haritayi initGame'e seed olarak gecirebiliriz
-      // ama aslinda terrainData'yi kullanmamiz lazim
-      // Simdilik: selectedMap'in seed'ini kullan, radius'u al
-      initGame(
-        playerName || 'Komutan', botCount,
-        selectedMap.generatorSeed ?? Date.now(),
-        difficulty, selectedMap.radius, faction,
-      );
-      // Custom harita terrain verisini uygula
-      if (selectedMap.terrainData.length > 0) {
-        const store = useGameStore.getState();
-        const newMap = new Map(store.map);
-        for (const [q, r, terrain] of selectedMap.terrainData) {
-          const key = `${q},${r}`;
-          const tile = newMap.get(key);
-          if (tile) {
-            newMap.set(key, { ...tile, terrain });
+    // initGame agir islem — requestAnimationFrame ile UI'in guncellenmesini bekle
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (selectedMap && selectedMap.generatorType === 'custom') {
+          initGame(
+            playerName || 'Komutan', botCount,
+            selectedMap.generatorSeed ?? Date.now(),
+            difficulty, selectedMap.radius, faction,
+          );
+          if (selectedMap.terrainData.length > 0) {
+            const store = useGameStore.getState();
+            const newMap = new Map(store.map);
+            for (const [q, r, terrain] of selectedMap.terrainData) {
+              const key = `${q},${r}`;
+              const tile = newMap.get(key);
+              if (tile) {
+                newMap.set(key, { ...tile, terrain });
+              }
+            }
+            useGameStore.setState({ map: newMap });
           }
+        } else {
+          const parsedSeed = seedInput.trim() ? parseInt(seedInput.trim(), 10) : undefined;
+          if (seedInput.trim() && (isNaN(parsedSeed!) || parsedSeed! < 1)) {
+            setLoading(false);
+            Alert.alert(t('setup.invalidSeed'), t('setup.invalidSeedMsg'));
+            return;
+          }
+          const seed = selectedMap?.generatorSeed ?? parsedSeed;
+          const radius = selectedMap?.radius ?? mapSize;
+          initGame(playerName || 'Komutan', botCount, seed, difficulty, radius, faction);
         }
-        useGameStore.setState({ map: newMap });
-      }
-    } else {
-      const parsedSeed = seedInput.trim() ? parseInt(seedInput.trim(), 10) : undefined;
-      if (seedInput.trim() && (isNaN(parsedSeed!) || parsedSeed! < 1)) {
-        Alert.alert(t('setup.invalidSeed'), t('setup.invalidSeedMsg'));
-        return;
-      }
-      const seed = selectedMap?.generatorSeed ?? parsedSeed;
-      const radius = selectedMap?.radius ?? mapSize;
-      initGame(playerName || 'Komutan', botCount, seed, difficulty, radius, faction);
-    }
-    onStartGame();
+
+        setLoadingText(t('loading.ready') || 'Hazirlaniyorsunuz...');
+        setTimeout(() => {
+          setLoading(false);
+          onStartGame();
+        }, 300);
+      }, 50); // UI'in loading ekranini gostermesi icin 50ms bekle
+    });
   };
 
   const handlePasteSeed = async () => {
@@ -270,6 +281,21 @@ export default function MainMenuScreen({ onStartGame, onSettings, onMapGallery, 
           </TouchableOpacity>
         </View>
         </ScrollView>
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 48, marginBottom: 20 }}>{'⚔️'}</Text>
+        <ActivityIndicator size="large" color={COLORS.gold} />
+        <Text style={{ color: COLORS.textPrimary, fontSize: 18, fontWeight: '700', marginTop: 16 }}>
+          {loadingText}
+        </Text>
+        <Text style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 8 }}>
+          Harita olusturuluyor, lutfen bekleyin...
+        </Text>
       </View>
     );
   }

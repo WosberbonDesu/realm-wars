@@ -30,6 +30,8 @@ export default function TrainModal({ visible, onClose }: Props) {
     [UnitType.Galley]: 1,
     [UnitType.Warship]: 1,
   });
+  const getUnlockedUnits = useGameStore(s => s.getUnlockedUnits);
+  const unitTypes = getUnlockedUnits(currentPlayerId);
 
   if (!selectedHex) return null;
 
@@ -60,9 +62,6 @@ export default function TrainModal({ visible, onClose }: Props) {
       [type]: Math.max(1, Math.min(20, prev[type] + delta)),
     }));
   };
-
-  const getUnlockedUnits = useGameStore(s => s.getUnlockedUnits);
-  const unitTypes = getUnlockedUnits(currentPlayerId);
 
   return (
     <Modal visible={visible} transparent animationType="slide">

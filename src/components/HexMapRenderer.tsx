@@ -46,126 +46,48 @@ function makeHexPathInset(cx: number, cy: number, size: number, inset: number) {
 function makeTreePaths(cx: number, cy: number, seed: number) {
   const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
-  const count = 3 + Math.floor(rng() * 3);
 
+  // Tum agaclari TEK path'te birlestir (performans)
+  const treePath = Skia.Path.Make();
+  const count = 2 + Math.floor(rng() * 2);
   for (let i = 0; i < count; i++) {
-    const ox = (rng() - 0.5) * S * 0.8;
-    const oy = (rng() - 0.5) * S * 0.55;
-    const tx = cx + ox;
-    const ty = cy + oy;
-    const size = 3.5 + rng() * 4;
-    const shade = rng();
-
-    // Govde — ince organik cizgi
-    const trunk = Skia.Path.Make();
-    trunk.moveTo(tx, ty + size * 0.3);
-    trunk.cubicTo(tx + rng() * 1.5, ty + size * 0.1, tx - rng() * 1, ty - size * 0.2, tx + (rng() - 0.5) * 0.8, ty - size * 0.15);
-    paths.push({ path: trunk, color: '#3D2B1A' + (shade > 0.5 ? 'CC' : 'AA') });
-
-    // Yaprak kubbeleri — 2-3 ust uste binmis organik blob
-    const blobCount = 2 + Math.floor(rng() * 2);
-    for (let j = 0; j < blobCount; j++) {
-      const bx = tx + (rng() - 0.5) * size * 0.6;
-      const by = ty - size * 0.15 - j * size * 0.22 + (rng() - 0.5) * 1.5;
-      const br = size * (0.35 + rng() * 0.3);
-      const blob = Skia.Path.Make();
-
-      // Organik blob: 4 noktali bezier daire degil, yamukluk ekle
-      const pts = 6;
-      const angles: number[] = [];
-      const radii: number[] = [];
-      for (let k = 0; k < pts; k++) {
-        angles.push((k / pts) * Math.PI * 2);
-        radii.push(br * (0.75 + rng() * 0.5));
-      }
-
-      blob.moveTo(bx + radii[0] * Math.cos(angles[0]), by + radii[0] * Math.sin(angles[0]));
-      for (let k = 0; k < pts; k++) {
-        const next = (k + 1) % pts;
-        const midAngle = (angles[k] + angles[next]) / 2;
-        const cpR = (radii[k] + radii[next]) * 0.55;
-        blob.quadTo(
-          bx + cpR * Math.cos(midAngle) + (rng() - 0.5) * br * 0.3,
-          by + cpR * Math.sin(midAngle) + (rng() - 0.5) * br * 0.3,
-          bx + radii[next] * Math.cos(angles[next]),
-          by + radii[next] * Math.sin(angles[next]),
-        );
-      }
-      blob.close();
-
-      const greens = ['#1B5E20', '#2E7D32', '#388E3C', '#1A4A1A', '#2D6B2D', '#245C24'];
-      paths.push({ path: blob, color: greens[Math.floor(rng() * greens.length)] + (j === 0 ? 'DD' : 'BB') });
-    }
-
-    // Yaprak highlight — ust kisimda acik ton
-    if (rng() > 0.4) {
-      const hl = Skia.Path.Make();
-      const hx = tx + (rng() - 0.5) * size * 0.3;
-      const hy = ty - size * 0.5 + (rng() - 0.5) * 2;
-      const hr = size * 0.2;
-      hl.addCircle(hx, hy, hr);
-      paths.push({ path: hl, color: '#4CAF5060' });
-    }
+    const tx = cx + (rng() - 0.5) * S * 0.7;
+    const ty = cy + (rng() - 0.5) * S * 0.5;
+    const r = 3 + rng() * 3;
+    treePath.addCircle(tx, ty - r * 0.5, r);
   }
+  paths.push({ path: treePath, color: '#2E7D32CC' });
+
+  // Koyu golge layer
+  const shadowPath = Skia.Path.Make();
+  for (let i = 0; i < count; i++) {
+    const tx = cx + (rng() - 0.5) * S * 0.5;
+    const ty = cy + (rng() - 0.5) * S * 0.4;
+    shadowPath.addCircle(tx + 1, ty + 1, 2 + rng() * 2);
+  }
+  paths.push({ path: shadowPath, color: '#1A4A1A80' });
+
   return paths;
 }
 
 function makeMountainPaths(cx: number, cy: number, seed: number) {
   const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
+  const bw = S * 0.6;
+  const bh = S * 0.55;
 
-  // Ana dag — organik coklu nokta silueti
-  const bw = S * 0.65;
-  const bh = S * 0.6;
-
-  // Arka dag (daha kucuk, hafif ofset)
-  if (rng() > 0.3) {
-    const bg = Skia.Path.Make();
-    const bOx = (rng() - 0.5) * bw * 0.4;
-    const bOy = bh * 0.05;
-    bg.moveTo(cx - bw * 0.45 + bOx, cy + bh * 0.15 + bOy);
-    bg.cubicTo(cx - bw * 0.2 + bOx, cy - bh * 0.2 + bOy, cx - bw * 0.05 + bOx, cy - bh * 0.35 + bOy, cx + bOx, cy - bh * 0.4 + bOy);
-    bg.cubicTo(cx + bw * 0.1 + bOx, cy - bh * 0.3 + bOy, cx + bw * 0.3 + bOx, cy - bh * 0.1 + bOy, cx + bw * 0.4 + bOx, cy + bh * 0.15 + bOy);
-    bg.close();
-    paths.push({ path: bg, color: '#5A4A3899' });
-  }
-
-  // On dag — ana siluet
+  // Dag silueti
   const p = Skia.Path.Make();
   p.moveTo(cx - bw * 0.5, cy + bh * 0.2);
-  p.cubicTo(
-    cx - bw * 0.35, cy - bh * 0.1 + rng() * bh * 0.1,
-    cx - bw * 0.15, cy - bh * 0.4 + rng() * bh * 0.05,
-    cx + (rng() - 0.5) * 3, cy - bh * 0.55,
-  );
-  p.cubicTo(
-    cx + bw * 0.15, cy - bh * 0.4 + rng() * bh * 0.1,
-    cx + bw * 0.35, cy - bh * 0.1 + rng() * bh * 0.1,
-    cx + bw * 0.5, cy + bh * 0.2,
-  );
+  p.lineTo(cx + (rng() - 0.5) * 3, cy - bh * 0.55);
+  p.lineTo(cx + bw * 0.5, cy + bh * 0.2);
   p.close();
   paths.push({ path: p, color: '#6E5D4B' });
 
-  // Kaya dokusu — birkaç koyu cizgi
-  for (let i = 0; i < 2; i++) {
-    const rx = cx + (rng() - 0.5) * bw * 0.5;
-    const ry = cy - bh * 0.1 + rng() * bh * 0.2;
-    const crack = Skia.Path.Make();
-    crack.moveTo(rx, ry);
-    crack.cubicTo(rx + rng() * 4, ry - rng() * 5, rx - rng() * 3, ry - rng() * 6, rx + (rng() - 0.5) * 5, ry - 4 - rng() * 4);
-    paths.push({ path: crack, color: '#4A3A2860' });
-  }
-
-  // Kar kapagi — organik blob
+  // Kar kapagi
   const snow = Skia.Path.Make();
-  const sx = cx + (rng() - 0.5) * 2;
-  const sy = cy - bh * 0.55;
-  snow.moveTo(sx - bw * 0.08, sy + bh * 0.12);
-  snow.cubicTo(sx - bw * 0.1, sy - bh * 0.02, sx - bw * 0.02, sy - bh * 0.08, sx + bw * 0.02, sy);
-  snow.cubicTo(sx + bw * 0.06, sy + bh * 0.02, sx + bw * 0.12, sy + bh * 0.08, sx + bw * 0.15, sy + bh * 0.15);
-  snow.cubicTo(sx + bw * 0.05, sy + bh * 0.12, sx - bw * 0.05, sy + bh * 0.14, sx - bw * 0.08, sy + bh * 0.12);
-  snow.close();
-  paths.push({ path: snow, color: '#E8EFF8E0' });
+  snow.addCircle(cx + (rng() - 0.5) * 2, cy - bh * 0.4, bw * 0.12);
+  paths.push({ path: snow, color: '#E8EFF8D0' });
 
   return paths;
 }
@@ -174,33 +96,15 @@ function makeWavePaths(cx: number, cy: number, seed: number) {
   const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
 
-  // Su dokusu — coklu katman organik dalgalar
-  const waveCount = 4 + Math.floor(rng() * 2);
-  for (let i = 0; i < waveCount; i++) {
-    const wy = cy - S * 0.3 + i * S * 0.15 + (rng() - 0.5) * 3;
-    const wx = cx - S * 0.4 + rng() * 3;
-    const wave = Skia.Path.Make();
-    const amp = 2 + rng() * 2;
-    const len = S * (0.4 + rng() * 0.25);
-
+  // 2 dalga cizgisi tek path
+  const wave = Skia.Path.Make();
+  for (let i = 0; i < 2; i++) {
+    const wy = cy - S * 0.15 + i * S * 0.2;
+    const wx = cx - S * 0.35;
     wave.moveTo(wx, wy);
-    wave.cubicTo(wx + len * 0.25, wy - amp, wx + len * 0.5, wy + amp, wx + len * 0.75, wy - amp * 0.5);
-    wave.cubicTo(wx + len * 0.88, wy + amp * 0.3, wx + len, wy, wx + len + 2, wy + 0.5);
-
-    const alpha = Math.round(40 + rng() * 50).toString(16).padStart(2, '0');
-    paths.push({ path: wave, color: i % 2 === 0 ? `#6BB8E8${alpha}` : `#4A9DD8${alpha}` });
+    wave.cubicTo(wx + S * 0.2, wy - 2, wx + S * 0.45, wy + 2, wx + S * 0.7, wy);
   }
-
-  // Isik yansimasi
-  if (rng() > 0.3) {
-    const shimmer = Skia.Path.Make();
-    const sx = cx + (rng() - 0.5) * S * 0.3;
-    const sy = cy + (rng() - 0.5) * S * 0.2;
-    shimmer.moveTo(sx - 3, sy);
-    shimmer.cubicTo(sx - 1, sy - 1.5, sx + 1, sy - 1.5, sx + 3, sy);
-    paths.push({ path: shimmer, color: '#FFFFFF40' });
-  }
-
+  paths.push({ path: wave, color: '#6BB8E850' });
   return paths;
 }
 
@@ -208,44 +112,11 @@ function makeDesertPaths(cx: number, cy: number, seed: number) {
   const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
 
-  // Kum tepeleri — 2-3 katman yumusak egri
-  const duneCount = 2 + Math.floor(rng() * 2);
-  for (let i = 0; i < duneCount; i++) {
-    const dune = Skia.Path.Make();
-    const dy = cy + S * 0.05 + i * S * 0.12 + (rng() - 0.5) * 3;
-    const dx = cx + (rng() - 0.5) * S * 0.15;
-    const w = S * (0.45 + rng() * 0.2);
-    const h = S * (0.12 + rng() * 0.08);
-
-    dune.moveTo(dx - w, dy);
-    dune.cubicTo(dx - w * 0.4, dy - h, dx + w * 0.3, dy - h * 0.8, dx + w, dy);
-
-    const alpha = Math.round(30 + i * 15 + rng() * 20).toString(16).padStart(2, '0');
-    paths.push({ path: dune, color: `#D4A843${alpha}` });
-  }
-
-  // Ruzgar cizgileri — ince dalgali paralel hatlar
-  for (let i = 0; i < 3; i++) {
-    const wind = Skia.Path.Make();
-    const wy = cy + (rng() - 0.5) * S * 0.4;
-    const wx = cx - S * 0.25 + rng() * 4;
-    wind.moveTo(wx, wy);
-    wind.cubicTo(wx + S * 0.1, wy - 1, wx + S * 0.2, wy + 0.5, wx + S * 0.3, wy - 0.5);
-    paths.push({ path: wind, color: '#F0D888' + (20 + Math.floor(rng() * 25)).toString(16) });
-  }
-
-  // Kucuk taslar
-  if (rng() > 0.5) {
-    for (let i = 0; i < 2; i++) {
-      const rock = Skia.Path.Make();
-      const rx = cx + (rng() - 0.5) * S * 0.5;
-      const ry = cy + (rng() - 0.5) * S * 0.3;
-      const rs = 1 + rng() * 1.5;
-      rock.addOval(Skia.XYWHRect(rx - rs, ry - rs * 0.6, rs * 2, rs * 1.2));
-      paths.push({ path: rock, color: '#A08060' + (40 + Math.floor(rng() * 30)).toString(16) });
-    }
-  }
-
+  const dune = Skia.Path.Make();
+  const dy = cy + S * 0.05;
+  dune.moveTo(cx - S * 0.4, dy);
+  dune.cubicTo(cx - S * 0.15, dy - S * 0.15, cx + S * 0.15, dy - S * 0.1, cx + S * 0.4, dy);
+  paths.push({ path: dune, color: '#E8C06040' });
   return paths;
 }
 
@@ -253,58 +124,20 @@ function makeSwampPaths(cx: number, cy: number, seed: number) {
   const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
 
-  // Su birikintileri — organik blob'lar
-  const poolCount = 2 + Math.floor(rng() * 2);
-  for (let i = 0; i < poolCount; i++) {
-    const pool = Skia.Path.Make();
-    const px = cx + (rng() - 0.5) * S * 0.5;
-    const py = cy + (rng() - 0.5) * S * 0.4;
-    const pr = 3 + rng() * 3;
-    const pts = 5;
-    const startAngle = rng() * Math.PI * 2;
+  // Su birikintisi
+  const pool = Skia.Path.Make();
+  pool.addOval(Skia.XYWHRect(cx - 5 + (rng() - 0.5) * 4, cy - 3, 10, 6));
+  paths.push({ path: pool, color: '#2A504050' });
 
-    pool.moveTo(px + pr * Math.cos(startAngle), py + pr * 0.5 * Math.sin(startAngle));
-    for (let k = 1; k <= pts; k++) {
-      const a = startAngle + (k / pts) * Math.PI * 2;
-      const r = pr * (0.7 + rng() * 0.5);
-      pool.quadTo(
-        px + r * 1.1 * Math.cos(a - 0.3) + (rng() - 0.5) * 2,
-        py + r * 0.55 * Math.sin(a - 0.3) + (rng() - 0.5),
-        px + r * Math.cos(a),
-        py + r * 0.5 * Math.sin(a),
-      );
-    }
-    pool.close();
-
-    const alpha = Math.round(40 + rng() * 35).toString(16).padStart(2, '0');
-    paths.push({ path: pool, color: `#2A5040${alpha}` });
-  }
-
-  // Nilufer yapragi benzeri yuvarlaklar
-  if (rng() > 0.4) {
-    const lily = Skia.Path.Make();
-    const lx = cx + (rng() - 0.5) * S * 0.3;
-    const ly = cy + (rng() - 0.5) * S * 0.25;
-    lily.addCircle(lx, ly, 1.5 + rng());
-    paths.push({ path: lily, color: '#4A8A4080' });
-  }
-
-  // Saz/kamis — organik egriler
-  const reedCount = 3 + Math.floor(rng() * 3);
-  for (let i = 0; i < reedCount; i++) {
-    const reed = Skia.Path.Make();
-    const rx = cx + (rng() - 0.5) * S * 0.6;
-    const ry = cy + (rng() - 0.5) * S * 0.35;
-    const rh = 5 + rng() * 5;
-    const curve = (rng() - 0.5) * 4;
-
+  // Saz
+  const reed = Skia.Path.Make();
+  for (let i = 0; i < 2; i++) {
+    const rx = cx + (rng() - 0.5) * S * 0.5;
+    const ry = cy + (rng() - 0.5) * S * 0.3;
     reed.moveTo(rx, ry);
-    reed.cubicTo(rx + curve * 0.3, ry - rh * 0.3, rx + curve * 0.7, ry - rh * 0.6, rx + curve, ry - rh);
-
-    const greens = ['#506838', '#607848', '#5A7040', '#4A6030'];
-    paths.push({ path: reed, color: greens[Math.floor(rng() * greens.length)] + 'CC' });
+    reed.lineTo(rx + (rng() - 0.5) * 3, ry - 5 - rng() * 3);
   }
-
+  paths.push({ path: reed, color: '#607848CC' });
   return paths;
 }
 
@@ -312,41 +145,15 @@ function makePlainsPaths(cx: number, cy: number, seed: number) {
   const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
 
-  // Cimen kumesi — kucuk organik gruplar
-  const clumpCount = 3 + Math.floor(rng() * 3);
-  for (let i = 0; i < clumpCount; i++) {
-    const gx = cx + (rng() - 0.5) * S * 0.7;
-    const gy = cy + (rng() - 0.5) * S * 0.5;
-    const bladeCount = 2 + Math.floor(rng() * 3);
-
-    for (let j = 0; j < bladeCount; j++) {
-      const blade = Skia.Path.Make();
-      const bx = gx + (rng() - 0.5) * 3;
-      const by = gy;
-      const bh = 3 + rng() * 3.5;
-      const curve = (rng() - 0.5) * 3;
-
-      blade.moveTo(bx, by);
-      blade.cubicTo(bx + curve * 0.4, by - bh * 0.4, bx + curve * 0.8, by - bh * 0.7, bx + curve, by - bh);
-
-      const alpha = Math.round(40 + rng() * 50).toString(16).padStart(2, '0');
-      paths.push({ path: blade, color: `#7EC850${alpha}` });
-    }
+  // Cimen cizgileri tek path
+  const grass = Skia.Path.Make();
+  for (let i = 0; i < 3; i++) {
+    const gx = cx + (rng() - 0.5) * S * 0.6;
+    const gy = cy + (rng() - 0.5) * S * 0.4;
+    grass.moveTo(gx, gy);
+    grass.lineTo(gx + (rng() - 0.5) * 3, gy - 3 - rng() * 2);
   }
-
-  // Kucuk cicek noktalari
-  if (rng() > 0.5) {
-    const flowerCount = 1 + Math.floor(rng() * 2);
-    for (let i = 0; i < flowerCount; i++) {
-      const flower = Skia.Path.Make();
-      const fx = cx + (rng() - 0.5) * S * 0.5;
-      const fy = cy + (rng() - 0.5) * S * 0.35;
-      flower.addCircle(fx, fy, 1 + rng() * 0.5);
-      const flowerColors = ['#FFD54F60', '#E8B84060', '#FF8A6560', '#CE93D860'];
-      paths.push({ path: flower, color: flowerColors[Math.floor(rng() * flowerColors.length)] });
-    }
-  }
-
+  paths.push({ path: grass, color: '#8FD46250' });
   return paths;
 }
 
@@ -359,96 +166,33 @@ function simpleRng(seed: number) {
   };
 }
 
-function makeSeaPaths(cx: number, cy: number, seed: number) {
-  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
-  const rng = simpleRng(seed);
-
-  // Derin su dalgaları — yumuşak, geniş, çok saydam
-  for (let i = 0; i < 3; i++) {
-    const wave = Skia.Path.Make();
-    const wy = cy - S * 0.25 + i * S * 0.18 + (rng() - 0.5) * 4;
-    const wx = cx - S * 0.4;
-    const amp = 1.5 + rng() * 1.5;
-    wave.moveTo(wx, wy);
-    wave.cubicTo(wx + S * 0.2, wy - amp, wx + S * 0.45, wy + amp, wx + S * 0.7, wy);
-    const alpha = Math.round(15 + rng() * 20).toString(16).padStart(2, '0');
-    paths.push({ path: wave, color: `#6090C0${alpha}` });
-  }
-  return paths;
+function makeSeaPaths(_cx: number, _cy: number, _seed: number) {
+  return []; // Deniz: sadece base renk yeterli
 }
 
 function makeCoastPaths(cx: number, cy: number, seed: number) {
-  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
-
-  // Sığ su dalgacıkları
-  for (let i = 0; i < 2; i++) {
-    const wave = Skia.Path.Make();
-    const wy = cy + (rng() - 0.5) * S * 0.3;
-    const wx = cx - S * 0.3 + rng() * 3;
-    wave.moveTo(wx, wy);
-    wave.cubicTo(wx + S * 0.15, wy - 2, wx + S * 0.35, wy + 1.5, wx + S * 0.5, wy);
-    paths.push({ path: wave, color: '#80C8F830' });
-  }
-
-  // Köpük noktaları
-  for (let i = 0; i < 3; i++) {
-    const foam = Skia.Path.Make();
-    foam.addCircle(cx + (rng() - 0.5) * S * 0.5, cy + (rng() - 0.5) * S * 0.4, 0.8 + rng() * 0.6);
-    paths.push({ path: foam, color: '#FFFFFF20' });
-  }
-  return paths;
+  const wave = Skia.Path.Make();
+  const wy = cy + (rng() - 0.5) * S * 0.2;
+  wave.moveTo(cx - S * 0.3, wy);
+  wave.cubicTo(cx - S * 0.1, wy - 2, cx + S * 0.1, wy + 1.5, cx + S * 0.3, wy);
+  return [{ path: wave, color: '#80C8F830' }];
 }
 
 function makeLakePaths(cx: number, cy: number, seed: number) {
-  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
-
-  // Sakin su — küçük ışık parıltıları
-  for (let i = 0; i < 2; i++) {
-    const shimmer = Skia.Path.Make();
-    const sx = cx + (rng() - 0.5) * S * 0.4;
-    const sy = cy + (rng() - 0.5) * S * 0.3;
-    shimmer.moveTo(sx - 2, sy);
-    shimmer.cubicTo(sx - 1, sy - 1, sx + 1, sy - 1, sx + 2, sy);
-    paths.push({ path: shimmer, color: '#FFFFFF25' });
-  }
-
-  // Suyun yüzeyinde hafif dalga
-  const ripple = Skia.Path.Make();
-  const rx = cx + (rng() - 0.5) * S * 0.3;
-  const ry = cy + (rng() - 0.5) * S * 0.2;
-  ripple.addOval(Skia.XYWHRect(rx - 3, ry - 1.2, 6, 2.4));
-  paths.push({ path: ripple, color: '#80B0D820' });
-
-  return paths;
+  const shimmer = Skia.Path.Make();
+  shimmer.moveTo(cx - 2, cy);
+  shimmer.cubicTo(cx - 1, cy - 1, cx + 1, cy - 1, cx + 2, cy);
+  return [{ path: shimmer, color: '#FFFFFF20' }];
 }
 
 function makeShorePaths(cx: number, cy: number, seed: number) {
-  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
-
-  // Kumsal çizgileri
-  for (let i = 0; i < 2; i++) {
-    const sand = Skia.Path.Make();
-    const sy = cy + S * 0.05 + i * S * 0.15 + (rng() - 0.5) * 2;
-    const sx = cx - S * 0.35;
-    sand.moveTo(sx, sy);
-    sand.cubicTo(sx + S * 0.2, sy - 1.5, sx + S * 0.5, sy + 1, sx + S * 0.7, sy - 0.5);
-    paths.push({ path: sand, color: '#D4C09830' });
-  }
-
-  // Küçük çimen tutamları
-  for (let i = 0; i < 3; i++) {
-    const grass = Skia.Path.Make();
-    const gx = cx + (rng() - 0.5) * S * 0.5;
-    const gy = cy + (rng() - 0.5) * S * 0.35;
-    grass.moveTo(gx, gy);
-    grass.cubicTo(gx + (rng() - 0.5) * 2, gy - 2.5, gx + (rng() - 0.5) * 1.5, gy - 3.5, gx + (rng() - 0.5) * 3, gy - 4);
-    paths.push({ path: grass, color: '#70A85060' });
-  }
-
-  return paths;
+  const sand = Skia.Path.Make();
+  sand.moveTo(cx - S * 0.3, cy);
+  sand.cubicTo(cx - S * 0.1, cy - 1.5, cx + S * 0.2, cy + 1, cx + S * 0.35, cy);
+  return [{ path: sand, color: '#D4C09830' }];
 }
 
 function getTerrainDecorations(terrain: HexTerrain, cx: number, cy: number, q: number, r: number) {
@@ -471,65 +215,29 @@ function getTerrainDecorations(terrain: HexTerrain, cx: number, cy: number, q: n
 }
 
 function makeHillsPaths(cx: number, cy: number, seed: number) {
-  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
-
-  // Yumusak tepe siluetleri — 2-3 katman
-  const hillCount = 2 + Math.floor(rng() * 2);
-  for (let i = 0; i < hillCount; i++) {
-    const hill = Skia.Path.Make();
-    const hx = cx + (rng() - 0.5) * S * 0.4;
-    const hy = cy + S * 0.05 + i * S * 0.08;
-    const hw = S * (0.3 + rng() * 0.2);
-    const hh = S * (0.15 + rng() * 0.1);
-    hill.moveTo(hx - hw, hy);
-    hill.cubicTo(hx - hw * 0.3, hy - hh, hx + hw * 0.3, hy - hh * 0.8, hx + hw, hy);
-    const alpha = Math.round(25 + rng() * 30).toString(16).padStart(2, '0');
-    paths.push({ path: hill, color: `#5A7A38${alpha}` });
-  }
-
-  // Kucuk cimen
-  for (let i = 0; i < 3; i++) {
-    const g = Skia.Path.Make();
-    const gx = cx + (rng() - 0.5) * S * 0.6;
-    const gy = cy + (rng() - 0.5) * S * 0.4;
-    g.moveTo(gx, gy);
-    g.cubicTo(gx + (rng() - 0.5) * 2, gy - 2.5, gx + (rng() - 0.5) * 1.5, gy - 3.5, gx + (rng() - 0.5) * 2, gy - 4);
-    paths.push({ path: g, color: '#90B06050' });
-  }
-  return paths;
+  const hill = Skia.Path.Make();
+  const hw = S * 0.35;
+  hill.moveTo(cx - hw, cy + S * 0.05);
+  hill.cubicTo(cx - hw * 0.3, cy - S * 0.15, cx + hw * 0.3, cy - S * 0.12, cx + hw, cy + S * 0.05);
+  return [{ path: hill, color: '#5A7A3840' }];
 }
 
 function makeFertilePaths(cx: number, cy: number, seed: number) {
-  const paths: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
   const rng = simpleRng(seed);
-
-  // Yesil cimen kumesi — yogun
-  const clumpCount = 4 + Math.floor(rng() * 3);
-  for (let i = 0; i < clumpCount; i++) {
-    const gx = cx + (rng() - 0.5) * S * 0.7;
-    const gy = cy + (rng() - 0.5) * S * 0.5;
-    for (let j = 0; j < 3; j++) {
-      const blade = Skia.Path.Make();
-      const bx = gx + (rng() - 0.5) * 2.5;
-      const bh = 3 + rng() * 4;
-      blade.moveTo(bx, gy);
-      blade.cubicTo(bx + (rng() - 0.5) * 2.5, gy - bh * 0.5, bx + (rng() - 0.5) * 2, gy - bh * 0.8, bx + (rng() - 0.5) * 3, gy - bh);
-      paths.push({ path: blade, color: '#50A83060' });
-    }
+  const grass = Skia.Path.Make();
+  for (let i = 0; i < 3; i++) {
+    const gx = cx + (rng() - 0.5) * S * 0.6;
+    const gy = cy + (rng() - 0.5) * S * 0.4;
+    grass.moveTo(gx, gy);
+    grass.lineTo(gx + (rng() - 0.5) * 2, gy - 3 - rng() * 2);
   }
-
-  // Cicekler — daha renkli
-  const flowerCount = 2 + Math.floor(rng() * 2);
-  for (let i = 0; i < flowerCount; i++) {
-    const flower = Skia.Path.Make();
-    const fx = cx + (rng() - 0.5) * S * 0.5;
-    const fy = cy + (rng() - 0.5) * S * 0.35;
-    flower.addCircle(fx, fy, 1.2 + rng() * 0.8);
-    const colors = ['#FFD54F80', '#FF8A6580', '#CE93D880', '#80DEEA80'];
-    paths.push({ path: flower, color: colors[Math.floor(rng() * colors.length)] });
-  }
-  return paths;
+  const flower = Skia.Path.Make();
+  flower.addCircle(cx + (rng() - 0.5) * S * 0.4, cy + (rng() - 0.5) * S * 0.3, 1.5);
+  return [
+    { path: grass, color: '#50A83060' },
+    { path: flower, color: '#FFD54F70' },
+  ];
 }
 
 // ===== COMPONENT =====
@@ -652,17 +360,6 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
   const composed = Gesture.Simultaneous(panGesture, pinchGesture);
   const allGestures = Gesture.Exclusive(tapGesture, composed);
 
-  // ===== NEIGHBOR-AWARE RENDER DATA =====
-  interface BlendEdge {
-    wedgePath: ReturnType<typeof Skia.Path.Make>;
-    edgeMidX: number; edgeMidY: number;
-    insetX: number; insetY: number;
-    neighborColor: string;
-    isCoast: boolean; // su-kara siniri mi
-  }
-
-  const WATER_TERRAINS = new Set([HexTerrain.Sea, HexTerrain.Coast, HexTerrain.Lake]);
-
   const hexRenderData = useMemo(() => {
     const data: {
       key: string;
@@ -678,8 +375,6 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
       isAttackTarget: boolean;
       isSelected: boolean;
       decorations: { path: ReturnType<typeof Skia.Path.Make>; color: string }[];
-      blendEdges: BlendEdge[];
-      microNoise: { path: ReturnType<typeof Skia.Path.Make>; color: string }[];
     }[] = [];
 
     const playerColorMap = new Map<string, string>();
@@ -716,86 +411,29 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
         ? getTerrainDecorations(tile.terrain, cx, cy, tile.coord.q, tile.coord.r)
         : [];
 
-      // ── BLEND EDGES: komsu terrain gecisleri ──
-      const blendEdges: BlendEdge[] = [];
-      if (!isExploredOnly) {
-        const corners = getHexCorners(cx, cy, S);
-        const neighbors = getNeighbors(tile.coord);
-        for (let i = 0; i < 6; i++) {
-          const nCoord = neighbors[i];
-          const nKey = hexKey(nCoord.q, nCoord.r);
-          const nTile = map.get(nKey);
-          if (!nTile || nTile.terrain === tile.terrain) continue;
-
-          const nPalette = TERRAIN_PALETTE[nTile.terrain];
-          const c1 = corners[i];
-          const c2 = corners[(i + 1) % 6];
-
-          // Kenar orta noktasi
-          const emx = (c1.x + c2.x) / 2;
-          const emy = (c1.y + c2.y) / 2;
-          // Merkeze dogru %60 iceri — genis blend alani
-          const inx = cx + (emx - cx) * 0.4;
-          const iny = cy + (emy - cy) * 0.4;
-
-          // Genis kama (wedge) — kenara paralel genisletilmis
-          const wedge = Skia.Path.Make();
-          const ex1 = c1.x + (c2.x - c1.x) * -0.15; // %15 disa tasir
-          const ey1 = c1.y + (c2.y - c1.y) * -0.15;
-          const ex2 = c2.x + (c1.x - c2.x) * -0.15;
-          const ey2 = c2.y + (c1.y - c2.y) * -0.15;
-          wedge.moveTo(ex1, ey1);
-          wedge.lineTo(ex2, ey2);
-          wedge.lineTo(inx, iny);
-          wedge.close();
-
-          const isWater = WATER_TERRAINS.has(tile.terrain) !== WATER_TERRAINS.has(nTile.terrain);
-          blendEdges.push({
-            wedgePath: wedge,
-            edgeMidX: emx, edgeMidY: emy,
-            insetX: inx, insetY: iny,
-            neighborColor: nPalette.base,
-            isCoast: isWater,
-          });
-        }
-      }
-
-      // ── MICRO NOISE: ince renk varyasyonu ──
-      const microNoise: { path: ReturnType<typeof Skia.Path.Make>; color: string }[] = [];
-      if (!isExploredOnly) {
-        const nRng = simpleRng(tile.coord.q * 997 + tile.coord.r * 53 + 1301);
-        const nCount = 8 + Math.floor(nRng() * 6);
-        for (let ni = 0; ni < nCount; ni++) {
-          const nx = cx + (nRng() - 0.5) * S * 1.8;
-          const ny = cy + (nRng() - 0.5) * S * 1.5;
-          const nr = 3 + nRng() * 7;
-          const nPath = Skia.Path.Make();
-          nPath.addCircle(nx, ny, nr);
-          const nColor = ni % 3 === 0 ? palette.light + '1A' : palette.dark + '18';
-          microNoise.push({ path: nPath, color: nColor });
-        }
-      }
-
       data.push({
         key, cx, cy, tile, palette, isExploredOnly, ownerColor,
         buildingIcon, armyIcon, armyCount, isMoveTarget, isAttackTarget,
-        isSelected, decorations, blendEdges, microNoise,
+        isSelected, decorations,
       });
     }
     return data;
   }, [map, selectedHex, players, moveMode, moveTargets, currentPlayerId]);
 
-  // Fog hexleri
-  const fogHexPaths = useMemo(() => {
-    if (!showFogOfWar) return [];
-    const paths: ReturnType<typeof Skia.Path.Make>[] = [];
+  // Fog hexleri - TEK PATH'te birlestir (performans)
+  const fogPath = useMemo(() => {
+    if (!showFogOfWar) return null;
+    const path = Skia.Path.Make();
     for (const [, tile] of map) {
       if (!tile.explored && !tile.visible) {
         const { x: rx, y: ry } = hexToPixel(tile.coord.q, tile.coord.r);
-        paths.push(makeHexPath(rx + CC, ry + CC, HEX_SIZE));
+        const corners = getHexCorners(rx + CC, ry + CC, HEX_SIZE);
+        path.moveTo(corners[0].x, corners[0].y);
+        for (let i = 1; i < 6; i++) path.lineTo(corners[i].x, corners[i].y);
+        path.close();
       }
     }
-    return paths;
+    return path;
   }, [map, showFogOfWar]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -811,68 +449,19 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
       <GestureDetector gesture={allGestures}>
         <Animated.View style={[styles.canvasWrapper, animatedStyle]}>
           <Canvas style={styles.canvas}>
-            {/* ═══ PASS 1: Yumusak terrain alani — buyuk dairelerle hex gizle ═══ */}
-            {hexRenderData.map((hex) => {
-              const { cx, cy, palette, isExploredOnly } = hex;
-              const fogAlpha = isExploredOnly ? '40' : 'CC';
-              return (
-                <Circle key={`bg-${hex.key}`} cx={cx} cy={cy} r={S * 1.35}>
-                  <RadialGradient
-                    c={vec(cx, cy)}
-                    r={S * 1.35}
-                    colors={[palette.base + fogAlpha, palette.base + '80', palette.base + '20']}
-                  />
-                </Circle>
-              );
-            })}
-
-            {/* ═══ PASS 2: Ust kat — detaylar, dekorasyonlar, blend ═══ */}
             {hexRenderData.map((hex) => {
               const { cx, cy, palette, isExploredOnly, tile } = hex;
-              const fogAlpha = isExploredOnly ? '30' : 'FF';
+              const fogAlpha = isExploredOnly ? '60' : 'FF';
 
               return (
                 <Group key={hex.key}>
-                  {/* Hafif dolgu — daireler arasinda bosluk varsa kapansin */}
-                  <Path path={makeHexPath(cx, cy, S + 1)} color={palette.base + fogAlpha} style="fill" />
-
-                  {/* Blend kenarlari — genis (%60 iceri) */}
-                  {hex.blendEdges.map((edge, ei) => (
-                    <Group key={`bl-${ei}`} clip={makeHexPath(cx, cy, S + 2)}>
-                      <Path path={edge.wedgePath} style="fill">
-                        <LinearGradient
-                          start={vec(edge.edgeMidX, edge.edgeMidY)}
-                          end={vec(edge.insetX, edge.insetY)}
-                          colors={[
-                            edge.neighborColor + (isExploredOnly ? '30' : 'A0'),
-                            palette.base + '00',
-                          ]}
-                        />
-                      </Path>
-                    </Group>
-                  ))}
-
-                  {/* Kiyi kopugu — su-kara sinirinda organik beyaz cizgi */}
-                  {hex.blendEdges.filter(e => e.isCoast && !isExploredOnly).map((edge, ci) => (
-                    <Circle key={`foam-${ci}`}
-                      cx={edge.edgeMidX} cy={edge.edgeMidY} r={3}>
-                      <RadialGradient
-                        c={vec(edge.edgeMidX, edge.edgeMidY)}
-                        r={3}
-                        colors={['#FFFFFF30', 'transparent']}
-                      />
-                    </Circle>
-                  ))}
-
-                  {/* Micro-noise doku */}
-                  {hex.microNoise.map((mn, mi) => (
-                    <Path key={`mn-${mi}`} path={mn.path} color={mn.color} style="fill" />
-                  ))}
+                  {/* Base fill — hafif buyuk hex, bosluk olmasin */}
+                  <Path path={makeHexPath(cx, cy, S + 0.5)} color={palette.base + fogAlpha} style="fill" />
 
                   {/* Terrain dekorasyonlari */}
                   {!isExploredOnly && hex.decorations.map((dec, i) => (
                     <Path
-                      key={`dec-${i}`}
+                      key={`d-${i}`}
                       path={dec.path}
                       color={dec.color}
                       style={dec.path.getBounds().width > 2 ? 'fill' : 'stroke'}
@@ -881,53 +470,37 @@ const HexMapRenderer = forwardRef<HexMapRef, Props>(function HexMapRenderer({
                     />
                   ))}
 
-                  {/* Sahiplik — cok yumusak radyal parlama */}
+                  {/* Sahiplik overlay */}
                   {hex.ownerColor && (showFogOfWar ? tile.visible : true) && (
-                    <Circle cx={cx} cy={cy} r={S * 1.0}>
-                      <RadialGradient
-                        c={vec(cx, cy)}
-                        r={S * 1.0}
-                        colors={[hex.ownerColor + '18', hex.ownerColor + '06', 'transparent']}
-                      />
-                    </Circle>
+                    <Path
+                      path={makeHexPath(cx, cy, S - 2)}
+                      color={hex.ownerColor + '20'}
+                      style="fill"
+                    />
                   )}
 
                   {/* Hareket hedef */}
                   {hex.isMoveTarget && (
-                    <Circle cx={cx} cy={cy} r={S * 0.8}>
-                      <RadialGradient
-                        c={vec(cx, cy)}
-                        r={S * 0.8}
-                        colors={[
-                          hex.isAttackTarget ? COLORS.red + '45' : COLORS.green + '45',
-                          hex.isAttackTarget ? COLORS.red + '10' : COLORS.green + '10',
-                          'transparent',
-                        ]}
-                      />
-                    </Circle>
+                    <Path
+                      path={makeHexPath(cx, cy, S - 1)}
+                      color={hex.isAttackTarget ? COLORS.red + '40' : COLORS.green + '40'}
+                      style="fill"
+                    />
                   )}
 
                   {/* Secim */}
                   {hex.isSelected && (
-                    <Circle cx={cx} cy={cy} r={S * 0.85}>
-                      <RadialGradient
-                        c={vec(cx, cy)}
-                        r={S * 0.85}
-                        colors={[COLORS.selection + '40', COLORS.selection + '10', 'transparent']}
-                      />
-                    </Circle>
+                    <>
+                      <Path path={makeHexPath(cx, cy, S)} color={COLORS.selection + '30'} style="fill" />
+                      <Path path={makeHexPath(cx, cy, S + 1)} color={COLORS.selection + '80'} style="stroke" strokeWidth={2} />
+                    </>
                   )}
                 </Group>
               );
             })}
 
-            {/* Fog hexleri - koyu arka plan */}
-            {fogHexPaths.map((path, i) => (
-              <Group key={`fog-${i}`}>
-                <Path path={path} color="#0A1018" style="fill" />
-                <Path path={path} color="#0A1018" style="stroke" strokeWidth={0.5} />
-              </Group>
-            ))}
+            {/* Fog — tek path */}
+            {fogPath && <Path path={fogPath} color="#0A1018" style="fill" />}
           </Canvas>
         </Animated.View>
       </GestureDetector>

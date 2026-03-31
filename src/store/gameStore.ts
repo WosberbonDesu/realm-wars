@@ -518,7 +518,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    set({ worldMap: world, useRegionMap: true, selectedRegionId: null });
+    set({ worldMap: world, useRegionMap: false, selectedRegionId: null });
 
     // Eski hex sistemi görünürlük
     get().updateVisibility(players[0].id);
