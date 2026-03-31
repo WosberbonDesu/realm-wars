@@ -107,49 +107,43 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       // Owner overlay
       if (tile.ownerId) {
         const player = players.find(p => p.id === tile.ownerId);
-        if (player) drawHex(ctx, x, y, player.color + '44');
+        if (player) drawHex(ctx, x, y, player.color + '30');
       }
 
       // Fog (explored but not visible)
       if (!tile.visible) {
         drawHex(ctx, x, y, COLORS.fogExplored);
       }
-
-      // Grid lines
-      if (showGrid) {
-        drawHexOutline(ctx, x, y, '#00000022', 0.5);
-      }
     }
 
-    // --- State borders ---
+    // --- State borders (sinir hucreleri icin ince parlama) ---
     if (showBorders && stateMap.size > 0) {
+      const neighbors = [
+        { dq: 1, dr: 0 }, { dq: 1, dr: -1 }, { dq: 0, dr: -1 },
+        { dq: -1, dr: 0 }, { dq: -1, dr: 1 }, { dq: 0, dr: 1 },
+      ];
       for (const tile of tiles.values()) {
         if (!tile.explored) continue;
         const key = hexKey(tile.coord.q, tile.coord.r);
         const sId = stateMap.get(key);
         if (sId === undefined) continue;
 
-        const { x, y } = hexToPixel(tile.coord.q, tile.coord.r);
-        const corners = getHexCorners(x, y, HEX_SIZE);
-        const neighbors = [
-          { dq: 1, dr: 0 }, { dq: 1, dr: -1 }, { dq: 0, dr: -1 },
-          { dq: -1, dr: 0 }, { dq: -1, dr: 1 }, { dq: 0, dr: 1 },
-        ];
-
-        for (let i = 0; i < 6; i++) {
-          const n = neighbors[i];
+        // Bu hucre sinirda mi?
+        let isBorder = false;
+        for (const n of neighbors) {
           const nKey = hexKey(tile.coord.q + n.dq, tile.coord.r + n.dr);
-          const nState = stateMap.get(nKey);
-          if (nState !== sId) {
-            const state = states[sId];
-            ctx.beginPath();
-            ctx.moveTo(corners[i].x, corners[i].y);
-            ctx.lineTo(corners[(i + 1) % 6].x, corners[(i + 1) % 6].y);
-            ctx.strokeStyle = state?.color || '#fff';
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
-          }
+          if (stateMap.get(nKey) !== sId) { isBorder = true; break; }
         }
+        if (!isBorder) continue;
+
+        const { x, y } = hexToPixel(tile.coord.q, tile.coord.r);
+        const state = states[sId];
+        const borderColor = state?.color || '#fff';
+        ctx.beginPath();
+        ctx.arc(x, y, HEX_SIZE * 0.8, 0, Math.PI * 2);
+        ctx.strokeStyle = borderColor + '88';
+        ctx.lineWidth = 2;
+        ctx.stroke();
       }
     }
 
@@ -275,22 +269,32 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
 
 // --- Helper functions ---
 
+// Buyuk hex ile bosluksuz cizim — kenarlar yumusatilmis
 function drawHex(ctx: CanvasRenderingContext2D, cx: number, cy: number, color: string): void {
-  const corners = getHexCorners(cx, cy, HEX_SIZE);
+  // Hex yerine buyuk yuvarlak kose hex — komsularla overlap
+  const corners = getHexCorners(cx, cy, HEX_SIZE * 1.08);
   ctx.beginPath();
-  ctx.moveTo(corners[0].x, corners[0].y);
-  for (let i = 1; i < 6; i++) ctx.lineTo(corners[i].x, corners[i].y);
+  // Yumusak koseler icin quadratic curve
+  const n = corners.length;
+  for (let i = 0; i < n; i++) {
+    const curr = corners[i];
+    const next = corners[(i + 1) % n];
+    const mx = (curr.x + next.x) / 2;
+    const my = (curr.y + next.y) / 2;
+    if (i === 0) {
+      const prev = corners[n - 1];
+      ctx.moveTo((prev.x + curr.x) / 2, (prev.y + curr.y) / 2);
+    }
+    ctx.quadraticCurveTo(curr.x, curr.y, mx, my);
+  }
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
 }
 
 function drawHexOutline(ctx: CanvasRenderingContext2D, cx: number, cy: number, color: string, lineWidth: number): void {
-  const corners = getHexCorners(cx, cy, HEX_SIZE);
   ctx.beginPath();
-  ctx.moveTo(corners[0].x, corners[0].y);
-  for (let i = 1; i < 6; i++) ctx.lineTo(corners[i].x, corners[i].y);
-  ctx.closePath();
+  ctx.arc(cx, cy, HEX_SIZE * 0.85, 0, Math.PI * 2);
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.stroke();
