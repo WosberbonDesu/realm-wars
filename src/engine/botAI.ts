@@ -1,25 +1,24 @@
 import {
   GameState, Player, HexTile, HexTerrain, BuildingType,
-  UnitType, hexKey, Building, Army,
+  UnitType, hexKey,
 } from '../types/game';
-import { getNeighbors, hexDistance } from './hexUtils';
+import { getNeighbors } from './hexUtils';
 import { BUILDING_COSTS, UNIT_STATS } from '../constants/game';
+import { TERRAIN_MOVE_COST } from '../constants/terrain';
 
 // Bot karar verme - her tur çağrılır
 export function botTakeTurn(
   state: GameState,
   bot: Player,
-  actions: BotActions
+  actions: BotActions,
 ): void {
-  // 1. Kaynak toplama otomatik (store'da yapılıyor)
-
-  // 2. Bina inşa et
+  // 1. Bina inşa et
   tryBuildSomething(state, bot, actions);
 
-  // 3. Asker üret
+  // 2. Asker üret
   tryTrainUnits(state, bot, actions);
 
-  // 4. Genişle veya saldır
+  // 3. Genişle veya saldır
   tryExpandOrAttack(state, bot, actions);
 }
 
@@ -29,31 +28,48 @@ export interface BotActions {
   moveArmy: (fromQ: number, fromR: number, toQ: number, toR: number) => void;
 }
 
+// Su hücreleri - geçilemez/kurulamaz
+const WATER_TERRAINS = new Set<HexTerrain>([
+  HexTerrain.Ocean,
+  HexTerrain.Coast,
+  HexTerrain.Lake,
+]);
+
+function isPassable(tile: HexTile): boolean {
+  return !WATER_TERRAINS.has(tile.terrain);
+}
+
 function tryBuildSomething(state: GameState, bot: Player, actions: BotActions) {
-  // Kale yoksa bir şey yapamaz
   if (!bot.castleCoord) return;
 
-  // Sahip olduğu boş hex'lere bina kur
   const ownedTiles = bot.territory
     .map(c => state.map.get(hexKey(c.q, c.r)))
-    .filter((t): t is HexTile => t !== undefined && t.building === null);
+    .filter((t): t is HexTile => t !== undefined && t.building === null && isPassable(t));
 
   if (ownedTiles.length === 0) return;
 
-  // Öncelik: Farm > Mine > Lumbermill > Market > Barracks > Tower
+  // Öncelik: Farm > Mine > Lumbermill > Market > Barracks > Tower > Port
   const priority: BuildingType[] = [
     BuildingType.Farm, BuildingType.Mine, BuildingType.Lumbermill,
     BuildingType.Market, BuildingType.Barracks, BuildingType.Tower,
   ];
 
+  // Kıyı hex'i varsa Port da düşün
+  const hasCoastalTile = bot.territory.some(c => {
+    const t = state.map.get(hexKey(c.q, c.r));
+    return t?.isCoast;
+  });
+  if (hasCoastalTile) {
+    priority.push(BuildingType.Port);
+  }
+
   for (const buildType of priority) {
     const cost = BUILDING_COSTS[buildType];
     if (canAfford(bot, cost)) {
-      // En uygun hex'i seç
       const bestTile = pickBestTileForBuilding(ownedTiles, buildType);
       if (bestTile) {
         actions.build(bestTile.coord.q, bestTile.coord.r, buildType);
-        return; // Tur başına 1 bina
+        return;
       }
     }
   }
@@ -65,13 +81,11 @@ function tryTrainUnits(state: GameState, bot: Player, actions: BotActions) {
   const castleTile = state.map.get(castleKey);
   if (!castleTile?.building || castleTile.building.type !== BuildingType.Castle) return;
 
-  // Kışla var mı kontrol et
   const hasBarracks = bot.territory.some(c => {
     const t = state.map.get(hexKey(c.q, c.r));
     return t?.building?.type === BuildingType.Barracks;
   });
 
-  // Temel birim: Warrior
   const unitType = hasBarracks ? UnitType.Warrior : UnitType.Scout;
   const cost = UNIT_STATS[unitType].cost;
 
@@ -81,16 +95,16 @@ function tryTrainUnits(state: GameState, bot: Player, actions: BotActions) {
 }
 
 function tryExpandOrAttack(state: GameState, bot: Player, actions: BotActions) {
-  // Ordusu olan hex'leri bul
   for (const coord of bot.territory) {
     const tile = state.map.get(hexKey(coord.q, coord.r));
     if (!tile?.army || tile.army.ownerId !== bot.id) continue;
 
     const neighbors = getNeighbors(coord);
-    // Boş komşu hex → genişle
+
+    // Boş ve geçilebilir komşu hex → genişle
     const emptyNeighbor = neighbors.find(n => {
       const nt = state.map.get(hexKey(n.q, n.r));
-      return nt && nt.ownerId === null;
+      return nt && nt.ownerId === null && isPassable(nt);
     });
 
     if (emptyNeighbor) {
@@ -101,7 +115,7 @@ function tryExpandOrAttack(state: GameState, bot: Player, actions: BotActions) {
     // Düşman komşu → saldır (güç yeterliyse)
     const enemyNeighbor = neighbors.find(n => {
       const nt = state.map.get(hexKey(n.q, n.r));
-      return nt && nt.ownerId !== null && nt.ownerId !== bot.id;
+      return nt && nt.ownerId !== null && nt.ownerId !== bot.id && isPassable(nt);
     });
 
     if (enemyNeighbor && tile.army.totalPower > 50) {
@@ -123,18 +137,25 @@ function canAfford(player: Player, cost: Partial<Record<string, number>>): boole
 }
 
 function pickBestTileForBuilding(tiles: HexTile[], type: BuildingType): HexTile | null {
-  // Terrain'e göre en uygun hex
   const terrainPreference: Partial<Record<BuildingType, HexTerrain[]>> = {
     [BuildingType.Farm]: [HexTerrain.Plains],
-    [BuildingType.Mine]: [HexTerrain.Mountain],
+    [BuildingType.Mine]: [HexTerrain.Mountain, HexTerrain.Tundra],
     [BuildingType.Lumbermill]: [HexTerrain.Forest],
-    [BuildingType.Market]: [HexTerrain.Plains, HexTerrain.River],
+    [BuildingType.Market]: [HexTerrain.Plains],
+    [BuildingType.Port]: [HexTerrain.Coast],
   };
 
   const preferred = terrainPreference[type];
   if (preferred) {
+    // Tercih edilen terrain'de olanı bul
     const match = tiles.find(t => preferred.includes(t.terrain));
     if (match) return match;
+  }
+
+  // Nehir kenarı Market için bonus
+  if (type === BuildingType.Market) {
+    const riverTile = tiles.find(t => t.hasRiver);
+    if (riverTile) return riverTile;
   }
 
   return tiles[0] || null;

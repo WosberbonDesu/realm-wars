@@ -9,18 +9,26 @@ export const TERRAIN_COLORS: Record<HexTerrain, string> = {
   [HexTerrain.Plains]: '#7EC850',
   [HexTerrain.Mountain]: '#8B7355',
   [HexTerrain.Forest]: '#2D5A27',
-  [HexTerrain.River]: '#4A90D9',
   [HexTerrain.Desert]: '#D4A843',
   [HexTerrain.Swamp]: '#5B6B4A',
+  [HexTerrain.Tundra]: '#B8C4B8',
+  [HexTerrain.Snow]: '#E8EDF0',
+  [HexTerrain.Ocean]: '#1A4A7A',
+  [HexTerrain.Coast]: '#4A90D9',
+  [HexTerrain.Lake]: '#5B9BD5',
 };
 
 export const TERRAIN_ICONS: Record<HexTerrain, string> = {
   [HexTerrain.Plains]: '🌾',
   [HexTerrain.Mountain]: '⛰️',
   [HexTerrain.Forest]: '🌲',
-  [HexTerrain.River]: '💧',
   [HexTerrain.Desert]: '🏜️',
   [HexTerrain.Swamp]: '🌿',
+  [HexTerrain.Tundra]: '❄️',
+  [HexTerrain.Snow]: '🏔️',
+  [HexTerrain.Ocean]: '🌊',
+  [HexTerrain.Coast]: '🏖️',
+  [HexTerrain.Lake]: '💧',
 };
 
 // ===== TERRAIN RESOURCE YIELDS =====
@@ -28,9 +36,13 @@ export const TERRAIN_RESOURCES: Record<HexTerrain, Partial<Resources>> = {
   [HexTerrain.Plains]: { food: 3, gold: 1 },
   [HexTerrain.Mountain]: { iron: 3, stone: 2 },
   [HexTerrain.Forest]: { wood: 3, food: 1 },
-  [HexTerrain.River]: { gold: 2, food: 2 },
   [HexTerrain.Desert]: { gold: 3, stone: 1 },
   [HexTerrain.Swamp]: { food: 1, wood: 1 },
+  [HexTerrain.Tundra]: { stone: 1, iron: 1 },
+  [HexTerrain.Snow]: { stone: 1 },
+  [HexTerrain.Ocean]: {},
+  [HexTerrain.Coast]: { gold: 2, food: 2 },
+  [HexTerrain.Lake]: { food: 2, gold: 1 },
 };
 
 // ===== BUILDING STATS =====
@@ -42,6 +54,7 @@ export const BUILDING_COSTS: Record<BuildingType, Partial<Resources>> = {
   [BuildingType.Lumbermill]: { stone: 10, gold: 15 },
   [BuildingType.Tower]: { stone: 30, iron: 20, gold: 25 },
   [BuildingType.Market]: { wood: 25, stone: 15, gold: 50 },
+  [BuildingType.Port]: { wood: 40, stone: 20, gold: 60 },
 };
 
 export const BUILDING_HEALTH: Record<BuildingType, number> = {
@@ -52,6 +65,7 @@ export const BUILDING_HEALTH: Record<BuildingType, number> = {
   [BuildingType.Lumbermill]: 80,
   [BuildingType.Tower]: 300,
   [BuildingType.Market]: 120,
+  [BuildingType.Port]: 150,
 };
 
 export const BUILDING_PRODUCTION: Record<BuildingType, Partial<Resources>> = {
@@ -62,6 +76,7 @@ export const BUILDING_PRODUCTION: Record<BuildingType, Partial<Resources>> = {
   [BuildingType.Lumbermill]: { wood: 5 },
   [BuildingType.Tower]: {},
   [BuildingType.Market]: { gold: 8 },
+  [BuildingType.Port]: { gold: 6, food: 2 },
 };
 
 export const BUILDING_ICONS: Record<BuildingType, string> = {
@@ -72,6 +87,7 @@ export const BUILDING_ICONS: Record<BuildingType, string> = {
   [BuildingType.Lumbermill]: '🪓',
   [BuildingType.Tower]: '🗼',
   [BuildingType.Market]: '🏪',
+  [BuildingType.Port]: '⚓',
 };
 
 // ===== UNIT STATS =====
@@ -143,3 +159,8 @@ export const BOT_NAMES = [
   'Demir Lejyon',
   'Gölge Hanedanı',
 ];
+
+// ===== RIVER RENDERING =====
+export const RIVER_COLOR = '#3A7BD5';
+export const RIVER_WIDTH_MIN = 1;
+export const RIVER_WIDTH_MAX = 4;

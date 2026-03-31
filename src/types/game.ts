@@ -1,11 +1,17 @@
 // ===== HEX & MAP =====
 export enum HexTerrain {
+  // Kara
   Plains = 'plains',
   Mountain = 'mountain',
   Forest = 'forest',
-  River = 'river',
   Desert = 'desert',
   Swamp = 'swamp',
+  Tundra = 'tundra',
+  Snow = 'snow',
+  // Su
+  Ocean = 'ocean',
+  Coast = 'coast',
+  Lake = 'lake',
 }
 
 export interface HexCoord {
@@ -16,12 +22,33 @@ export interface HexCoord {
 export interface HexTile {
   coord: HexCoord;
   terrain: HexTerrain;
-  visible: boolean;    // fog of war
-  explored: boolean;   // keşfedilmiş mi
+
+  // Azgaar-style procedural data
+  elevation: number;    // 0-1 (0=deep ocean, 0.2=sea level, 1=peak)
+  moisture: number;     // 0-1
+  temperature: number;  // 0-1 (0=frozen, 1=scorching)
+
+  // River overlay (nehirler arazi üzerinden geçer)
+  hasRiver: boolean;
+  riverFlow: number;    // flux value (0 = no river)
+
+  // Feature detection
+  featureId: number;    // continent/island/ocean basin ID
+  isCoast: boolean;     // kara-su sınırında mı
+
+  // Fog of war
+  visible: boolean;
+  explored: boolean;
+
+  // Ownership & gameplay
   ownerId: string | null;
   building: Building | null;
   army: Army | null;
   resources: Resources;
+
+  // Display
+  biomeName: string;    // human-readable biome name
+  regionName: string;   // procedural region name
 }
 
 // ===== RESOURCES =====
@@ -35,13 +62,14 @@ export interface Resources {
 
 // ===== BUILDINGS =====
 export enum BuildingType {
-  Castle = 'castle',       // ana kale - şehir merkezi
-  Barracks = 'barracks',   // kışla - asker üret
-  Mine = 'mine',           // maden - demir/taş
-  Farm = 'farm',           // çiftlik - yiyecek
-  Lumbermill = 'lumbermill', // kereste - odun
-  Tower = 'tower',         // savunma kulesi
-  Market = 'market',       // pazar - altın üretimi
+  Castle = 'castle',
+  Barracks = 'barracks',
+  Mine = 'mine',
+  Farm = 'farm',
+  Lumbermill = 'lumbermill',
+  Tower = 'tower',
+  Market = 'market',
+  Port = 'port',           // yeni: kıyı ticareti
 }
 
 export interface Building {
@@ -55,11 +83,11 @@ export interface Building {
 
 // ===== UNITS =====
 export enum UnitType {
-  Warrior = 'warrior',     // piyade - dengeli
-  Archer = 'archer',       // okçu - uzak mesafe
-  Cavalry = 'cavalry',     // süvari - hızlı
-  Catapult = 'catapult',   // kuşatma - bina yıkıcı
-  Scout = 'scout',         // kaşif - fog açar
+  Warrior = 'warrior',
+  Archer = 'archer',
+  Cavalry = 'cavalry',
+  Catapult = 'catapult',
+  Scout = 'scout',
 }
 
 export interface Unit {
@@ -84,7 +112,7 @@ export interface Player {
   color: string;
   isBot: boolean;
   resources: Resources;
-  territory: HexCoord[];  // sahip olunan hex'ler
+  territory: HexCoord[];
   castleCoord: HexCoord | null;
 }
 
@@ -98,6 +126,7 @@ export interface GameState {
   phase: GamePhase;
   selectedHex: HexCoord | null;
   isPaused: boolean;
+  seed: number;            // harita seed'i (reproducibility)
 }
 
 export enum GamePhase {

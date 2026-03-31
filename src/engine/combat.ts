@@ -1,4 +1,5 @@
-import { Army, Unit, HexTerrain } from '../types/game';
+import { Army, Unit, HexTerrain, HexTile } from '../types/game';
+import { TERRAIN_DEFENSE_BONUS, RIVER_DEFENSE_BONUS } from '../constants/terrain';
 
 export interface BattleResult {
   winner: 'attacker' | 'defender';
@@ -7,14 +8,6 @@ export interface BattleResult {
   attackerSurvivors: Unit[];
   defenderSurvivors: Unit[];
 }
-
-// Terrain savunma bonusları
-const TERRAIN_DEFENSE_BONUS: Partial<Record<HexTerrain, number>> = {
-  [HexTerrain.Mountain]: 0.3,
-  [HexTerrain.Forest]: 0.15,
-  [HexTerrain.River]: 0.2,
-  [HexTerrain.Swamp]: -0.1,
-};
 
 export function calculateArmyPower(army: Army): { attack: number; defense: number } {
   let totalAttack = 0;
@@ -29,13 +22,19 @@ export function calculateArmyPower(army: Army): { attack: number; defense: numbe
 export function simulateBattle(
   attacker: Army,
   defender: Army,
-  terrain: HexTerrain
+  tile: HexTile,
 ): BattleResult {
   const atkStats = calculateArmyPower(attacker);
   const defStats = calculateArmyPower(defender);
 
   // Terrain bonusu savunmacıya
-  const terrainBonus = TERRAIN_DEFENSE_BONUS[terrain] || 0;
+  let terrainBonus = TERRAIN_DEFENSE_BONUS[tile.terrain] || 0;
+
+  // Nehir geçişi ek bonus
+  if (tile.hasRiver) {
+    terrainBonus += RIVER_DEFENSE_BONUS;
+  }
+
   const adjustedDefense = defStats.defense * (1 + terrainBonus);
 
   // Güç oranı
