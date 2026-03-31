@@ -1,8 +1,5 @@
-import React, { useRef } from 'react';
-import { View, Dimensions } from 'react-native';
-import {
-  GestureDetector, Gesture, GestureHandlerRootView,
-} from 'react-native-gesture-handler';
+import React, { useRef, useCallback } from 'react';
+import { View, Dimensions, PanResponder } from 'react-native';
 import { pixelToHex } from '../engine/hexUtils';
 import { useGameStore } from '../store/gameStore';
 import { hexKey } from '../types/game';
@@ -14,101 +11,109 @@ interface GestureHandlerProps {
 }
 
 export const GestureHandler: React.FC<GestureHandlerProps> = ({ children }) => {
-  const {
-    cameraX, cameraY, cameraZoom,
-    setCameraPos, setCameraZoom,
-    selectHex, game,
-  } = useGameStore();
+  const savedCamera = useRef({ x: 0, y: 0 });
+  const isPanning = useRef(false);
+  const lastPinchDist = useRef(0);
 
-  const savedCamera = useRef({ x: cameraX, y: cameraY, zoom: cameraZoom });
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => {
+        return Math.abs(gs.dx) > 5 || Math.abs(gs.dy) > 5;
+      },
 
-  // Pan gesture
-  const panGesture = Gesture.Pan()
-    .onStart(() => {
-      savedCamera.current = {
-        x: useGameStore.getState().cameraX,
-        y: useGameStore.getState().cameraY,
-        zoom: useGameStore.getState().cameraZoom,
-      };
-    })
-    .onUpdate((e) => {
-      const zoom = useGameStore.getState().cameraZoom;
-      setCameraPos(
-        savedCamera.current.x + e.translationX / zoom,
-        savedCamera.current.y + e.translationY / zoom,
-      );
-    })
-    .minDistance(10);
+      onPanResponderGrant: () => {
+        const state = useGameStore.getState();
+        savedCamera.current = { x: state.cameraX, y: state.cameraY };
+        isPanning.current = false;
+      },
 
-  // Pinch zoom
-  const pinchGesture = Gesture.Pinch()
-    .onStart(() => {
-      savedCamera.current.zoom = useGameStore.getState().cameraZoom;
-    })
-    .onUpdate((e) => {
-      setCameraZoom(savedCamera.current.zoom * e.scale);
-    });
+      onPanResponderMove: (evt, gs) => {
+        const touches = evt.nativeEvent.touches || [];
 
-  // Tap to select hex
-  const tapGesture = Gesture.Tap()
-    .onEnd((e) => {
-      const state = useGameStore.getState();
-      if (!state.game) return;
+        // Pinch zoom (2 parmak)
+        if (touches.length >= 2) {
+          const dx = (touches[0] as any).pageX - (touches[1] as any).pageX;
+          const dy = (touches[0] as any).pageY - (touches[1] as any).pageY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
 
-      const zoom = state.cameraZoom;
-      const offsetX = SCREEN_W / 2 + state.cameraX * zoom;
-      const offsetY = SCREEN_H / 2 + state.cameraY * zoom;
-
-      // Screen coords → world coords → hex coords
-      const worldX = (e.x - offsetX) / zoom;
-      const worldY = (e.y - offsetY) / zoom;
-
-      const hex = pixelToHex(worldX, worldY);
-      const key = hexKey(hex.q, hex.r);
-      const tile = state.game.map.get(key);
-
-      if (tile) {
-        // Eğer zaten seçili hex'e komşu bir hex'e tıklanırsa ve ordu varsa → hareket
-        if (state.selectedHex && state.game) {
-          const selectedKey = hexKey(state.selectedHex.q, state.selectedHex.r);
-          const selectedTile = state.game.map.get(selectedKey);
-
-          if (selectedTile?.army &&
-              selectedTile.army.ownerId === state.game.currentPlayerId &&
-              !(hex.q === state.selectedHex.q && hex.r === state.selectedHex.r)) {
-            // Check if neighbor
-            const dq = Math.abs(hex.q - state.selectedHex.q);
-            const dr = Math.abs(hex.r - state.selectedHex.r);
-            const ds = Math.abs((-hex.q - hex.r) - (-state.selectedHex.q - state.selectedHex.r));
-            const isNeighbor = Math.max(dq, dr, ds) === 1;
-
-            if (isNeighbor) {
-              useGameStore.getState().moveArmy(state.selectedHex, hex);
-              return;
-            }
+          if (lastPinchDist.current > 0) {
+            const scale = dist / lastPinchDist.current;
+            const state = useGameStore.getState();
+            state.setCameraZoom(state.cameraZoom * scale);
           }
+          lastPinchDist.current = dist;
+          return;
         }
 
-        selectHex(hex);
-      } else {
-        selectHex(null);
-      }
-    });
+        lastPinchDist.current = 0;
 
-  const composed = Gesture.Simultaneous(
-    panGesture,
-    pinchGesture,
-  );
+        // Pan
+        if (Math.abs(gs.dx) > 5 || Math.abs(gs.dy) > 5) {
+          isPanning.current = true;
+          const zoom = useGameStore.getState().cameraZoom;
+          useGameStore.getState().setCameraPos(
+            savedCamera.current.x + gs.dx / zoom,
+            savedCamera.current.y + gs.dy / zoom,
+          );
+        }
+      },
 
-  const allGestures = Gesture.Exclusive(tapGesture, composed);
+      onPanResponderRelease: (evt, gs) => {
+        lastPinchDist.current = 0;
+
+        // Tap (no significant movement)
+        if (!isPanning.current && Math.abs(gs.dx) < 10 && Math.abs(gs.dy) < 10) {
+          handleTap(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
+        }
+      },
+    })
+  ).current;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <GestureDetector gesture={allGestures}>
-        <View style={{ flex: 1 }}>
-          {children}
-        </View>
-      </GestureDetector>
-    </GestureHandlerRootView>
+    <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+      {children}
+    </View>
   );
 };
+
+function handleTap(tapX: number, tapY: number): void {
+  const state = useGameStore.getState();
+  if (!state.game) return;
+
+  const zoom = state.cameraZoom;
+  const offsetX = SCREEN_W / 2 + state.cameraX * zoom;
+  const offsetY = SCREEN_H / 2 + state.cameraY * zoom;
+
+  const worldX = (tapX - offsetX) / zoom;
+  const worldY = (tapY - offsetY) / zoom;
+
+  const hex = pixelToHex(worldX, worldY);
+  const key = hexKey(hex.q, hex.r);
+  const tile = state.game.map.get(key);
+
+  if (tile) {
+    // Army movement: seçili hex'ten komşuya tıklama
+    if (state.selectedHex && state.game) {
+      const selectedKey = hexKey(state.selectedHex.q, state.selectedHex.r);
+      const selectedTile = state.game.map.get(selectedKey);
+
+      if (selectedTile?.army &&
+          selectedTile.army.ownerId === state.game.currentPlayerId &&
+          !(hex.q === state.selectedHex.q && hex.r === state.selectedHex.r)) {
+        const dq = Math.abs(hex.q - state.selectedHex.q);
+        const dr = Math.abs(hex.r - state.selectedHex.r);
+        const ds = Math.abs((-hex.q - hex.r) - (-state.selectedHex.q - state.selectedHex.r));
+        const isNeighbor = Math.max(dq, dr, ds) === 1;
+
+        if (isNeighbor) {
+          state.moveArmy(state.selectedHex, hex);
+          return;
+        }
+      }
+    }
+    state.selectHex(hex);
+  } else {
+    state.selectHex(null);
+  }
+}

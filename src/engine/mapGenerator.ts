@@ -11,6 +11,18 @@ import {
 import { generateRivers, RiverResult, RiverSegment } from './rivers';
 import { detectFeatures, FeatureResult, FeatureType } from './features';
 import { NameGenerator } from './nameGenerator';
+import { generateOceanLayers, OceanResult } from './oceanLayers';
+import { generateBurgs, Burg, BurgResult } from './burgGenerator';
+import { generateCultures, Culture, CultureResult } from './cultureGenerator';
+import { generateStates, State, StateResult } from './stateGenerator';
+import { generateProvinces, Province, ProvinceResult } from './provinceGenerator';
+import { generateReligions, Religion, ReligionResult } from './religionGenerator';
+import { generateRoutes, Route, RouteResult } from './routeGenerator';
+import { generateMilitary, MilitaryUnit, MilitaryResult } from './militaryGenerator';
+import { generateMarkers, Marker } from './markerGenerator';
+import { generatePopulation, PopulationResult } from './populationGenerator';
+import { generateIce, IceResult } from './iceGenerator';
+import { generateWind, WindResult } from './windGenerator';
 import { TERRAIN_RESOURCES, MAP_RADIUS } from '../constants/game';
 
 // ===== Pipeline çıktısı =====
@@ -18,6 +30,18 @@ export interface GeneratedMap {
   tiles: Map<string, HexTile>;
   rivers: RiverSegment[];
   features: FeatureResult;
+  oceanLayers: OceanResult;
+  burgs: Burg[];
+  cultures: Culture[];
+  states: State[];
+  provinces: Province[];
+  religions: Religion[];
+  routes: Route[];
+  military: MilitaryUnit[];
+  markers: Marker[];
+  population: PopulationResult;
+  ice: IceResult;
+  wind: WindResult;
   seed: number;
   stats: MapStats;
 }
@@ -157,6 +181,93 @@ export function generateMap(
     tiles.set(key, tile);
   }
 
+  // Terrain map (biome sonuçlarından)
+  const terrainMap = new Map<string, HexTerrain>();
+  for (const [key, tile] of tiles) {
+    terrainMap.set(key, tile.terrain);
+  }
+
+  // --- Aşama 7: Ocean layers ---
+  const oceanLayers = generateOceanLayers(elevationMap, radius);
+
+  // --- Aşama 8: Wind simulation ---
+  const windResult = generateWind(elevationMap, terrainMap, radius, rng);
+
+  // --- Aşama 9: Ice generation ---
+  const iceResult = generateIce(elevationMap, temperatureMap, radius);
+
+  // --- Aşama 10: Burg (şehir) yerleşimi ---
+  const burgResult = generateBurgs(
+    elevationMap, moistureMap, temperatureMap, terrainMap,
+    riverResult.riverCells, featureResult.coastCells, radius, rng,
+  );
+
+  // Burg isimlerini ata
+  for (const burg of burgResult.burgs) {
+    burg.name = nameGen.cityName();
+  }
+
+  // --- Aşama 11: Cultures ---
+  const cultureResult = generateCultures(
+    elevationMap, terrainMap, riverResult.riverCells,
+    featureResult.coastCells, burgResult.burgs, radius, rng,
+  );
+  for (const culture of cultureResult.cultures) {
+    culture.name = nameGen.regionName();
+  }
+
+  // --- Aşama 12: States ---
+  const stateResult = generateStates(
+    elevationMap, terrainMap, burgResult.burgs,
+    cultureResult.cultureMap, radius, rng,
+  );
+  for (const state of stateResult.states) {
+    state.name = nameGen.regionName();
+  }
+
+  // --- Aşama 13: Provinces ---
+  const provinceResult = generateProvinces(
+    stateResult.states, stateResult.stateMap,
+    burgResult.burgs, radius, rng,
+  );
+  for (const province of provinceResult.provinces) {
+    province.name = nameGen.regionName();
+  }
+
+  // --- Aşama 14: Religions ---
+  const religionResult = generateReligions(
+    elevationMap, terrainMap, cultureResult.cultureMap,
+    cultureResult.cultures, burgResult.burgs, radius, rng,
+  );
+  for (const religion of religionResult.religions) {
+    religion.name = nameGen.regionName();
+  }
+
+  // --- Aşama 15: Routes ---
+  const routeResult = generateRoutes(
+    elevationMap, terrainMap, riverResult.riverCells,
+    burgResult.burgs, radius,
+  );
+
+  // --- Aşama 16: Military ---
+  const militaryResult = generateMilitary(
+    stateResult.states, stateResult.stateMap,
+    burgResult.burgs, terrainMap, featureResult.coastCells, radius, rng,
+  );
+
+  // --- Aşama 17: Markers ---
+  const markers = generateMarkers(
+    elevationMap, terrainMap, riverResult.riverCells,
+    featureResult.coastCells, burgResult.burgMap, radius, rng,
+  );
+
+  // --- Aşama 18: Population ---
+  const populationResult = generatePopulation(
+    elevationMap, terrainMap, moistureMap, temperatureMap,
+    riverResult.riverCells, featureResult.coastCells,
+    burgResult.burgMap, rng,
+  );
+
   // Stats
   let landTiles = 0;
   let waterTiles = 0;
@@ -182,6 +293,18 @@ export function generateMap(
     tiles,
     rivers: riverResult.rivers,
     features: featureResult,
+    oceanLayers,
+    burgs: burgResult.burgs,
+    cultures: cultureResult.cultures,
+    states: stateResult.states,
+    provinces: provinceResult.provinces,
+    religions: religionResult.religions,
+    routes: routeResult.routes,
+    military: militaryResult.units,
+    markers,
+    population: populationResult,
+    ice: iceResult,
+    wind: windResult,
     seed,
     stats,
   };

@@ -8,6 +8,14 @@ import { simulateBattle, BattleResult } from '../engine/combat';
 import { botTakeTurn, BotActions } from '../engine/botAI';
 import { hexesInRange, getNeighbors } from '../engine/hexUtils';
 import { RiverSegment } from '../engine/rivers';
+import { Burg } from '../engine/burgGenerator';
+import { Route } from '../engine/routeGenerator';
+import { Marker } from '../engine/markerGenerator';
+import { State } from '../engine/stateGenerator';
+import { Culture } from '../engine/cultureGenerator';
+import { Religion } from '../engine/religionGenerator';
+import { Province } from '../engine/provinceGenerator';
+import { MilitaryUnit } from '../engine/militaryGenerator';
 import {
   STARTING_RESOURCES, PLAYER_COLORS, MAP_RADIUS,
   BUILDING_COSTS, BUILDING_HEALTH, BUILDING_PRODUCTION,
@@ -26,7 +34,28 @@ interface GameStore {
   // Game state
   game: GameState | null;
   rivers: RiverSegment[];
+  burgs: Burg[];
+  routes: Route[];
+  markers: Marker[];
+  states: State[];
+  stateMap: Map<string, number>;
+  cultures: Culture[];
+  religions: Religion[];
+  provinces: Province[];
+  military: MilitaryUnit[];
+  oceanDepthMap: Map<string, number>;
+  iceCells: Set<string>;
   lastBattle: BattleResult | null;
+
+  // Layer toggles
+  showBiomes: boolean;
+  showRivers: boolean;
+  showBorders: boolean;
+  showRoutes: boolean;
+  showBurgs: boolean;
+  showMarkers: boolean;
+  showGrid: boolean;
+  toggleLayer: (layer: string) => void;
 
   // Camera
   cameraX: number;
@@ -135,13 +164,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
   screen: 'menu',
   game: null,
   rivers: [],
+  burgs: [],
+  routes: [],
+  markers: [],
+  states: [],
+  stateMap: new Map(),
+  cultures: [],
+  religions: [],
+  provinces: [],
+  military: [],
+  oceanDepthMap: new Map(),
+  iceCells: new Set(),
   lastBattle: null,
+  showBiomes: true,
+  showRivers: true,
+  showBorders: true,
+  showRoutes: true,
+  showBurgs: true,
+  showMarkers: true,
+  showGrid: false,
   cameraX: 0,
   cameraY: 0,
   cameraZoom: 1,
   selectedHex: null,
   showBuildMenu: false,
   showBattleResult: false,
+
+  toggleLayer: (layer) => set((s) => ({ [layer]: !(s as any)[layer] } as any)),
 
   setScreen: (s) => set({ screen: s }),
 
@@ -224,6 +273,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       game,
       rivers: result.rivers,
+      burgs: result.burgs,
+      routes: result.routes,
+      markers: result.markers,
+      states: result.states,
+      stateMap: result.states.length > 0 ?
+        new Map(result.states.flatMap(s => s.cells.map(c => [c, s.id] as [string, number]))) :
+        new Map(),
+      cultures: result.cultures,
+      religions: result.religions,
+      provinces: result.provinces,
+      military: result.military,
+      oceanDepthMap: result.oceanLayers.depthMap,
+      iceCells: result.ice.iceCells,
       screen: 'game',
       selectedHex: null,
       cameraX: 0,
