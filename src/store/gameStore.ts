@@ -58,7 +58,6 @@ interface GameStore {
   showBorders: boolean;
   showRoutes: boolean;
   showBurgs: boolean;
-  showMarkers: boolean;
   showPopulation: boolean;
   showGrid: boolean;
   showStats: boolean;
@@ -113,7 +112,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   showBorders: true,
   showRoutes: true,
   showBurgs: true,
-  showMarkers: true,
   showPopulation: true,
   showGrid: false,
   showStats: false,

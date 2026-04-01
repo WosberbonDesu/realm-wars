@@ -561,7 +561,7 @@ function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
 // Düşük olan hücrelerin yüksekliğini azaltarak su seviyesinin altına çeker
 function enforceWaterRatio(graph: VoronoiGraph, heights: Float32Array, rng: Alea, minWaterRatio: number, w: number, h: number): void {
   const n = graph.cells.length;
-  const seaLevel = 20; // heights 0-100 skalasında
+  const seaLevel = SEA_LEVEL * 100; // 0.20 * 100 = 20 (0-100 skalasında)
 
   // Mevcut su oranını hesapla
   let waterCount = 0;

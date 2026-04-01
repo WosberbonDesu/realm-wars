@@ -6,6 +6,10 @@ import { cellKey } from '../engine/voronoiGrid';
 export const StateDetailPanel: React.FC = () => {
   const selectedCell = useGameStore(s => s.selectedCell);
   const selectCell = useGameStore(s => s.selectCell);
+  const setCameraPos = useGameStore(s => s.setCameraPos);
+  const voronoiGraph = useGameStore(s => s.voronoiGraph);
+  const mapWidth = useGameStore(s => s.mapWidth);
+  const mapHeight = useGameStore(s => s.mapHeight);
   const cellTiles = useGameStore(s => s.cellTiles);
   const stateMap = useGameStore(s => s.stateMap);
   const states = useGameStore(s => s.states);
@@ -59,6 +63,22 @@ export const StateDetailPanel: React.FC = () => {
               <Text style={styles.closeTxt}>✕</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Başkente Git */}
+          {capitalBurg && voronoiGraph && (
+            <TouchableOpacity
+              style={styles.goToBtn}
+              onPress={() => {
+                const cell = voronoiGraph.cells[capitalBurg.cellIndex];
+                if (cell) {
+                  setCameraPos(-(cell.center.x - mapWidth / 2), -(cell.center.y - mapHeight / 2));
+                  selectCell(capitalBurg.cellIndex);
+                }
+              }}
+            >
+              <Text style={styles.goToText}>📍 Baskente Git</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Core Stats */}
           <View style={styles.statsGrid}>
@@ -144,6 +164,8 @@ const styles = StyleSheet.create({
   },
   scroll: {},
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  goToBtn: { backgroundColor: '#2A4A6A', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, alignSelf: 'flex-start', marginBottom: 10 },
+  goToText: { color: '#8ac4ff', fontSize: 11, fontWeight: '600' },
   closeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#2A3A4A', justifyContent: 'center', alignItems: 'center' },
   closeTxt: { color: '#8aa0b8', fontSize: 16, fontWeight: '700' },
   colorDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: '#FFF4' },
