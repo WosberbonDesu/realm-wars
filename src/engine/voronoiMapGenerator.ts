@@ -970,7 +970,11 @@ function generateTemperature(data: VoronoiMapData, graph: VoronoiGraph, w: numbe
       }
     }
   }
-  const maxDist = Math.max(...distToOcean.filter(d => d < Infinity));
+  // Safe max (avoid stack overflow with spread on large arrays)
+  let maxDist = 0;
+  for (let i = 0; i < n; i++) {
+    if (distToOcean[i] < Infinity && distToOcean[i] > maxDist) maxDist = distToOcean[i];
+  }
 
   for (let i = 0; i < n; i++) {
     const { nx, ny } = normalizeCoord(graph.cells[i], w, h);

@@ -78,7 +78,6 @@ interface MapRendererProps {
   routes: VoronoiRoute[];
   states: VoronoiState[];
   stateMap: Map<string, number>;
-  coastPaths: Point[][];
   mapWidth: number;
   mapHeight: number;
   cameraX: number;
@@ -99,7 +98,7 @@ interface MapRendererProps {
 }
 
 export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
-  graph, cellTiles, rivers, burgs, routes, states, stateMap, coastPaths,
+  graph, cellTiles, rivers, burgs, routes, states, stateMap,
   mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
   showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
   showRelief, showEmblems, showIce, showWind,
@@ -240,7 +239,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     }
 
     ctx.restore();
-  }, [graph, cellTiles, rivers, burgs, routes, states, stateMap, coastPaths,
+  }, [graph, cellTiles, rivers, burgs, routes, states, stateMap,
       mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
       showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
       showRelief, showEmblems, showIce, showWind, renderBase]);
@@ -872,18 +871,24 @@ export function renderFullMapToCanvas(
   if (showPopulation) drawPopulation(ctx, graph, cellTiles);
   // 5. Coastlines
   drawCoastlines(ctx, graph, cellTiles);
+  // 5b. Ice layer
+  drawIceLayer(ctx, graph, cellTiles);
   // 6. State borders
   if (showBorders) drawStateBorders(ctx, graph, stateMap);
   // 7. Rivers
   if (showRivers) drawRivers(ctx, graph, rivers);
   // 8. Routes
   if (showRoutes) drawRoutes(ctx, graph, routes);
+  // 8b. Relief icons
+  drawReliefLayer(ctx, graph, cellTiles, mapWidth);
   // 9. Myth markers
   drawMythMarkers(ctx, graph, cellTiles, mapWidth);
   // 10. Custom markers
   drawCustomMarkers(ctx, graph);
   // 11. Burgs (zoom=1 for full-res)
   if (showBurgs) drawBurgs(ctx, graph, burgs, stateMap, 1);
+  // 11b. State emblems
+  drawEmblemsOnMap(ctx, graph, states, stateMap, mapWidth);
   // 12. State labels
   if (showBorders) drawStateLabels(ctx, graph, states);
 }

@@ -16,7 +16,6 @@ export const GameScreen: React.FC = () => {
   const voronoiGraph = useGameStore(s => s.voronoiGraph);
   const cellTiles = useGameStore(s => s.cellTiles);
   const rivers = useGameStore(s => s.rivers);
-  const coastPaths = useGameStore(s => s.coastPaths);
   const burgs = useGameStore(s => s.burgs);
   const routes = useGameStore(s => s.routes);
   const states = useGameStore(s => s.states);
@@ -64,7 +63,6 @@ export const GameScreen: React.FC = () => {
           routes={routes}
           states={states}
           stateMap={stateMap}
-          coastPaths={coastPaths}
           mapWidth={mapWidth}
           mapHeight={mapHeight}
           cameraX={cameraX}
