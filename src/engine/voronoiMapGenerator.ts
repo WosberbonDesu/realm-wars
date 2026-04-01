@@ -266,17 +266,79 @@ function generateMoisture(data: VoronoiMapData, graph: VoronoiGraph, w: number, 
 function generateVoronoiRivers(graph: VoronoiGraph, elevation: Float32Array, moisture: Float32Array, n: number, nameGen: NameGenerator): VoronoiRiver[] {
   const downhill = new Int32Array(n).fill(-1);
   const flux = new Float32Array(n);
-  for (let i=0;i<n;i++) { if(elevation[i]<SEA_LEVEL)continue; flux[i]=moisture[i]; let lo=-1,le=elevation[i]; for(const ni of graph.cells[i].neighbors){if(elevation[ni]<le){le=elevation[ni];lo=ni;}} downhill[i]=lo; }
-  const sorted = Array.from({length:n},(_,i)=>i).filter(i=>elevation[i]>=SEA_LEVEL).sort((a,b)=>elevation[b]-elevation[a]);
-  for (const i of sorted) { if(downhill[i]>=0) flux[downhill[i]]+=flux[i]; }
+
+  // Her kara hücresine başlangıç flux (yağış) ata ve downhill yön belirle
+  for (let i = 0; i < n; i++) {
+    if (elevation[i] < SEA_LEVEL) continue;
+    flux[i] = moisture[i] * 0.5; // base precipitation
+
+    let lowest = -1, lowestElev = elevation[i];
+    for (const ni of graph.cells[i].neighbors) {
+      if (elevation[ni] < lowestElev) {
+        lowestElev = elevation[ni];
+        lowest = ni;
+      }
+    }
+    downhill[i] = lowest;
+  }
+
+  // Yüksekten alçağa sırala, flux akıt
+  const sorted = Array.from({ length: n }, (_, i) => i)
+    .filter(i => elevation[i] >= SEA_LEVEL)
+    .sort((a, b) => elevation[b] - elevation[a]);
+
+  for (const i of sorted) {
+    if (downhill[i] >= 0) {
+      flux[downhill[i]] += flux[i];
+    }
+  }
+
+  // Nehir eşiği: toplam hücre sayısına göre dinamik
+  const landCount = sorted.length;
+  const minFlux = landCount * 0.003; // ~2000 kara hücrede eşik ~6
+
   const rivers: VoronoiRiver[] = [];
   const visited = new Set<number>();
-  for (const src of sorted.filter(i=>flux[i]>=4).sort((a,b)=>flux[b]-flux[a])) {
-    if(visited.has(src))continue;
-    const path: number[] = []; let cur = src;
-    while(cur>=0&&!visited.has(cur)){path.push(cur);visited.add(cur);if(downhill[cur]>=0&&elevation[downhill[cur]]<SEA_LEVEL)break;cur=downhill[cur];}
-    if(path.length>=3) rivers.push({id:rivers.length,path,flux:flux[src],name:nameGen.riverName()});
+
+  // Yüksek flux'lu hücreleri trace et
+  const sources = sorted
+    .filter(i => flux[i] >= minFlux && !visited.has(i))
+    .sort((a, b) => flux[b] - flux[a]);
+
+  for (const src of sources) {
+    if (visited.has(src)) continue;
+
+    // Kaynağı bul: bu hücrenin yukarısına doğru git
+    let source = src;
+    const upstream = new Set<number>([src]);
+    // En yüksek flux contributor'ı bul
+    // Aslında direkt trace et: src'den denize kadar
+    const path: number[] = [];
+    let cur = src;
+
+    while (cur >= 0 && !visited.has(cur)) {
+      path.push(cur);
+      visited.add(cur);
+
+      const next = downhill[cur];
+      if (next < 0) break; // çıkmaz
+      if (elevation[next] < SEA_LEVEL) {
+        path.push(next); // denize son adım
+        break;
+      }
+      cur = next;
+    }
+
+    if (path.length >= 2) {
+      rivers.push({
+        id: rivers.length,
+        path,
+        flux: flux[src],
+        name: nameGen.riverName(),
+      });
+    }
   }
+
   return rivers;
 }
 
