@@ -300,21 +300,23 @@ function fillCell(ctx: CanvasRenderingContext2D, verts: Point[], color: string):
 
 function drawOcean(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], w: number, h: number): void {
   const n = graph.cells.length;
-  const depth = new Int32Array(n).fill(-1);
+
+  // Hybrid depth: BFS from coast + actual elevation for blending
+  const bfsDepth = new Int32Array(n).fill(-1);
   const queue: number[] = [];
 
   for (let i = 0; i < n; i++) {
     if (tiles[i].elevation >= SEA_LEVEL) continue;
     for (const ni of graph.cells[i].neighbors) {
-      if (tiles[ni].elevation >= SEA_LEVEL) { depth[i] = 0; queue.push(i); break; }
+      if (tiles[ni].elevation >= SEA_LEVEL) { bfsDepth[i] = 0; queue.push(i); break; }
     }
   }
   let qi = 0;
   while (qi < queue.length) {
     const ci = queue[qi++];
     for (const ni of graph.cells[ci].neighbors) {
-      if (tiles[ni].elevation >= SEA_LEVEL || depth[ni] >= 0) continue;
-      depth[ni] = depth[ci] + 1;
+      if (tiles[ni].elevation >= SEA_LEVEL || bfsDepth[ni] >= 0) continue;
+      bfsDepth[ni] = bfsDepth[ci] + 1;
       queue.push(ni);
     }
   }
@@ -323,8 +325,12 @@ function drawOcean(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: He
     if (tiles[i].elevation >= SEA_LEVEL) continue;
     const cell = graph.cells[i];
     if (cell.vertices.length < 3) continue;
-    const d = Math.min(depth[i] >= 0 ? depth[i] : 6, OCEAN_COLORS.length - 1);
-    fillCell(ctx, cell.vertices, OCEAN_COLORS[d]);
+
+    // Blend BFS depth + actual elevation for more realistic ocean floor
+    const bfs = bfsDepth[i] >= 0 ? bfsDepth[i] : 8;
+    const elevDepth = Math.floor((SEA_LEVEL - tiles[i].elevation) / SEA_LEVEL * 8);
+    const blended = Math.min(Math.round(bfs * 0.6 + elevDepth * 0.4), OCEAN_COLORS.length - 1);
+    fillCell(ctx, cell.vertices, OCEAN_COLORS[blended]);
   }
 }
 
@@ -390,26 +396,67 @@ function drawStateBorders(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, st
 }
 
 function drawRivers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, rivers: VoronoiRiver[]): void {
-  for (const river of rivers) {
+  // Küçük nehirler önce, büyükler üstte
+  const sorted = [...rivers].sort((a, b) => a.flux - b.flux);
+
+  for (const river of sorted) {
     if (river.path.length < 2) continue;
-    ctx.beginPath();
-    const c0 = graph.cells[river.path[0]]?.center;
-    if (!c0) continue;
-    ctx.moveTo(c0.x, c0.y);
-    for (let i = 1; i < river.path.length; i++) {
-      const ci = graph.cells[river.path[i]]?.center;
-      if (!ci) continue;
-      if (i < river.path.length - 1) {
-        const cn = graph.cells[river.path[i + 1]]?.center;
-        if (cn) ctx.quadraticCurveTo(ci.x, ci.y, (ci.x + cn.x) / 2, (ci.y + cn.y) / 2);
-        else ctx.lineTo(ci.x, ci.y);
-      } else ctx.lineTo(ci.x, ci.y);
+
+    const maxWidth = Math.min(4.5, 0.4 + Math.sqrt(river.flux) * 0.08);
+    const minWidth = Math.max(0.3, maxWidth * 0.15);
+    const pathLen = river.path.length;
+
+    // Segment bazlı çizim (her segment farklı kalınlık)
+    for (let i = 0; i < pathLen - 1; i++) {
+      const ca = graph.cells[river.path[i]]?.center;
+      const cb = graph.cells[river.path[i + 1]]?.center;
+      if (!ca || !cb) continue;
+
+      // Tapered width: kaynaktan ağza doğru genişler
+      const t = pathLen > 1 ? i / (pathLen - 1) : 1;
+      const width = minWidth + (maxWidth - minWidth) * t;
+
+      ctx.beginPath();
+      ctx.moveTo(ca.x, ca.y);
+
+      // Smooth bezier: sonraki segment varsa quadratic curve
+      if (i < pathLen - 2) {
+        const cc = graph.cells[river.path[i + 2]]?.center;
+        if (cc) {
+          ctx.quadraticCurveTo(cb.x, cb.y, (cb.x + cc.x) / 2, (cb.y + cc.y) / 2);
+        } else {
+          ctx.lineTo(cb.x, cb.y);
+        }
+      } else {
+        ctx.lineTo(cb.x, cb.y);
+      }
+
+      // Renk: küçük nehirler açık, büyük nehirler koyu
+      const alpha = 0.5 + Math.min(0.5, river.flux / 200);
+      ctx.strokeStyle = `rgba(70,140,180,${alpha})`;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
     }
-    ctx.strokeStyle = '#5d97bb';
-    ctx.lineWidth = Math.min(3.5, 0.3 + Math.sqrt(river.flux) * 0.07);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
+
+    // Delta efekti: nehrin ağzında (son 2 hücre) yayılma
+    if (pathLen >= 3) {
+      const lastIdx = river.path[pathLen - 1];
+      const prevIdx = river.path[pathLen - 2];
+      const lastCell = graph.cells[lastIdx];
+      const prevCell = graph.cells[prevIdx];
+      if (lastCell && prevCell) {
+        const elev = useGameStore.getState().cellTiles[lastIdx]?.elevation;
+        if (elev !== undefined && elev < SEA_LEVEL) {
+          // Delta: nehir denize döküldüğünde fan-out
+          ctx.beginPath();
+          ctx.arc(lastCell.center.x, lastCell.center.y, maxWidth * 1.2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(70,140,180,0.2)';
+          ctx.fill();
+        }
+      }
+    }
   }
 }
 
