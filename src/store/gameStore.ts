@@ -57,6 +57,7 @@ interface GameStore {
   showRoutes: boolean;
   showBurgs: boolean;
   showMarkers: boolean;
+  showPopulation: boolean;
   showGrid: boolean;
   toggleLayer: (layer: string) => void;
 
@@ -99,6 +100,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   showRoutes: true,
   showBurgs: true,
   showMarkers: true,
+  showPopulation: true,
   showGrid: false,
 
   setScreen: (s) => set({ screen: s }),

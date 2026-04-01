@@ -77,9 +77,10 @@ export interface VoronoiMapResult {
 }
 
 const STATE_COLORS = [
-  '#4a90d9', '#d94a4a', '#d9a84a', '#8b4ad9', '#4ad97a',
-  '#d94a8b', '#4ad9d9', '#d9d94a', '#7a4ad9', '#d97a4a',
-  '#4a7ad9', '#d94ad9', '#9a4ad9', '#d9a84a', '#4ad9a8',
+  '#4b6a2e', '#b74530', '#5e3f73', '#42738b', '#9c5229',
+  '#67833e', '#c94663', '#325a7d', '#887539', '#4c8553',
+  '#a44e8a', '#437c6e', '#b5593c', '#5d6994', '#8f6a3c',
+  '#567d3e', '#8e4969', '#3a7a6e', '#a1632a', '#6b5d88',
 ];
 
 const CULTURE_COLORS = [

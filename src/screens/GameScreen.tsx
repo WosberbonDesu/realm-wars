@@ -29,6 +29,7 @@ export const GameScreen: React.FC = () => {
   const showBorders = useGameStore(s => s.showBorders);
   const showRoutes = useGameStore(s => s.showRoutes);
   const showBurgs = useGameStore(s => s.showBurgs);
+  const showPopulation = useGameStore(s => s.showPopulation);
   const showGrid = useGameStore(s => s.showGrid);
   const toggleLayer = useGameStore(s => s.toggleLayer);
 
@@ -66,6 +67,7 @@ export const GameScreen: React.FC = () => {
           showBorders={showBorders}
           showRoutes={showRoutes}
           showBurgs={showBurgs}
+          showPopulation={showPopulation}
           showGrid={showGrid}
         />
       </GestureHandler>
@@ -76,6 +78,7 @@ export const GameScreen: React.FC = () => {
         <LB label="Devlet" on={showBorders} p={() => toggleLayer('showBorders')} />
         <LB label="Yol" on={showRoutes} p={() => toggleLayer('showRoutes')} />
         <LB label="Sehir" on={showBurgs} p={() => toggleLayer('showBurgs')} />
+        <LB label="Nufus" on={showPopulation} p={() => toggleLayer('showPopulation')} />
         <LB label="Grid" on={showGrid} p={() => toggleLayer('showGrid')} />
       </View>
 
