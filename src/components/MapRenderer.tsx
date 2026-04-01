@@ -361,21 +361,50 @@ function drawStateOverlay(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, ti
 }
 
 function drawCoastlines(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
-  ctx.strokeStyle = '#2a4a3a';
-  ctx.lineWidth = 1.8;
-  ctx.lineCap = 'round';
+  // Collect all coast segments
+  const segments: Point[][] = [];
   for (const [a, b] of graph.edges) {
     const aL = tiles[a]?.elevation >= SEA_LEVEL;
     const bL = tiles[b]?.elevation >= SEA_LEVEL;
     if (aL === bL) continue;
     const shared = sharedVerts(graph.cells[a], graph.cells[b]);
-    if (shared.length >= 2) {
-      ctx.beginPath();
-      ctx.moveTo(shared[0].x, shared[0].y);
-      for (let i = 1; i < shared.length; i++) ctx.lineTo(shared[i].x, shared[i].y);
-      ctx.stroke();
-    }
+    if (shared.length >= 2) segments.push(shared);
   }
+
+  // Dış glow (açık mavi, geniş - su tarafı)
+  ctx.strokeStyle = 'rgba(60,100,120,0.25)';
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const seg of segments) {
+    drawSmoothSegment(ctx, seg);
+  }
+
+  // Ana kıyı çizgisi (koyu, ince)
+  ctx.strokeStyle = '#2a4a3a';
+  ctx.lineWidth = 1.2;
+  for (const seg of segments) {
+    drawSmoothSegment(ctx, seg);
+  }
+}
+
+// Segment'i bezier curve ile smooth çiz
+function drawSmoothSegment(ctx: CanvasRenderingContext2D, pts: Point[]): void {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  if (pts.length === 2) {
+    ctx.lineTo(pts[1].x, pts[1].y);
+  } else {
+    // Quadratic bezier through points
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2;
+      const my = (pts[i].y + pts[i + 1].y) / 2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+    }
+    ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+  }
+  ctx.stroke();
 }
 
 function drawStateBorders(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, stateMap: Map<string, number>): void {
@@ -846,52 +875,160 @@ function drawCustomMarkers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph): 
   }
 }
 
+// Şehir büyüklüğüne göre farklı ikonlar
+const CITY_TIERS = [
+  { minPop: 8000, icons: ['🏰', '🏛️', '⛪'], surLabel: '🛡️', size: 18 }, // Başkent/Metropol
+  { minPop: 5000, icons: ['🏘️', '🏗️'], surLabel: '🏰', size: 15 },       // Büyük şehir
+  { minPop: 3000, icons: ['🏠', '🏘️'], surLabel: '', size: 13 },           // Orta şehir
+  { minPop: 1000, icons: ['🏠'], surLabel: '', size: 11 },                   // Küçük kasaba
+  { minPop: 0, icons: ['🛖'], surLabel: '', size: 9 },                       // Köy
+];
+
 function drawBurgs(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, burgs: VoronoiBurg[], stateMap: Map<string, number>, zoom: number): void {
-  const sorted = [...burgs].sort((a, b) => (a.isCapital ? 1 : 0) - (b.isCapital ? 1 : 0));
+  // Küçükten büyüğe sırala (büyükler üstte çizilsin)
+  const sorted = [...burgs].sort((a, b) => a.population - b.population);
 
   for (const burg of sorted) {
     const cell = graph.cells[burg.cellIndex];
     if (!cell) continue;
     const { x, y } = cell.center;
 
-    if (burg.isCapital) {
-      // Başkent: büyük renkli daire + taç
-      const sId = stateMap.get(cellKey(burg.cellIndex));
-      const col = sId !== undefined ? STATE_COLORS[sId % STATE_COLORS.length] : '#dababf';
+    const sId = stateMap.get(cellKey(burg.cellIndex));
+    const col = sId !== undefined ? STATE_COLORS[sId % STATE_COLORS.length] : '#dababf';
 
+    // Tier belirle
+    const tier = CITY_TIERS.find(t => burg.population >= t.minPop) || CITY_TIERS[CITY_TIERS.length - 1];
+    const rng = new Alea(burg.id * 77 + burg.population);
+
+    if (burg.isCapital) {
+      // === BAŞKENT ===
+      // Sur çemberi
+      ctx.beginPath();
+      ctx.arc(x, y, 9, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Taç ikonu
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('👑', x, y - 12);
+
+      // Ana yapı (kale/saray)
+      ctx.font = `${tier.size}px sans-serif`;
+      ctx.fillText('🏰', x, y);
+
+      // Etrafında küçük yapılar
+      const buildIcons = ['🏛️', '⛪', '🏘️', '🏗️'];
+      for (let i = 0; i < Math.min(4, Math.floor(burg.population / 2000)); i++) {
+        const angle = (i / 4) * Math.PI * 2 + rng.nextFloat(-0.3, 0.3);
+        const dist = 10 + rng.nextFloat(0, 4);
+        ctx.font = '8px sans-serif';
+        ctx.fillText(buildIcons[i % buildIcons.length], x + Math.cos(angle) * dist, y + Math.sin(angle) * dist);
+      }
+
+      // Liman ikonu
+      if (burg.port) {
+        ctx.font = '9px sans-serif';
+        ctx.fillText('⚓', x + 12, y + 8);
+      }
+
+    } else if (burg.population >= 5000) {
+      // === BÜYÜK ŞEHİR ===
+      // Sur
       ctx.beginPath();
       ctx.arc(x, y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.fill();
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = col;
+      ctx.fillStyle = col + 'AA';
       ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x, y, 2, 0, Math.PI * 2);
-      ctx.fillStyle = '#000';
-      ctx.fill();
-    } else {
-      const size = burg.population > 3000 ? 2.8 : burg.population > 1000 ? 2 : 1.3;
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
-      ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 0.8;
       ctx.stroke();
+
+      // Ana yapı
+      const mainIcon = tier.icons[Math.floor(rng.next() * tier.icons.length)];
+      ctx.font = `${tier.size}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(mainIcon, x, y);
+
+      // 1-2 ek yapı
+      const extras = Math.floor(burg.population / 3000);
+      for (let i = 0; i < Math.min(extras, 2); i++) {
+        const angle = rng.nextFloat(0, Math.PI * 2);
+        ctx.font = '7px sans-serif';
+        ctx.fillText('🏠', x + Math.cos(angle) * 7, y + Math.sin(angle) * 7);
+      }
+
+      if (burg.port) {
+        ctx.font = '7px sans-serif';
+        ctx.fillText('⚓', x + 8, y + 6);
+      }
+
+    } else if (burg.population >= 2000) {
+      // === ORTA ŞEHİR ===
+      ctx.beginPath();
+      ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFF';
+      ctx.fill();
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+
+      const mainIcon = tier.icons[Math.floor(rng.next() * tier.icons.length)];
+      ctx.font = `${tier.size}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(mainIcon, x, y);
+
+    } else if (burg.population >= 1000) {
+      // === KÜÇÜK KASABA ===
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFF';
+      ctx.fill();
+      ctx.strokeStyle = '#777';
+      ctx.lineWidth = 0.4;
+      ctx.stroke();
+
+      ctx.font = `${tier.size}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏠', x, y);
+
+    } else {
+      // === KÖY ===
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#DDD';
+      ctx.fill();
+
+      ctx.font = '8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🛖', x, y);
     }
 
     // Label
     if (zoom > 0.5 || burg.isCapital || burg.population > 2000) {
-      const fs = burg.isCapital ? 11 : burg.population > 2000 ? 8 : 6;
+      const fs = burg.isCapital ? 12 : burg.population > 5000 ? 9 : burg.population > 2000 ? 7 : 6;
       ctx.font = `${burg.isCapital ? 'bold ' : ''}${fs}px "Almendra SC", Georgia, serif`;
       ctx.textAlign = 'center';
-      const ly = burg.isCapital ? y - 10 : y - 5;
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-      ctx.lineWidth = 2;
+      const ly = burg.isCapital ? y - 18 : y - (tier.size / 2 + 4);
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 2.5;
       ctx.strokeText(burg.name, x, ly);
-      ctx.fillStyle = '#2a2a2a';
+      ctx.fillStyle = burg.isCapital ? '#1a1a1a' : '#2a2a2a';
       ctx.fillText(burg.name, x, ly);
     }
   }

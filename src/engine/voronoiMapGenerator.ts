@@ -152,7 +152,7 @@ export function generateVoronoiMap(
 
   // --- 6. Coast ---
   const isLand = (i: number) => voronoiData.elevation[i] >= SEA_LEVEL;
-  const coastEdgesRaw = findCoastEdges(graph, isLand, 3);
+  const coastEdgesRaw = findCoastEdges(graph, isLand, 4);
   voronoiData.coastEdges = coastEdgesRaw;
   const coastPaths = coastEdgesRaw.map(e => e.smoothPath);
   const coastCellSet = new Set<number>();
@@ -1397,7 +1397,7 @@ function generateVoronoiBurgs(graph: VoronoiGraph, data: VoronoiMapData, terrain
     if (tooClose) continue;
     burgs.push({
       id: burgs.length, cellIndex: ci, name: nameGen.cityName(),
-      population: Math.floor(score * 200 + rng.nextFloat(100, 500)) * (burgs.length < 4 ? 3 : 1),
+      population: Math.floor(score * 500 + rng.nextFloat(500, 2000)) * (burgs.length < 3 ? 4 : burgs.length < 8 ? 2 : 1),
       isCapital: false, stateId: -1, port: coastCells.has(ci), score,
     });
     placed.push(ci);

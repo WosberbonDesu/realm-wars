@@ -7,6 +7,7 @@ import { COLORS } from '../constants/theme';
 
 export const TileInfoPanel: React.FC = () => {
   const selectedCell = useGameStore(s => s.selectedCell);
+  const selectCell = useGameStore(s => s.selectCell);
   const cellTiles = useGameStore(s => s.cellTiles);
 
   if (selectedCell === null || selectedCell < 0 || selectedCell >= cellTiles.length) return null;
@@ -23,6 +24,9 @@ export const TileInfoPanel: React.FC = () => {
             <Text style={styles.title}>{tile.biomeName || TERRAIN_NAMES[tile.terrain]}</Text>
             {tile.regionName ? <Text style={styles.subtitle}>{tile.regionName}</Text> : null}
           </View>
+          <TouchableOpacity onPress={() => selectCell(null)} style={styles.closeBtn}>
+            <Text style={styles.closeTxt}>✕</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.statsRow}>
           <Stat label="Yukseklik" value={`${(tile.elevation * 100).toFixed(0)}m`} />
@@ -60,6 +64,8 @@ const styles = StyleSheet.create({
   container: { position: 'absolute', bottom: 100, left: 8, right: 8, pointerEvents: 'box-none' },
   panel: { backgroundColor: 'rgba(26,35,50,0.9)', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#2A3A4A' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  closeBtn: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#2A3A4A', justifyContent: 'center', alignItems: 'center' },
+  closeTxt: { color: '#8aa0b8', fontSize: 14, fontWeight: '700' },
   icon: { fontSize: 28 },
   title: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   subtitle: { color: '#607080', fontSize: 11 },

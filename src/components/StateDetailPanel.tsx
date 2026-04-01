@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { cellKey } from '../engine/voronoiGrid';
 
 export const StateDetailPanel: React.FC = () => {
   const selectedCell = useGameStore(s => s.selectedCell);
+  const selectCell = useGameStore(s => s.selectCell);
   const cellTiles = useGameStore(s => s.cellTiles);
   const stateMap = useGameStore(s => s.stateMap);
   const states = useGameStore(s => s.states);
@@ -54,6 +55,9 @@ export const StateDetailPanel: React.FC = () => {
               <Text style={styles.stateName}>{state.name}</Text>
               <Text style={styles.formName}>{state.formName}</Text>
             </View>
+            <TouchableOpacity onPress={() => selectCell(null)} style={styles.closeBtn}>
+              <Text style={styles.closeTxt}>✕</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Core Stats */}
@@ -140,6 +144,8 @@ const styles = StyleSheet.create({
   },
   scroll: {},
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  closeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#2A3A4A', justifyContent: 'center', alignItems: 'center' },
+  closeTxt: { color: '#8aa0b8', fontSize: 16, fontWeight: '700' },
   colorDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: '#FFF4' },
   stateName: { color: '#FFD700', fontSize: 18, fontWeight: '800' },
   formName: { color: '#8aa0b8', fontSize: 12, fontWeight: '500' },
