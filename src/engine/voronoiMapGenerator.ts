@@ -76,11 +76,11 @@ export interface VoronoiMapResult {
   height: number;
 }
 
+// Azgaar C_12 state renkleri
 const STATE_COLORS = [
-  '#4b6a2e', '#b74530', '#5e3f73', '#42738b', '#9c5229',
-  '#67833e', '#c94663', '#325a7d', '#887539', '#4c8553',
-  '#a44e8a', '#437c6e', '#b5593c', '#5d6994', '#8f6a3c',
-  '#567d3e', '#8e4969', '#3a7a6e', '#a1632a', '#6b5d88',
+  '#dababf', '#fb8072', '#80b1d3', '#fdb462', '#b3de69',
+  '#fccde5', '#c6b9c1', '#bc80bd', '#ccebc5', '#ffed6f',
+  '#8dd3c7', '#eb8de7',
 ];
 
 const CULTURE_COLORS = [

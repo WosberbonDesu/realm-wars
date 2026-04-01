@@ -10,16 +10,16 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 // ===== AZGAAR RENKLERİ (orijinal kaynak kodundan) =====
 
-// Okyanus derinlik renkleri
+// Azgaar okyanus: base #466eab, layers #ecf2f9 with varying opacity
 const OCEAN_COLORS = [
-  '#ecf2f9', '#d8e4f0', '#b5c9e0', '#a0b8d4', '#8baac6', '#7699b8', '#6389aa',
+  '#c4d8ef', '#adc8e6', '#96b8dd', '#7fa8d4', '#6898cb', '#5888c2', '#466eab',
 ];
 
 // Biome renkleri - Azgaar defaults
 const BIOME_FILL: Record<string, string> = {
   [HexTerrain.Ocean]: '#466eab',
   [HexTerrain.Coast]: '#89b0d1',
-  [HexTerrain.Lake]: '#6d9bcb',
+  [HexTerrain.Lake]: '#a6c1fd',     // Azgaar freshwater
   [HexTerrain.Plains]: '#d2d082',    // Grassland
   [HexTerrain.Forest]: '#71a74e',    // Temperate Deciduous Forest
   [HexTerrain.Mountain]: '#8c8c8c',  // Mountain
@@ -29,57 +29,67 @@ const BIOME_FILL: Record<string, string> = {
   [HexTerrain.Snow]: '#ebebeb',      // Glacier
 };
 
-// Azgaar biome detay renkleri (sıcaklık/nem kombinasyonları)
+// Azgaar biome renkleri (orijinal kaynak kodundan)
+// 0:Marine #466eab, 1:Hot desert #fbe79f, 2:Cold desert #b5b887
+// 3:Savanna #d2d082, 4:Grassland #c8d68f, 5:Tropical seasonal forest #b6d95d
+// 6:Temperate deciduous forest #29bc56, 7:Tropical rainforest #7dcb35
+// 8:Temperate rainforest #409c43, 9:Taiga #4b6b32, 10:Tundra #96784b
+// 11:Glacier #d5e7eb, 12:Wetland #0b9131
+
 function getDetailedBiomeColor(tile: HexTile): string {
   const e = tile.elevation;
   const m = tile.moisture;
   const t = tile.temperature;
 
-  if (e < SEA_LEVEL) return BIOME_FILL[HexTerrain.Ocean];
+  if (e < SEA_LEVEL) return '#466eab'; // Marine
 
-  // Snow/Ice
-  if (t < 0.15 || (e > 0.8 && t < 0.3)) return '#ebebeb';
+  // Glacier
+  if (t < 0.12 || (e > 0.82 && t < 0.25)) return '#d5e7eb';
   // Tundra
-  if (t < 0.25) return '#b5b887';
+  if (t < 0.22) return '#96784b';
   // Taiga
-  if (t < 0.35 && m > 0.3) return '#7b9171';
+  if (t < 0.35 && m > 0.3) return '#4b6b32';
 
-  // Mountain (yüksek)
+  // Mountain
   if (e > 0.75) return '#8c8c8c';
   if (e > 0.65) return '#a09882';
 
-  // Sıcaklık ve nem bazlı
+  // Tropik (t > 0.7)
   if (t > 0.7) {
-    // Tropik
-    if (m > 0.7) return '#6d887b'; // Tropical Wetland
-    if (m > 0.5) return '#4d8c2e'; // Tropical Rainforest
-    if (m > 0.3) return '#88a84d'; // Tropical Seasonal Forest
-    if (m > 0.15) return '#c8c89a'; // Savanna
-    return '#ffd699'; // Hot Desert
+    if (m > 0.7) return '#0b9131'; // Wetland
+    if (m > 0.5) return '#7dcb35'; // Tropical Rainforest
+    if (m > 0.3) return '#b6d95d'; // Tropical Seasonal Forest
+    if (m > 0.15) return '#d2d082'; // Savanna
+    return '#fbe79f'; // Hot Desert
   }
 
+  // Ilıman sıcak (t > 0.5)
   if (t > 0.5) {
-    // Ilıman sıcak
-    if (m > 0.7) return '#6d887b'; // Wetland
-    if (m > 0.5) return '#71a74e'; // Temperate Deciduous Forest
-    if (m > 0.3) return '#b6d95d'; // Temperate Grassland
-    if (m > 0.15) return '#d2d082'; // Steppe
-    return '#e8d58e'; // Temperate Desert
+    if (m > 0.7) return '#0b9131'; // Wetland
+    if (m > 0.5) return '#29bc56'; // Temperate Deciduous Forest
+    if (m > 0.3) return '#c8d68f'; // Grassland
+    if (m > 0.15) return '#d2d082'; // Savanna/Steppe
+    return '#b5b887'; // Cold Desert
   }
 
-  // Ilıman
-  if (m > 0.6) return '#4b7a2e'; // Conifer Forest
-  if (m > 0.35) return '#7b9f4e'; // Mixed Forest
-  if (m > 0.2) return '#d2d082'; // Grassland
-  return '#c4b990'; // Shrubland
+  // Ilıman (t > 0.35)
+  if (t > 0.35) {
+    if (m > 0.6) return '#409c43'; // Temperate Rainforest
+    if (m > 0.35) return '#29bc56'; // Temperate Deciduous Forest
+    if (m > 0.2) return '#c8d68f'; // Grassland
+    return '#b5b887'; // Cold Desert
+  }
+
+  // Soğuk
+  if (m > 0.4) return '#4b6b32'; // Taiga
+  return '#96784b'; // Tundra
 }
 
-// Azgaar state renkleri (20 renk paleti)
+// Azgaar C_12 state renkleri (kaynak kodundan)
 const AZGAAR_STATE_COLORS = [
-  '#4b6a2e', '#b74530', '#5e3f73', '#42738b', '#9c5229',
-  '#67833e', '#c94663', '#325a7d', '#887539', '#4c8553',
-  '#a44e8a', '#437c6e', '#b5593c', '#5d6994', '#8f6a3c',
-  '#567d3e', '#8e4969', '#3a7a6e', '#a1632a', '#6b5d88',
+  '#dababf', '#fb8072', '#80b1d3', '#fdb462', '#b3de69',
+  '#fccde5', '#c6b9c1', '#bc80bd', '#ccebc5', '#ffed6f',
+  '#8dd3c7', '#eb8de7',
 ];
 
 interface MapRendererProps {
@@ -125,7 +135,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     const oy = h / 2 - mapHeight / 2 * zoom + cameraY * zoom;
 
     // Background - derin okyanus
-    ctx.fillStyle = '#1a3b5c';
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
@@ -242,7 +252,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       </View>
     );
   }
-  return <View style={{ flex: 1, backgroundColor: '#1a3b5c' }} />;
+  return <View style={{ flex: 1, backgroundColor: '#000000' }} />;
 });
 
 // ===== Drawing functions =====
