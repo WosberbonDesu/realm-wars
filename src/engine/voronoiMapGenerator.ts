@@ -202,129 +202,335 @@ export function generateVoronoiMap(
   };
 }
 
-// ===== Heightmap =====
+// ===== Azgaar-style Heightmap (High Island template) =====
+// Elevation: 0-100, sea level = 20
+// Tüm hücreler 0'dan başlar (okyanus), Hill/Range ile yükseltilir, Mask ile ada şekli verilir
+
 function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea, w: number, h: number, seed: number): void {
   const n = graph.cells.length;
-  const noise1 = createNoise2D(seed);
-  const noise2 = createNoise2D(seed + 1337);
-  const noise3 = createNoise2D(seed + 7919);
-  const noise4 = createNoise2D(seed + 4242);
+  const heights = new Float32Array(n); // 0-100 scale
 
-  // Daha belirgin tepeler
-  const hills: { x: number; y: number; str: number; sz: number }[] = [];
-  for (let i = 0; i < rng.nextInt(5, 10); i++) {
-    hills.push({
-      x: rng.nextFloat(w * 0.1, w * 0.9),
-      y: rng.nextFloat(h * 0.1, h * 0.9),
-      str: rng.nextFloat(0.2, 0.5),
-      sz: rng.nextFloat(w * 0.1, w * 0.25),
-    });
-  }
+  // blobPower: hücre sayısına göre (Azgaar lookup)
+  const blobPower = n < 2000 ? 0.95 : n < 5000 ? 0.97 : n < 10000 ? 0.98 : 0.99;
+  const linePower = n < 5000 ? 0.78 : n < 10000 ? 0.81 : 0.86;
 
-  // Dağ sıraları
-  const ranges: { x1: number; y1: number; x2: number; y2: number; rw: number; rh: number }[] = [];
-  for (let i = 0; i < rng.nextInt(1, 4); i++) {
-    const a = rng.nextFloat(0, Math.PI), l = w * rng.nextFloat(0.3, 0.7);
-    const cx = w * rng.nextFloat(0.3, 0.7), cy = h * rng.nextFloat(0.3, 0.7);
-    ranges.push({
-      x1: cx + Math.cos(a) * l * 0.5, y1: cy + Math.sin(a) * l * 0.5,
-      x2: cx - Math.cos(a) * l * 0.5, y2: cy - Math.sin(a) * l * 0.5,
-      rw: rng.nextFloat(w * 0.03, w * 0.08), rh: rng.nextFloat(0.3, 0.6),
-    });
-  }
+  // === High Island Template (Azgaar'ın en sık kullanılan template'i) ===
 
+  // Hill 1 90-100 65-75 47-53 (büyük merkez tepe)
+  addHill(graph, heights, rng, 1, rng.nextInt(90, 100),
+    [w * 0.65, w * 0.75], [h * 0.47, h * 0.53], blobPower, w, h);
+
+  // Add 7 all (tüm hücrelere +7)
+  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 7);
+
+  // Hill 5-6 20-30 25-55 45-55 (orta boy tepeler)
+  addHill(graph, heights, rng, rng.nextInt(5, 6), rng.nextInt(20, 30),
+    [w * 0.25, w * 0.55], [h * 0.45, h * 0.55], blobPower, w, h);
+
+  // Range 1 40-50 45-55 45-55 (merkez dağ sırası)
+  addRange(graph, heights, rng, 1, rng.nextInt(40, 50),
+    [w * 0.45, w * 0.55], [h * 0.45, h * 0.55], linePower, w, h);
+
+  // Multiply 0.8 land (kara yüksekliklerini %80'e düşür)
   for (let i = 0; i < n; i++) {
-    const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
-    const sx = (nx - 0.5) * 20, sy = (ny - 0.5) * 20;
-
-    // 1. Base noise
-    let e = noise1(sx * 0.25, sy * 0.25) * 0.3
-          + noise2(sx * 0.5, sy * 0.5) * 0.2
-          + noise3(sx * 1.0, sy * 1.0) * 0.1
-          + noise4(sx * 2.0, sy * 2.0) * 0.05;
-
-    // 2. Continent shape - kenar düşüşü + iç detay
-    const edgeDistX = Math.min(nx, 1 - nx) * 2;
-    const edgeDistY = Math.min(ny, 1 - ny) * 2;
-    const edgeDist = Math.min(edgeDistX, edgeDistY);
-
-    // Kenarlar okyanus, merkez kıta (ama çok güçlü değil - adalar oluşsun)
-    const continentFalloff = smoothstep(0, 0.3, edgeDist);
-    e += continentFalloff * 0.45 - 0.2;
-
-    // 3. Kıta iç detay + ada oluşturucu blob'lar
-    const blobNoise = noise1(nx * 6, ny * 6) * 0.18;
-    e += blobNoise * Math.max(0.3, continentFalloff);
-
-    // Ek blob'lar: yarımada ve ada oluşturur
-    const coastBlob = noise2(nx * 12, ny * 12) * 0.08;
-    e += coastBlob;
-
-    // 4. Hills
-    const px = graph.cells[i].center.x, py = graph.cells[i].center.y;
-    for (const hl of hills) {
-      const d = Math.sqrt((px - hl.x) ** 2 + (py - hl.y) ** 2);
-      if (d < hl.sz) e += ((1 - d / hl.sz) ** 2) * hl.str * continentFalloff;
-    }
-
-    // 5. Mountain ranges
-    for (const rn of ranges) {
-      const d = ptSegDist(px, py, rn.x1, rn.y1, rn.x2, rn.y2);
-      if (d < rn.rw) e += ((1 - d / rn.rw) ** 2) * rn.rh * continentFalloff;
-    }
-
-    // Normalize: hedef dağılım: ~30% su, ~70% kara
-    const normalized = (e + 0.3) / 0.9;
-    data.elevation[i] = Math.max(0, Math.min(1, normalized));
+    if (heights[i] >= 20) heights[i] = (heights[i] - 20) * 0.8 + 20;
   }
 
-  // İç göletleri temizle - küçük su bölgelerini kaldır
-  removeSmallWaterBodies(data, graph, 15);
+  // Mask 3 (ELİPTİK MASKE - ADA ŞEKLİ VERİR!)
+  applyMask(graph, heights, 3, w, h);
+
+  // Smooth 2
+  smoothHeights(graph, heights, 2);
+
+  // Trough 2-3 (üst bölgede vadiler)
+  addTrough(graph, heights, rng, rng.nextInt(2, 3), rng.nextInt(20, 30),
+    [w * 0.20, w * 0.30], [h * 0.20, h * 0.30], linePower, w, h);
+
+  // Trough 2-3 (alt bölgede vadiler)
+  addTrough(graph, heights, rng, rng.nextInt(2, 3), rng.nextInt(20, 30),
+    [w * 0.60, w * 0.80], [h * 0.70, h * 0.80], linePower, w, h);
+
+  // Hill 1 10-15 (merkez küçük tepe)
+  addHill(graph, heights, rng, 1, rng.nextInt(10, 15),
+    [w * 0.58, w * 0.62], [h * 0.48, h * 0.52], blobPower, w, h);
+
+  // Hill 1.5 13-16 (sol küçük tepe → yarımada/ada)
+  addHill(graph, heights, rng, Math.round(rng.nextFloat(1, 2)), rng.nextInt(13, 16),
+    [w * 0.15, w * 0.20], [h * 0.20, h * 0.75], blobPower, w, h);
+
+  // Range 1.5 30-40 (üst dağ sırası)
+  addRange(graph, heights, rng, Math.round(rng.nextFloat(1, 2)), rng.nextInt(30, 40),
+    [w * 0.15, w * 0.85], [h * 0.30, h * 0.40], linePower, w, h);
+
+  // Range 1.5 30-40 (alt dağ sırası)
+  addRange(graph, heights, rng, Math.round(rng.nextFloat(1, 2)), rng.nextInt(30, 40),
+    [w * 0.15, w * 0.85], [h * 0.60, h * 0.70], linePower, w, h);
+
+  // Pit 3-5 (çöküntüler/körfezler)
+  addPit(graph, heights, rng, rng.nextInt(3, 5), rng.nextInt(10, 30),
+    [w * 0.15, w * 0.85], [h * 0.20, h * 0.80], blobPower, w, h);
+
+  // 0-100 → 0-1 normalize
+  for (let i = 0; i < n; i++) {
+    data.elevation[i] = Math.max(0, Math.min(1, heights[i] / 100));
+  }
 }
 
-// Smoothstep fonksiyonu (kenar yumuşatma için)
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-}
+// Hill: BFS flood-fill ile blob şeklinde yükseklik ekle
+function addHill(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
+  count: number, baseHeight: number, xRange: number[], yRange: number[],
+  blobPower: number, w: number, h: number): void {
 
-// Küçük iç göletleri kaldır (BFS ile su bölgelerini bul, küçükleri kara yap)
-function removeSmallWaterBodies(data: VoronoiMapData, graph: VoronoiGraph, minSize: number): void {
-  const n = graph.cells.length;
-  const visited = new Uint8Array(n);
-  const isWater = (i: number) => data.elevation[i] < SEA_LEVEL;
+  for (let c = 0; c < count; c++) {
+    const targetX = rng.nextFloat(xRange[0], xRange[1]);
+    const targetY = rng.nextFloat(yRange[0], yRange[1]);
 
-  for (let i = 0; i < n; i++) {
-    if (visited[i] || !isWater(i)) continue;
+    // En yakın hücreyi bul
+    let start = 0, minDist = Infinity;
+    for (let i = 0; i < graph.cells.length; i++) {
+      const dx = graph.cells[i].center.x - targetX;
+      const dy = graph.cells[i].center.y - targetY;
+      const d = dx * dx + dy * dy;
+      if (d < minDist) { minDist = d; start = i; }
+    }
 
-    // BFS: bağlı su bölgesi bul
-    const region: number[] = [];
-    const queue = [i];
-    visited[i] = 1;
-    let touchesEdge = false;
+    // Zaten çok yüksekse atla
+    if (heights[start] + baseHeight > 90) continue;
+
+    // BFS flood-fill
+    const change = new Float32Array(graph.cells.length);
+    change[start] = baseHeight;
+    heights[start] = Math.min(100, heights[start] + baseHeight);
+
+    const queue = [start];
+    const visited = new Set<number>([start]);
 
     while (queue.length > 0) {
       const ci = queue.shift()!;
-      region.push(ci);
-
-      // Harita kenarına değiyor mu?
-      const { nx, ny } = normalizeCoord(graph.cells[ci], data.config.width, data.config.height);
-      if (nx < 0.03 || nx > 0.97 || ny < 0.03 || ny > 0.97) touchesEdge = true;
-
       for (const ni of graph.cells[ci].neighbors) {
-        if (visited[ni] || !isWater(ni)) continue;
-        visited[ni] = 1;
+        if (visited.has(ni)) continue;
+        visited.add(ni);
+
+        const newChange = change[ci] ** blobPower * rng.nextFloat(0.9, 1.1);
+        if (newChange < 1) continue;
+
+        change[ni] = newChange;
+        heights[ni] = Math.min(100, heights[ni] + newChange);
         queue.push(ni);
       }
     }
+  }
+}
 
-    // Kenara değmeyen küçük su bölgesi = iç gölet → kara yap
-    if (!touchesEdge && region.length < minSize) {
-      for (const ci of region) {
-        data.elevation[ci] = SEA_LEVEL + 0.02; // hafif kara
+// Pit: Hill'in tersi - BFS ile çöküntü
+function addPit(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
+  count: number, baseDepth: number, xRange: number[], yRange: number[],
+  blobPower: number, w: number, h: number): void {
+
+  for (let c = 0; c < count; c++) {
+    const targetX = rng.nextFloat(xRange[0], xRange[1]);
+    const targetY = rng.nextFloat(yRange[0], yRange[1]);
+
+    let start = 0, minDist = Infinity;
+    for (let i = 0; i < graph.cells.length; i++) {
+      const dx = graph.cells[i].center.x - targetX;
+      const dy = graph.cells[i].center.y - targetY;
+      const d = dx * dx + dy * dy;
+      if (d < minDist) { minDist = d; start = i; }
+    }
+
+    if (heights[start] < 20) continue; // sadece karada
+
+    const queue = [start];
+    const visited = new Set<number>([start]);
+    let depth = baseDepth;
+
+    while (queue.length > 0 && depth >= 1) {
+      const ci = queue.shift()!;
+      heights[ci] = Math.max(0, heights[ci] - depth);
+      depth = depth ** blobPower * rng.nextFloat(0.9, 1.1);
+
+      for (const ni of graph.cells[ci].neighbors) {
+        if (!visited.has(ni)) { visited.add(ni); queue.push(ni); }
       }
     }
   }
+}
+
+// Range: meander eden dağ sırası
+function addRange(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
+  count: number, baseHeight: number, xRange: number[], yRange: number[],
+  linePower: number, w: number, h: number): void {
+
+  for (let c = 0; c < count; c++) {
+    const startX = rng.nextFloat(xRange[0], xRange[1]);
+    const startY = rng.nextFloat(yRange[0], yRange[1]);
+
+    // Rastgele bitiş noktası (başlangıçtan w/4 - w/3 uzaklıkta)
+    const angle = rng.nextFloat(0, Math.PI * 2);
+    const dist = rng.nextFloat(w * 0.25, w * 0.4);
+    const endX = startX + Math.cos(angle) * dist;
+    const endY = startY + Math.sin(angle) * dist;
+
+    let start = 0, minDist = Infinity;
+    for (let i = 0; i < graph.cells.length; i++) {
+      const dx = graph.cells[i].center.x - startX;
+      const dy = graph.cells[i].center.y - startY;
+      const d = dx * dx + dy * dy;
+      if (d < minDist) { minDist = d; start = i; }
+    }
+
+    // Greedy path: başlangıçtan bitişe doğru yürü (meander ile)
+    const path = [start];
+    const pathSet = new Set<number>([start]);
+    let cur = start;
+
+    for (let step = 0; step < 200; step++) {
+      const cx = graph.cells[cur].center.x;
+      const cy = graph.cells[cur].center.y;
+      if ((cx - endX) ** 2 + (cy - endY) ** 2 < (w * 0.02) ** 2) break;
+
+      let best = -1, bestDist = Infinity;
+      for (const ni of graph.cells[cur].neighbors) {
+        if (pathSet.has(ni)) continue;
+        const nx = graph.cells[ni].center.x;
+        const ny = graph.cells[ni].center.y;
+        let d = (nx - endX) ** 2 + (ny - endY) ** 2;
+        // %15 meander şansı
+        if (rng.next() < 0.15) d *= rng.nextFloat(0.5, 2.0);
+        if (d < bestDist) { bestDist = d; best = ni; }
+      }
+      if (best < 0) break;
+      pathSet.add(best);
+      path.push(best);
+      cur = best;
+    }
+
+    // Path boyunca yükseklik ekle
+    for (const pi of path) {
+      heights[pi] = Math.min(100, heights[pi] + baseHeight);
+    }
+
+    // BFS ile sırt genişliği
+    let ridgeH = baseHeight;
+    const expanded = new Set<number>(path);
+    let frontier = [...path];
+
+    while (ridgeH > 2) {
+      ridgeH = ridgeH ** linePower - 1;
+      const nextFrontier: number[] = [];
+      for (const fi of frontier) {
+        for (const ni of graph.cells[fi].neighbors) {
+          if (expanded.has(ni)) continue;
+          expanded.add(ni);
+          heights[ni] = Math.min(100, heights[ni] + ridgeH);
+          nextFrontier.push(ni);
+        }
+      }
+      frontier = nextFrontier;
+    }
+  }
+}
+
+// Trough: Range gibi ama yükseklik çıkarır (vadi/kanal)
+function addTrough(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
+  count: number, baseDepth: number, xRange: number[], yRange: number[],
+  linePower: number, w: number, h: number): void {
+
+  for (let c = 0; c < count; c++) {
+    const startX = rng.nextFloat(xRange[0], xRange[1]);
+    const startY = rng.nextFloat(yRange[0], yRange[1]);
+    const angle = rng.nextFloat(0, Math.PI * 2);
+    const dist = rng.nextFloat(w * 0.2, w * 0.5);
+    const endX = startX + Math.cos(angle) * dist;
+    const endY = startY + Math.sin(angle) * dist;
+
+    let start = 0, minDist = Infinity;
+    for (let i = 0; i < graph.cells.length; i++) {
+      if (heights[i] < 20) continue; // sadece karada başla
+      const dx = graph.cells[i].center.x - startX;
+      const dy = graph.cells[i].center.y - startY;
+      const d = dx * dx + dy * dy;
+      if (d < minDist) { minDist = d; start = i; }
+    }
+
+    const path = [start];
+    const pathSet = new Set<number>([start]);
+    let cur = start;
+
+    for (let step = 0; step < 200; step++) {
+      const cx = graph.cells[cur].center.x;
+      const cy = graph.cells[cur].center.y;
+      if ((cx - endX) ** 2 + (cy - endY) ** 2 < (w * 0.02) ** 2) break;
+
+      let best = -1, bestDist = Infinity;
+      for (const ni of graph.cells[cur].neighbors) {
+        if (pathSet.has(ni)) continue;
+        const nx = graph.cells[ni].center.x;
+        const ny = graph.cells[ni].center.y;
+        let d = (nx - endX) ** 2 + (ny - endY) ** 2;
+        if (rng.next() < 0.2) d *= rng.nextFloat(0.5, 2.0);
+        if (d < bestDist) { bestDist = d; best = ni; }
+      }
+      if (best < 0) break;
+      pathSet.add(best);
+      path.push(best);
+      cur = best;
+    }
+
+    for (const pi of path) {
+      heights[pi] = Math.max(0, heights[pi] - baseDepth);
+    }
+
+    let troughD = baseDepth * 0.5;
+    const expanded = new Set<number>(path);
+    let frontier = [...path];
+
+    while (troughD > 2) {
+      troughD = troughD ** linePower - 1;
+      const nextFrontier: number[] = [];
+      for (const fi of frontier) {
+        for (const ni of graph.cells[fi].neighbors) {
+          if (expanded.has(ni)) continue;
+          expanded.add(ni);
+          heights[ni] = Math.max(0, heights[ni] - troughD);
+          nextFrontier.push(ni);
+        }
+      }
+      frontier = nextFrontier;
+    }
+  }
+}
+
+// Mask: eliptik maske - ADA ŞEKLİ OLUŞTURUR
+// distance = (1 - nx²)(1 - ny²), power controls blending
+function applyMask(graph: VoronoiGraph, heights: Float32Array, power: number, w: number, h: number): void {
+  for (let i = 0; i < graph.cells.length; i++) {
+    const cx = graph.cells[i].center.x;
+    const cy = graph.cells[i].center.y;
+    // Normalize to -1..1
+    const nx = (cx / w) * 2 - 1;
+    const ny = (cy / h) * 2 - 1;
+    const distance = (1 - nx * nx) * (1 - ny * ny); // 0 at edges, 1 at center
+
+    // Blend: result = (h * (power-1) + h * distance) / power
+    heights[i] = (heights[i] * (power - 1) + heights[i] * distance) / power;
+    heights[i] = Math.max(0, Math.min(100, heights[i]));
+  }
+}
+
+// Smooth: komşu ortalaması
+function smoothHeights(graph: VoronoiGraph, heights: Float32Array, factor: number): void {
+  const smoothed = new Float32Array(heights.length);
+  for (let i = 0; i < graph.cells.length; i++) {
+    const neighbors = graph.cells[i].neighbors;
+    if (neighbors.length === 0) { smoothed[i] = heights[i]; continue; }
+    let sum = 0;
+    for (const ni of neighbors) sum += heights[ni];
+    const mean = sum / neighbors.length;
+    smoothed[i] = (heights[i] * (factor - 1) + mean) / factor;
+  }
+  for (let i = 0; i < heights.length; i++) heights[i] = smoothed[i];
 }
 
 function generateTemperature(data: VoronoiMapData, graph: VoronoiGraph, w: number, h: number, seed: number): void {

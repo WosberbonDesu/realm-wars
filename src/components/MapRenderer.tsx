@@ -167,7 +167,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
         const sId = stateMap.get(cellKey(i));
         if (sId !== undefined && sId >= 0 && sId < states.length) {
           const stateColor = AZGAAR_STATE_COLORS[sId % AZGAAR_STATE_COLORS.length];
-          fillPoly(ctx, cell.vertices, stateColor + '77');
+          fillPoly(ctx, cell.vertices, stateColor + 'AA');
         }
       }
     }
