@@ -255,6 +255,9 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
   // Asimetrik maske: elipsin merkezi hafif kaydırılır (doğal görünüm)
   applyAsymmetricNoise(graph, heights, rng, w, h, seed);
 
+  // Su oranı garantisi: minimum %30 su (gerçekçi dünya oranı)
+  enforceWaterRatio(graph, heights, rng, 0.30, w, h);
+
   // Son smoothing (erozyon sonrası doğal geçişler)
   smoothHeights(graph, heights, 2);
 
@@ -272,8 +275,8 @@ function templateHighIsland(graph: VoronoiGraph, heights: Float32Array, rng: Ale
   addHill(graph, heights, rng, 1, rng.nextInt(90, 100),
     [w * 0.65, w * 0.75], [h * 0.47, h * 0.53], blobPower, w, h);
 
-  // Add 7 all (tüm hücrelere +7)
-  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 7);
+  // Add 4 all (düşük base - daha fazla su alanı)
+  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 4);
 
   // Hill 5-6 20-30 25-55 45-55 (orta boy tepeler)
   addHill(graph, heights, rng, rng.nextInt(5, 6), rng.nextInt(20, 30),
@@ -283,13 +286,13 @@ function templateHighIsland(graph: VoronoiGraph, heights: Float32Array, rng: Ale
   addRange(graph, heights, rng, 1, rng.nextInt(40, 50),
     [w * 0.45, w * 0.55], [h * 0.45, h * 0.55], linePower, w, h);
 
-  // Multiply 0.8 land (kara yüksekliklerini %80'e düşür)
+  // Multiply 0.7 land (daha agresif düşürme - ada daha küçük)
   for (let i = 0; i < n; i++) {
-    if (heights[i] >= 20) heights[i] = (heights[i] - 20) * 0.8 + 20;
+    if (heights[i] >= 20) heights[i] = (heights[i] - 20) * 0.7 + 20;
   }
 
-  // Mask 3 (ELİPTİK MASKE - ADA ŞEKLİ VERİR!)
-  applyMask(graph, heights, 3, w, h);
+  // Mask 4 (Güçlü maske - kenarlar kesinlikle su)
+  applyMask(graph, heights, 4, w, h);
 
   // Smooth 2
   smoothHeights(graph, heights, 2);
@@ -318,9 +321,13 @@ function templateHighIsland(graph: VoronoiGraph, heights: Float32Array, rng: Ale
   addRange(graph, heights, rng, Math.round(rng.nextFloat(1, 2)), rng.nextInt(30, 40),
     [w * 0.15, w * 0.85], [h * 0.60, h * 0.70], linePower, w, h);
 
-  // Pit 3-5 (çöküntüler/körfezler)
-  addPit(graph, heights, rng, rng.nextInt(3, 5), rng.nextInt(10, 30),
-    [w * 0.15, w * 0.85], [h * 0.20, h * 0.80], blobPower, w, h);
+  // Pit 5-8 (daha fazla körfez/iç deniz - su artırıcı)
+  addPit(graph, heights, rng, rng.nextInt(5, 8), rng.nextInt(15, 35),
+    [w * 0.10, w * 0.90], [h * 0.15, h * 0.85], blobPower, w, h);
+
+  // Ekstra büyük pit (iç deniz / büyük körfez)
+  addPit(graph, heights, rng, rng.nextInt(1, 2), rng.nextInt(25, 45),
+    [w * 0.20, w * 0.80], [h * 0.25, h * 0.75], blobPower * 0.99, w, h);
 
   // Kıyı kenarına noise ekle (daha düzensiz kıyı çizgisi)
   const coastNoise = createNoise2D(seed + 9999);
@@ -360,8 +367,8 @@ function templateContinent(graph: VoronoiGraph, heights: Float32Array, rng: Alea
   addHill(graph, heights, rng, 1, rng.nextInt(90, 95),
     [w * 0.30, w * 0.60], [h * 0.55, h * 0.75], blobPower, w, h);
 
-  // Add base elevation to fill gaps
-  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 10);
+  // Add base elevation to fill gaps (düşürüldü: daha fazla su)
+  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 5);
 
   // Medium hills to fill interior
   addHill(graph, heights, rng, rng.nextInt(4, 6), rng.nextInt(25, 40),
@@ -380,13 +387,13 @@ function templateContinent(graph: VoronoiGraph, heights: Float32Array, rng: Alea
   addRange(graph, heights, rng, Math.round(rng.nextFloat(0, 1)), rng.nextInt(30, 40),
     [w * 0.25, w * 0.75], [h * 0.25, h * 0.40], linePower, w, h);
 
-  // Multiply 0.85 land (slightly less flattening than high island)
+  // Multiply 0.75 land (daha fazla düşürme - kıtalar arası su)
   for (let i = 0; i < n; i++) {
-    if (heights[i] >= 20) heights[i] = (heights[i] - 20) * 0.85 + 20;
+    if (heights[i] >= 20) heights[i] = (heights[i] - 20) * 0.75 + 20;
   }
 
-  // Light mask (level 1-2) - less aggressive so continent stays large
-  applyMask(graph, heights, rng.nextInt(1, 2), w, h);
+  // Mask level 2-3 (orta güç - kıta büyük ama etrafı su)
+  applyMask(graph, heights, rng.nextInt(2, 3), w, h);
 
   smoothHeights(graph, heights, 2);
 
@@ -394,9 +401,13 @@ function templateContinent(graph: VoronoiGraph, heights: Float32Array, rng: Alea
   addTrough(graph, heights, rng, rng.nextInt(2, 4), rng.nextInt(15, 25),
     [w * 0.20, w * 0.80], [h * 0.25, h * 0.75], linePower, w, h);
 
-  // Pits for bays/inlets
-  addPit(graph, heights, rng, rng.nextInt(2, 4), rng.nextInt(10, 20),
-    [w * 0.10, w * 0.90], [h * 0.15, h * 0.85], blobPower, w, h);
+  // Pits for bays/inlets (daha fazla ve büyük)
+  addPit(graph, heights, rng, rng.nextInt(4, 7), rng.nextInt(15, 30),
+    [w * 0.10, w * 0.90], [h * 0.10, h * 0.90], blobPower, w, h);
+
+  // Büyük iç deniz / büyük körfez
+  addPit(graph, heights, rng, rng.nextInt(1, 3), rng.nextInt(30, 50),
+    [w * 0.25, w * 0.75], [h * 0.20, h * 0.80], blobPower * 0.99, w, h);
 
   // Coast noise
   const coastNoise = createNoise2D(seed + 9999);
@@ -482,8 +493,8 @@ function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
   addHill(graph, heights, rng, 1, rng.nextInt(95, 100),
     [w * 0.40, w * 0.60], [h * 0.40, h * 0.60], blobPower, w, h);
 
-  // Add +15 to all cells - raises everything significantly
-  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 15);
+  // Add +8 to all cells (düşürüldü: %30 su garantisi için)
+  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 8);
 
   // Large supporting hills to fill out the supercontinent
   addHill(graph, heights, rng, 1, rng.nextInt(80, 95),
@@ -515,18 +526,22 @@ function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
   addRange(graph, heights, rng, 1, rng.nextInt(35, 45),
     [w * 0.40, w * 0.60], [h * 0.15, h * 0.85], linePower, w, h);
 
-  // Very light mask (level 1) - keeps the supercontinent intact
-  applyMask(graph, heights, 1, w, h);
+  // Mask level 2 - supercontinent etrafı su
+  applyMask(graph, heights, 2, w, h);
 
   smoothHeights(graph, heights, 3);
 
-  // Troughs for inland seas and large river valleys
-  addTrough(graph, heights, rng, rng.nextInt(3, 5), rng.nextInt(20, 35),
-    [w * 0.25, w * 0.75], [h * 0.25, h * 0.75], linePower, w, h);
+  // Troughs for inland seas and large river valleys (daha fazla)
+  addTrough(graph, heights, rng, rng.nextInt(4, 7), rng.nextInt(25, 40),
+    [w * 0.20, w * 0.80], [h * 0.20, h * 0.80], linePower, w, h);
 
-  // A few pits for inland seas/lakes
-  addPit(graph, heights, rng, rng.nextInt(2, 4), rng.nextInt(20, 35),
+  // İç denizler (Pangaea'nın gerçekçi Tethys denizi gibi)
+  addPit(graph, heights, rng, rng.nextInt(3, 5), rng.nextInt(30, 50),
     [w * 0.20, w * 0.80], [h * 0.20, h * 0.80], blobPower, w, h);
+
+  // Ekstra büyük iç deniz
+  addPit(graph, heights, rng, 1, rng.nextInt(35, 55),
+    [w * 0.30, w * 0.70], [h * 0.35, h * 0.65], blobPower * 0.985, w, h);
 
   // Coast noise
   const coastNoise = createNoise2D(seed + 9999);
@@ -538,8 +553,62 @@ function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
     }
   }
 
-  // Final very light mask
-  applyMask(graph, heights, 1, w, h);
+  // Final mask level 2 (kenarlar su)
+  applyMask(graph, heights, 2, w, h);
+}
+
+// Su oranı garantisi: haritanın en az belirli % su içermesini sağlar
+// Düşük olan hücrelerin yüksekliğini azaltarak su seviyesinin altına çeker
+function enforceWaterRatio(graph: VoronoiGraph, heights: Float32Array, rng: Alea, minWaterRatio: number, w: number, h: number): void {
+  const n = graph.cells.length;
+  const seaLevel = 20; // heights 0-100 skalasında
+
+  // Mevcut su oranını hesapla
+  let waterCount = 0;
+  for (let i = 0; i < n; i++) {
+    if (heights[i] < seaLevel) waterCount++;
+  }
+  const currentRatio = waterCount / n;
+
+  if (currentRatio >= minWaterRatio) return; // Zaten yeterli su var
+
+  // Hedef su hücre sayısı
+  const targetWaterCells = Math.ceil(n * minWaterRatio);
+  const needMore = targetWaterCells - waterCount;
+
+  // Strateji: En düşük kara hücrelerini su seviyesinin altına çek
+  // Kenar hücreleri + düşük elevation'lı hücrelere öncelik ver
+  const landCells: { idx: number; score: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    if (heights[i] >= seaLevel) {
+      const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
+      // Kenar mesafesi (kenarlar daha çok su olmalı)
+      const edgeDist = Math.min(nx, 1 - nx, ny, 1 - ny);
+      // Düşük elevation + kenar yakını = su adayı
+      const score = heights[i] + edgeDist * 40;
+      landCells.push({ idx: i, score });
+    }
+  }
+
+  // En düşük score'lu hücreleri su yap
+  landCells.sort((a, b) => a.score - b.score);
+
+  let converted = 0;
+  for (const { idx } of landCells) {
+    if (converted >= needMore) break;
+
+    // Yüksekliği düşür (doğal geçiş için gradual)
+    heights[idx] = Math.max(0, seaLevel - rng.nextFloat(2, 10));
+    converted++;
+
+    // Komşuları da hafif düşür (doğal kıyı oluştur)
+    for (const ni of graph.cells[idx].neighbors) {
+      if (heights[ni] >= seaLevel && heights[ni] < seaLevel + 8) {
+        heights[ni] = Math.max(0, heights[ni] - rng.nextFloat(3, 8));
+        if (heights[ni] < seaLevel) converted++;
+      }
+    }
+  }
 }
 
 // Asimetrik noise: harita kenarlarını düzensizleştirir, simetrik ada görünümünü kırar
@@ -976,6 +1045,13 @@ function applyMask(graph: VoronoiGraph, heights: Float32Array, power: number, w:
 
     // Blend: result = (h * (power-1) + h * distance) / power
     heights[i] = (heights[i] * (power - 1) + heights[i] * distance) / power;
+
+    // Hard cutoff: harita kenarlarından %8'lik bant kesinlikle su olsun
+    const edgeDist = Math.min(cx / w, 1 - cx / w, cy / h, 1 - cy / h);
+    if (edgeDist < 0.08) {
+      heights[i] *= edgeDist / 0.08; // kenardan uzaklaştıkça artır
+    }
+
     heights[i] = Math.max(0, Math.min(100, heights[i]));
   }
 }
