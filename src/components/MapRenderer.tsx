@@ -5,97 +5,67 @@ import { Point, VoronoiGraph, VoronoiCell } from '../engine/voronoi';
 import { VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiRoute } from '../engine/voronoiMapGenerator';
 import { cellKey } from '../engine/voronoiGrid';
 import { SEA_LEVEL } from '../engine/biomes';
+import { Alea } from '../engine/alea';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// ===== AZGAAR RENKLERİ (orijinal kaynak kodundan) =====
+// ===== FANTASTİK HARİTA RENKLERİ =====
 
-// Azgaar okyanus: base #466eab, layers #ecf2f9 with varying opacity
+// Okyanus: derin gizemli maviler
 const OCEAN_COLORS = [
-  '#c4d8ef', '#adc8e6', '#96b8dd', '#7fa8d4', '#6898cb', '#5888c2', '#466eab',
+  '#8fb8d4', '#6f9fc4', '#5087b4', '#3870a4', '#265994', '#1a4580', '#0f3268',
 ];
 
-// Biome renkleri - Azgaar defaults
-const BIOME_FILL: Record<string, string> = {
-  [HexTerrain.Ocean]: '#466eab',
-  [HexTerrain.Coast]: '#89b0d1',
-  [HexTerrain.Lake]: '#a6c1fd',     // Azgaar freshwater
-  [HexTerrain.Plains]: '#d2d082',    // Grassland
-  [HexTerrain.Forest]: '#71a74e',    // Temperate Deciduous Forest
-  [HexTerrain.Mountain]: '#8c8c8c',  // Mountain
-  [HexTerrain.Desert]: '#ffd699',    // Hot Desert
-  [HexTerrain.Swamp]: '#6d887b',     // Wetland
-  [HexTerrain.Tundra]: '#b5b887',    // Tundra
-  [HexTerrain.Snow]: '#ebebeb',      // Glacier
-};
-
-// Azgaar biome renkleri (exact from source)
-const BIOME_COLOR_BY_ID = [
-  '#466eab', // 0: Marine
-  '#fbe79f', // 1: Hot desert
-  '#b5b887', // 2: Cold desert
-  '#d2d082', // 3: Savanna
-  '#c8d68f', // 4: Grassland
-  '#b6d95d', // 5: Tropical seasonal forest
-  '#29bc56', // 6: Temperate deciduous forest
-  '#7dcb35', // 7: Tropical rainforest
-  '#409c43', // 8: Temperate rainforest
-  '#4b6b32', // 9: Taiga
-  '#96784b', // 10: Tundra
-  '#d5e7eb', // 11: Glacier
-  '#0b9131', // 12: Wetland
-];
-
-// Azgaar's exact 5x26 biome matrix (moisture band x temp band, hot→cold)
-// moisture bands: 0=driest, 4=wettest
-// temp bands: 0=hottest (25+), 25=coldest (-5)
-const BIOME_MATRIX = [
-  // moisture 0 (dry)
-  [1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,10,10],
-  // moisture 1
-  [3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,9,9,9,9,10,10,10,10],
-  // moisture 2
-  [5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,9,9,9,9,10,10,10,10],
-  // moisture 3
-  [5,5,5,5,6,6,6,6,6,8,8,8,8,8,8,8,8,8,9,9,9,9,10,10,10,10],
-  // moisture 4 (wet)
-  [7,7,7,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,10,10,10,10],
-];
-
-function getDetailedBiomeColor(tile: HexTile): string {
-  const e = tile.elevation;
-  const m = tile.moisture;
-  const t = tile.temperature;
-
-  if (e < SEA_LEVEL) return BIOME_COLOR_BY_ID[0]; // Marine
-
-  // Azgaar: temp < -5 → Glacier
-  if (t < 0.1) return BIOME_COLOR_BY_ID[11];
-
-  // Mountain tinting
-  if (e > 0.75) {
-    const shade = Math.floor(128 + (1 - e) * 200);
-    return `rgb(${shade},${shade - 10},${shade - 15})`;
-  }
-
-  // Wetland check (Azgaar: temp > -2, moisture > 40 AND low elevation)
-  if (t > 0.15 && m > 0.65 && e < 0.35) return BIOME_COLOR_BY_ID[12];
-
-  // Hot desert check
-  if (t > 0.85 && m < 0.15) return BIOME_COLOR_BY_ID[1];
-
-  // Biome matrix lookup
-  const moistBand = Math.min(Math.floor(m * 5), 4);
-  const tempBand = Math.min(Math.max(Math.floor((1 - t) * 26), 0), 25);
-  const biomeId = BIOME_MATRIX[moistBand][tempBand];
-  return BIOME_COLOR_BY_ID[biomeId];
-}
-
-// Azgaar C_12 state renkleri (kaynak kodundan)
-const AZGAAR_STATE_COLORS = [
+// Azgaar C_12 state renkleri (pastel, harita uyumlu)
+const STATE_COLORS = [
   '#dababf', '#fb8072', '#80b1d3', '#fdb462', '#b3de69',
   '#fccde5', '#c6b9c1', '#bc80bd', '#ccebc5', '#ffed6f',
   '#8dd3c7', '#eb8de7',
+];
+
+// Fantasy biome renkleri (daha sıcak, parchment-like)
+const BIOME_COLORS_BY_ID = [
+  '#3a6b8f', // 0: Marine (derin mavi)
+  '#e8c77b', // 1: Hot desert (altın kum)
+  '#b5a882', // 2: Cold desert (kuru toprak)
+  '#c9bf6b', // 3: Savanna (kuru ot)
+  '#8db858', // 4: Grassland (yeşil çayır)
+  '#6da842', // 5: Tropical seasonal
+  '#2b8a3e', // 6: Temperate deciduous
+  '#3da33a', // 7: Tropical rainforest
+  '#1e7a2e', // 8: Temperate rainforest
+  '#3a5e28', // 9: Taiga (koyu yeşil)
+  '#8a7252', // 10: Tundra (kahverengi)
+  '#c8d5d8', // 11: Glacier (buz beyazı)
+  '#2d7a45', // 12: Wetland (koyu yeşil)
+];
+
+// Biome matrix (5 moisture x 26 temp, Azgaar exact)
+const BM = [
+  [1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,10,10],
+  [3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,9,9,9,9,10,10,10,10],
+  [5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,9,9,9,9,10,10,10,10],
+  [5,5,5,5,6,6,6,6,6,8,8,8,8,8,8,8,8,8,9,9,9,9,10,10,10,10],
+  [7,7,7,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,10,10,10,10],
+];
+
+// Mitolojik semboller
+const MYTHOLOGICAL_MARKERS = [
+  { icon: '🐉', name: 'Ejderha Yuvasi', chance: 0.003 },
+  { icon: '🦑', name: 'Deniz Canavari', chance: 0.004, waterOnly: true },
+  { icon: '👹', name: 'Ork Kampi', chance: 0.004 },
+  { icon: '🧙', name: 'Buyucu Kulesi', chance: 0.002 },
+  { icon: '💀', name: 'Lanetli Topraklar', chance: 0.003 },
+  { icon: '🏛️', name: 'Kadim Tapinak', chance: 0.002 },
+  { icon: '⚔️', name: 'Savas Alani', chance: 0.003 },
+  { icon: '🌋', name: 'Ates Dagi', chance: 0.001 },
+  { icon: '🕳️', name: 'Karanlik Portal', chance: 0.001 },
+  { icon: '👻', name: 'Hayalet Sehir', chance: 0.002 },
+  { icon: '🐺', name: 'Kurt Adam Bolgesi', chance: 0.003 },
+  { icon: '🧝', name: 'Elf Ormani', chance: 0.002 },
+  { icon: '⛏️', name: 'Cuceler Madeni', chance: 0.002 },
+  { icon: '🏰', name: 'Terk Edilmis Kale', chance: 0.002 },
+  { icon: '🌊', name: 'Cthulhu Tapinagi', chance: 0.001, waterOnly: true },
 ];
 
 interface MapRendererProps {
@@ -140,88 +110,65 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     const ox = w / 2 - mapWidth / 2 * zoom + cameraX * zoom;
     const oy = h / 2 - mapHeight / 2 * zoom + cameraY * zoom;
 
-    // Background - derin okyanus
-    ctx.fillStyle = '#000000';
+    ctx.fillStyle = '#0f2840';
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
     ctx.translate(ox, oy);
     ctx.scale(zoom, zoom);
 
-    // === Pass 1: Ocean depth layers ===
-    drawOceanLayers(ctx, graph, cellTiles, mapWidth, mapHeight);
+    // === 1. Ocean ===
+    drawOcean(ctx, graph, cellTiles, mapWidth, mapHeight);
 
-    // === Pass 2: Land biome ===
-    for (let i = 0; i < graph.cells.length; i++) {
-      const cell = graph.cells[i];
-      if (cell.vertices.length < 3) continue;
-      const tile = cellTiles[i];
-      if (!tile || tile.elevation < SEA_LEVEL) continue;
+    // === 2. Land biome (TEK BÜYÜK PATH olarak - çizgi yok) ===
+    drawLandBiomes(ctx, graph, cellTiles, showBiomes);
 
-      const biomeColor = showBiomes ? getDetailedBiomeColor(tile) : BIOME_FILL[tile.terrain] || '#888';
-      fillPoly(ctx, cell.vertices, biomeColor);
-    }
-
-    // === Pass 3: State overlay (yarı saydam) ===
+    // === 3. State overlay ===
     if (showBorders) {
-      for (let i = 0; i < graph.cells.length; i++) {
-        const cell = graph.cells[i];
-        if (cell.vertices.length < 3) continue;
-        const tile = cellTiles[i];
-        if (!tile || tile.elevation < SEA_LEVEL) continue;
-
-        const sId = stateMap.get(cellKey(i));
-        if (sId !== undefined && sId >= 0 && sId < states.length) {
-          const stateColor = AZGAAR_STATE_COLORS[sId % AZGAAR_STATE_COLORS.length];
-          fillPoly(ctx, cell.vertices, stateColor + 'AA');
-        }
-      }
+      drawStateOverlay(ctx, graph, cellTiles, stateMap, states);
     }
 
-    // === Pass 4: Population dots ===
+    // === 4. Population ===
     if (showPopulation) {
       drawPopulation(ctx, graph, cellTiles);
     }
 
-    // === Pass 5: Coastlines ===
+    // === 5. Coastlines ===
     drawCoastlines(ctx, graph, cellTiles);
 
-    // === Pass 6: Grid ===
+    // === 6. Grid (sadece toggle açıkken) ===
     if (showGrid) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-      ctx.lineWidth = 0.3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 0.2;
       for (const cell of graph.cells) {
         if (cell.vertices.length < 3) continue;
-        strokePoly(ctx, cell.vertices);
+        ctx.beginPath();
+        ctx.moveTo(cell.vertices[0].x, cell.vertices[0].y);
+        for (let j = 1; j < cell.vertices.length; j++) ctx.lineTo(cell.vertices[j].x, cell.vertices[j].y);
+        ctx.closePath();
+        ctx.stroke();
       }
     }
 
-    // === Pass 7: State borders ===
-    if (showBorders) {
-      drawStateBorders(ctx, graph, stateMap, states);
-    }
+    // === 7. State borders ===
+    if (showBorders) drawStateBorders(ctx, graph, stateMap);
 
-    // === Pass 8: Rivers ===
-    if (showRivers) {
-      drawRivers(ctx, graph, rivers);
-    }
+    // === 8. Rivers ===
+    if (showRivers) drawRivers(ctx, graph, rivers);
 
-    // === Pass 9: Routes ===
-    if (showRoutes) {
-      drawRoutes(ctx, graph, routes);
-    }
+    // === 9. Routes ===
+    if (showRoutes) drawRoutes(ctx, graph, routes);
 
-    // === Pass 10: Burgs + castles ===
-    if (showBurgs) {
-      drawBurgs(ctx, graph, burgs, states, stateMap, zoom);
-    }
+    // === 10. Mythological markers ===
+    drawMythMarkers(ctx, graph, cellTiles, mapWidth);
 
-    // === Pass 11: State labels ===
-    if (showBorders) {
-      drawStateLabels(ctx, graph, states);
-    }
+    // === 11. Burgs ===
+    if (showBurgs) drawBurgs(ctx, graph, burgs, stateMap, zoom);
 
-    // === Pass 12: Selection ===
+    // === 12. State labels ===
+    if (showBorders) drawStateLabels(ctx, graph, states);
+
+    // === 13. Selection ===
     if (selectedCell !== null && selectedCell >= 0 && selectedCell < graph.cells.length) {
       const cell = graph.cells[selectedCell];
       if (cell.vertices.length >= 3) {
@@ -230,7 +177,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
         for (let i = 1; i < cell.vertices.length; i++) ctx.lineTo(cell.vertices[i].x, cell.vertices[i].y);
         ctx.closePath();
         ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
       }
     }
@@ -241,7 +188,6 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation]);
 
   useEffect(() => { draw(); }, [draw]);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -258,33 +204,26 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       </View>
     );
   }
-  return <View style={{ flex: 1, backgroundColor: '#000000' }} />;
+  return <View style={{ flex: 1, backgroundColor: '#0f2840' }} />;
 });
 
-// ===== Drawing functions =====
+// ===== ÇİZİM FONKSİYONLARI =====
 
-function fillPoly(ctx: CanvasRenderingContext2D, verts: Point[], color: string): void {
+// Polygon çiz - stroke ile gap kapatma
+function fillCell(ctx: CanvasRenderingContext2D, verts: Point[], color: string): void {
   ctx.beginPath();
   ctx.moveTo(verts[0].x, verts[0].y);
   for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i].x, verts[i].y);
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
-  // Anti-aliasing gap kapatma: aynı renkte ince stroke
+  // Gap kapatma: aynı renkte çok ince stroke
   ctx.strokeStyle = color;
-  ctx.lineWidth = 0.5;
+  ctx.lineWidth = 0.7;
   ctx.stroke();
 }
 
-function strokePoly(ctx: CanvasRenderingContext2D, verts: Point[]): void {
-  ctx.beginPath();
-  ctx.moveTo(verts[0].x, verts[0].y);
-  for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i].x, verts[i].y);
-  ctx.closePath();
-  ctx.stroke();
-}
-
-function drawOceanLayers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], w: number, h: number): void {
+function drawOcean(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], w: number, h: number): void {
   const n = graph.cells.length;
   const depth = new Int32Array(n).fill(-1);
   const queue: number[] = [];
@@ -295,7 +234,6 @@ function drawOceanLayers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, til
       if (tiles[ni].elevation >= SEA_LEVEL) { depth[i] = 0; queue.push(i); break; }
     }
   }
-
   let qi = 0;
   while (qi < queue.length) {
     const ci = queue[qi++];
@@ -311,21 +249,41 @@ function drawOceanLayers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, til
     const cell = graph.cells[i];
     if (cell.vertices.length < 3) continue;
     const d = Math.min(depth[i] >= 0 ? depth[i] : 6, OCEAN_COLORS.length - 1);
-    fillPoly(ctx, cell.vertices, OCEAN_COLORS[d]);
+    fillCell(ctx, cell.vertices, OCEAN_COLORS[d]);
+  }
+}
+
+function drawLandBiomes(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], showBiomes: boolean): void {
+  for (let i = 0; i < graph.cells.length; i++) {
+    const cell = graph.cells[i];
+    if (cell.vertices.length < 3) continue;
+    const tile = tiles[i];
+    if (!tile || tile.elevation < SEA_LEVEL) continue;
+
+    const color = showBiomes ? getBiomeColor(tile) : '#8db858';
+    fillCell(ctx, cell.vertices, color);
+  }
+}
+
+function drawStateOverlay(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], stateMap: Map<string, number>, states: VoronoiState[]): void {
+  for (let i = 0; i < graph.cells.length; i++) {
+    const cell = graph.cells[i];
+    if (cell.vertices.length < 3 || !tiles[i] || tiles[i].elevation < SEA_LEVEL) continue;
+    const sId = stateMap.get(cellKey(i));
+    if (sId === undefined || sId < 0 || sId >= states.length) continue;
+    fillCell(ctx, cell.vertices, STATE_COLORS[sId % STATE_COLORS.length] + '88');
   }
 }
 
 function drawCoastlines(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
-  ctx.strokeStyle = '#56566d';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#2a4a3a';
+  ctx.lineWidth = 1.8;
   ctx.lineCap = 'round';
-
   for (const [a, b] of graph.edges) {
-    const aLand = tiles[a]?.elevation >= SEA_LEVEL;
-    const bLand = tiles[b]?.elevation >= SEA_LEVEL;
-    if (aLand === bLand) continue;
-
-    const shared = findSharedVertices(graph.cells[a], graph.cells[b]);
+    const aL = tiles[a]?.elevation >= SEA_LEVEL;
+    const bL = tiles[b]?.elevation >= SEA_LEVEL;
+    if (aL === bL) continue;
+    const shared = sharedVerts(graph.cells[a], graph.cells[b]);
     if (shared.length >= 2) {
       ctx.beginPath();
       ctx.moveTo(shared[0].x, shared[0].y);
@@ -335,21 +293,17 @@ function drawCoastlines(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tile
   }
 }
 
-function drawStateBorders(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, stateMap: Map<string, number>, states: VoronoiState[]): void {
-  // Azgaar tarzı: koyu çizgi, hafif dash
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+function drawStateBorders(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, stateMap: Map<string, number>): void {
   ctx.strokeStyle = '#56566d';
-  ctx.lineWidth = 1.2;
-  ctx.setLineDash([2, 0]);
-
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 2]);
+  ctx.lineCap = 'round';
   for (const [a, b] of graph.edges) {
     const sA = stateMap.get(cellKey(a));
     const sB = stateMap.get(cellKey(b));
     if (sA === undefined && sB === undefined) continue;
     if (sA === sB) continue;
-
-    const shared = findSharedVertices(graph.cells[a], graph.cells[b]);
+    const shared = sharedVerts(graph.cells[a], graph.cells[b]);
     if (shared.length >= 2) {
       ctx.beginPath();
       ctx.moveTo(shared[0].x, shared[0].y);
@@ -361,34 +315,25 @@ function drawStateBorders(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, st
 }
 
 function drawRivers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, rivers: VoronoiRiver[]): void {
-  ctx.fillStyle = '#5d97bb'; // Azgaar river color
-  ctx.strokeStyle = '#5d97bb';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
   for (const river of rivers) {
     if (river.path.length < 2) continue;
     ctx.beginPath();
     const c0 = graph.cells[river.path[0]]?.center;
     if (!c0) continue;
     ctx.moveTo(c0.x, c0.y);
-
     for (let i = 1; i < river.path.length; i++) {
       const ci = graph.cells[river.path[i]]?.center;
       if (!ci) continue;
       if (i < river.path.length - 1) {
         const cn = graph.cells[river.path[i + 1]]?.center;
-        if (cn) {
-          ctx.quadraticCurveTo(ci.x, ci.y, (ci.x + cn.x) / 2, (ci.y + cn.y) / 2);
-        } else {
-          ctx.lineTo(ci.x, ci.y);
-        }
-      } else {
-        ctx.lineTo(ci.x, ci.y);
-      }
+        if (cn) ctx.quadraticCurveTo(ci.x, ci.y, (ci.x + cn.x) / 2, (ci.y + cn.y) / 2);
+        else ctx.lineTo(ci.x, ci.y);
+      } else ctx.lineTo(ci.x, ci.y);
     }
-    // Azgaar: ince başlar, denize doğru kalınlaşır
-    ctx.lineWidth = Math.min(3, 0.3 + Math.sqrt(river.flux) * 0.08);
+    ctx.strokeStyle = '#5d97bb';
+    ctx.lineWidth = Math.min(3.5, 0.3 + Math.sqrt(river.flux) * 0.07);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.stroke();
   }
 }
@@ -404,12 +349,10 @@ function drawRoutes(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, routes: 
       const ci = graph.cells[route.path[i]]?.center;
       if (ci) ctx.lineTo(ci.x, ci.y);
     }
-    // Azgaar road colors
-    ctx.strokeStyle = route.type === 'highway' ? '#d06324' :
-                      route.type === 'road' ? '#996633' : '#8b7355';
-    ctx.lineWidth = route.type === 'highway' ? 0.9 : 0.5;
-    ctx.setLineDash(route.type === 'trail' ? [2, 2] : [3, 1]);
-    ctx.globalAlpha = 0.8;
+    ctx.strokeStyle = route.type === 'highway' ? '#d06324' : '#996633';
+    ctx.lineWidth = route.type === 'highway' ? 0.8 : 0.5;
+    ctx.setLineDash(route.type === 'highway' ? [] : [3, 2]);
+    ctx.globalAlpha = 0.7;
     ctx.lineCap = 'round';
     ctx.stroke();
     ctx.globalAlpha = 1;
@@ -418,26 +361,50 @@ function drawRoutes(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, routes: 
 }
 
 function drawPopulation(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
-  // Azgaar tarzı: kara hücrelerinde küçük siyah noktalar (nüfus yoğunluğu)
   for (let i = 0; i < graph.cells.length; i++) {
     const tile = tiles[i];
     if (!tile || tile.elevation < SEA_LEVEL) continue;
-
-    // Population score: moisture + temperature + river
     const pop = tile.moisture * 0.4 + tile.temperature * 0.3 + (tile.hasRiver ? 0.3 : 0);
-    if (pop < 0.25) continue; // çok düşük nüfus
-
-    const center = graph.cells[i].center;
-    const dotSize = Math.min(1.5, pop * 1.2);
-
+    if (pop < 0.3) continue;
+    const c = graph.cells[i].center;
     ctx.beginPath();
-    ctx.arc(center.x, center.y, dotSize, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.arc(c.x, c.y, Math.min(1.2, pop), 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fill();
   }
 }
 
-function drawBurgs(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, burgs: VoronoiBurg[], states: VoronoiState[], stateMap: Map<string, number>, zoom: number): void {
+function drawMythMarkers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], mapW: number): void {
+  // Seed-based deterministic placement
+  const rng = new Alea(mapW * 7 + graph.cells.length);
+
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile) continue;
+
+    for (const marker of MYTHOLOGICAL_MARKERS) {
+      if (marker.waterOnly && tile.elevation >= SEA_LEVEL) continue;
+      if (!marker.waterOnly && tile.elevation < SEA_LEVEL) continue;
+
+      if (rng.next() < marker.chance) {
+        const c = graph.cells[i].center;
+        const size = 14 + rng.nextFloat(0, 4);
+        ctx.font = `${size}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(marker.icon, c.x, c.y);
+
+        // Küçük isim etiketi (zoom yakınken)
+        ctx.font = '6px Georgia, serif';
+        ctx.fillStyle = 'rgba(60,40,20,0.6)';
+        ctx.fillText(marker.name, c.x, c.y + 10);
+        break; // hücre başına 1 marker
+      }
+    }
+  }
+}
+
+function drawBurgs(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, burgs: VoronoiBurg[], stateMap: Map<string, number>, zoom: number): void {
   const sorted = [...burgs].sort((a, b) => (a.isCapital ? 1 : 0) - (b.isCapital ? 1 : 0));
 
   for (const burg of sorted) {
@@ -446,49 +413,44 @@ function drawBurgs(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, burgs: Vo
     const { x, y } = cell.center;
 
     if (burg.isCapital) {
-      // === BAŞKENT: Azgaar tarzı yıldız + büyük daire ===
-      const s = 5;
-      // Dış halka
+      // Başkent: büyük renkli daire + taç
+      const sId = stateMap.get(cellKey(burg.cellIndex));
+      const col = sId !== undefined ? STATE_COLORS[sId % STATE_COLORS.length] : '#dababf';
+
       ctx.beginPath();
-      ctx.arc(x, y, s + 1, 0, Math.PI * 2);
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
       ctx.fillStyle = '#000';
       ctx.fill();
-      // İç daire (devlet rengi)
-      const sId = stateMap.get(cellKey(burg.cellIndex));
-      const stColor = sId !== undefined ? AZGAAR_STATE_COLORS[sId % AZGAAR_STATE_COLORS.length] : '#dababf';
       ctx.beginPath();
-      ctx.arc(x, y, s, 0, Math.PI * 2);
-      ctx.fillStyle = stColor;
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = col;
       ctx.fill();
-      // Merkez nokta
       ctx.beginPath();
       ctx.arc(x, y, 2, 0, Math.PI * 2);
       ctx.fillStyle = '#000';
       ctx.fill();
     } else {
-      // === NORMAL BURG: Azgaar tarzı küçük daire ===
-      const size = burg.population > 3000 ? 3 : burg.population > 1000 ? 2.2 : 1.5;
-
+      const size = burg.population > 3000 ? 2.8 : burg.population > 1000 ? 2 : 1.3;
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
       ctx.fillStyle = '#fff';
       ctx.fill();
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 0.5;
       ctx.stroke();
     }
 
     // Label
     if (zoom > 0.5 || burg.isCapital || burg.population > 2000) {
-      const fontSize = burg.isCapital ? 11 : burg.population > 2000 ? 8 : 6;
-      ctx.font = `${burg.isCapital ? 'bold ' : ''}${fontSize}px "Almendra SC", "Georgia", serif`;
+      const fs = burg.isCapital ? 11 : burg.population > 2000 ? 8 : 6;
+      ctx.font = `${burg.isCapital ? 'bold ' : ''}${fs}px "Almendra SC", Georgia, serif`;
       ctx.textAlign = 'center';
-      const labelY = burg.isCapital ? y - 16 : y - 5;
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      const ly = burg.isCapital ? y - 10 : y - 5;
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 2;
-      ctx.strokeText(burg.name, x, labelY);
-      ctx.fillStyle = '#333';
-      ctx.fillText(burg.name, x, labelY);
+      ctx.strokeText(burg.name, x, ly);
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillText(burg.name, x, ly);
     }
   }
 }
@@ -496,39 +458,41 @@ function drawBurgs(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, burgs: Vo
 function drawStateLabels(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, states: VoronoiState[]): void {
   for (const state of states) {
     if (state.cells.length === 0) continue;
-
     let cx = 0, cy = 0;
-    for (const ci of state.cells) {
-      cx += graph.cells[ci].center.x;
-      cy += graph.cells[ci].center.y;
-    }
-    cx /= state.cells.length;
-    cy /= state.cells.length;
-
-    const fontSize = Math.min(22, Math.max(9, Math.sqrt(state.cells.length) * 0.7));
-
+    for (const ci of state.cells) { cx += graph.cells[ci].center.x; cy += graph.cells[ci].center.y; }
+    cx /= state.cells.length; cy /= state.cells.length;
+    const fs = Math.min(20, Math.max(9, Math.sqrt(state.cells.length) * 0.65));
     ctx.save();
-    ctx.font = `italic ${fontSize}px "Almendra SC", "Georgia", "Times New Roman", serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(40,40,40,0.5)';
+    ctx.font = `italic ${fs}px "Almendra SC", Georgia, serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(30,20,10,0.45)';
     ctx.fillText(state.name, cx + 0.5, cy + 0.5);
-    ctx.fillStyle = 'rgba(60,50,40,0.65)';
+    ctx.fillStyle = 'rgba(50,35,20,0.6)';
     ctx.fillText(state.name, cx, cy);
     ctx.restore();
   }
 }
 
-function findSharedVertices(a: VoronoiCell, b: VoronoiCell): Point[] {
-  const shared: Point[] = [];
-  const tol = 1.5;
+function getBiomeColor(tile: HexTile): string {
+  if (tile.elevation < SEA_LEVEL) return BIOME_COLORS_BY_ID[0];
+  if (tile.temperature < 0.1) return BIOME_COLORS_BY_ID[11];
+  if (tile.elevation > 0.75) {
+    const s = Math.floor(100 + (1 - tile.elevation) * 180);
+    return `rgb(${s},${s - 8},${s - 12})`;
+  }
+  if (tile.temperature > 0.15 && tile.moisture > 0.65 && tile.elevation < 0.35) return BIOME_COLORS_BY_ID[12];
+  if (tile.temperature > 0.85 && tile.moisture < 0.15) return BIOME_COLORS_BY_ID[1];
+  const mb = Math.min(Math.floor(tile.moisture * 5), 4);
+  const tb = Math.min(Math.max(Math.floor((1 - tile.temperature) * 26), 0), 25);
+  return BIOME_COLORS_BY_ID[BM[mb][tb]];
+}
+
+function sharedVerts(a: VoronoiCell, b: VoronoiCell): Point[] {
+  const r: Point[] = [];
   for (const va of a.vertices) {
     for (const vb of b.vertices) {
-      if (Math.abs(va.x - vb.x) < tol && Math.abs(va.y - vb.y) < tol) {
-        shared.push(va);
-        break;
-      }
+      if (Math.abs(va.x - vb.x) < 1.5 && Math.abs(va.y - vb.y) < 1.5) { r.push(va); break; }
     }
   }
-  return shared;
+  return r;
 }
