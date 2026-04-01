@@ -1,25 +1,40 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { View, Dimensions, Platform } from 'react-native';
-import { HexTile, HexTerrain, hexKey } from '../types/game';
-import { hexToPixel, getHexCorners } from '../engine/hexUtils';
-import { TERRAIN_COLORS, HEX_SIZE, RIVER_COLOR } from '../constants/game';
+import { HexTile, HexTerrain } from '../types/game';
+import { TERRAIN_COLORS, RIVER_COLOR } from '../constants/game';
 import { COLORS } from '../constants/theme';
-import { RiverSegment } from '../engine/rivers';
+import { Point, VoronoiGraph, VoronoiCell } from '../engine/voronoi';
+import { VoronoiRiver } from '../engine/voronoiMapGenerator';
 import { Burg } from '../engine/burgGenerator';
 import { Route } from '../engine/routeGenerator';
 import { Marker } from '../engine/markerGenerator';
 import { State } from '../engine/stateGenerator';
+import { cellKey } from '../engine/voronoiGrid';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Ocean derinlik renkleri
 const OCEAN_DEPTH_COLORS = [
-  '#2A6FA8', '#245F95', '#1E5082', '#18416F', '#12325C', '#0C2349',
+  '#2E7BBF', '#276DAD', '#205F9B', '#1A5189', '#144377', '#0E3565',
 ];
 
+const BIOME_COLORS: Record<string, string> = {
+  [HexTerrain.Ocean]: '#1B4F82',
+  [HexTerrain.Coast]: '#3B8BC4',
+  [HexTerrain.Lake]: '#4B9BD5',
+  [HexTerrain.Plains]: '#8BC34A',
+  [HexTerrain.Forest]: '#2E7D32',
+  [HexTerrain.Mountain]: '#8D6E63',
+  [HexTerrain.Desert]: '#E8C84A',
+  [HexTerrain.Swamp]: '#5D7B5B',
+  [HexTerrain.Tundra]: '#B0BEC5',
+  [HexTerrain.Snow]: '#ECEFF1',
+};
+
 interface MapRendererProps {
-  tiles: Map<string, HexTile>;
-  rivers: RiverSegment[];
+  graph: VoronoiGraph | null;
+  cellTiles: HexTile[];
+  rivers: VoronoiRiver[];
+  coastPaths: Point[][];
   burgs: Burg[];
   routes: Route[];
   markers: Marker[];
@@ -27,12 +42,13 @@ interface MapRendererProps {
   stateMap: Map<string, number>;
   oceanDepthMap: Map<string, number>;
   iceCells: Set<string>;
+  mapWidth: number;
+  mapHeight: number;
   cameraX: number;
   cameraY: number;
   zoom: number;
-  selectedHex: { q: number; r: number } | null;
+  selectedCell: number | null;
   players: { id: string; color: string }[];
-  // Layer visibility
   showBiomes: boolean;
   showRivers: boolean;
   showBorders: boolean;
@@ -43,203 +59,242 @@ interface MapRendererProps {
 }
 
 export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
-  tiles, rivers, burgs, routes, markers, states, stateMap, oceanDepthMap,
-  iceCells, cameraX, cameraY, zoom, selectedHex, players,
+  graph, cellTiles, rivers, coastPaths, burgs, routes, markers,
+  states, stateMap, oceanDepthMap, iceCells,
+  mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell, players,
   showBiomes, showRivers, showBorders, showRoutes, showBurgs, showMarkers, showGrid,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !graph) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const w = canvas.width;
     const h = canvas.height;
-    const offsetX = w / 2 + cameraX * zoom;
-    const offsetY = h / 2 + cameraY * zoom;
+    const ox = w / 2 - mapWidth / 2 * zoom + cameraX * zoom;
+    const oy = h / 2 - mapHeight / 2 * zoom + cameraY * zoom;
 
     // Clear
-    ctx.fillStyle = COLORS.bg;
+    ctx.fillStyle = '#0A1628';
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
-    ctx.translate(offsetX, offsetY);
+    ctx.translate(ox, oy);
     ctx.scale(zoom, zoom);
 
-    // --- Terrain layer ---
-    for (const tile of tiles.values()) {
-      const { x, y } = hexToPixel(tile.coord.q, tile.coord.r);
+    // === 1. Voronoi cell fill (terrain) ===
+    for (let i = 0; i < graph.cells.length; i++) {
+      const cell = graph.cells[i];
+      if (cell.vertices.length < 3) continue;
 
-      // Viewport culling
-      const sx = x * zoom + offsetX;
-      const sy = y * zoom + offsetY;
-      if (sx < -HEX_SIZE * zoom * 2 || sx > w + HEX_SIZE * zoom * 2) continue;
-      if (sy < -HEX_SIZE * zoom * 2 || sy > h + HEX_SIZE * zoom * 2) continue;
+      const tile = cellTiles[i];
+      if (!tile) continue;
 
-      // Fog of war
-      if (!tile.explored) {
-        drawHex(ctx, x, y, COLORS.fog);
-        continue;
-      }
-
-      // Terrain color
+      // Color
       let color: string;
       if (showBiomes) {
-        if (tile.terrain === HexTerrain.Ocean || tile.terrain === HexTerrain.Coast) {
-          const depth = oceanDepthMap.get(hexKey(tile.coord.q, tile.coord.r)) ?? 3;
-          color = OCEAN_DEPTH_COLORS[Math.min(depth, OCEAN_DEPTH_COLORS.length - 1)];
-        } else {
-          color = getElevationTintedColor(tile);
-        }
+        color = getTerrainColor(tile);
       } else {
-        color = TERRAIN_COLORS[tile.terrain];
+        color = BIOME_COLORS[tile.terrain] || '#333';
       }
 
-      drawHex(ctx, x, y, color);
+      // Draw polygon
+      drawPolygon(ctx, cell.vertices, color);
 
       // Ice overlay
-      if (iceCells.has(hexKey(tile.coord.q, tile.coord.r))) {
-        drawHex(ctx, x, y, '#E8EDF0AA');
+      if (iceCells.has(cellKey(i))) {
+        drawPolygon(ctx, cell.vertices, 'rgba(232,237,240,0.5)');
       }
 
       // Owner overlay
       if (tile.ownerId) {
         const player = players.find(p => p.id === tile.ownerId);
-        if (player) drawHex(ctx, x, y, player.color + '30');
-      }
-
-      // Fog (explored but not visible)
-      if (!tile.visible) {
-        drawHex(ctx, x, y, COLORS.fogExplored);
+        if (player) drawPolygon(ctx, cell.vertices, player.color + '30');
       }
     }
 
-    // --- State borders (sinir hucreleri icin ince parlama) ---
-    if (showBorders && stateMap.size > 0) {
-      const neighbors = [
-        { dq: 1, dr: 0 }, { dq: 1, dr: -1 }, { dq: 0, dr: -1 },
-        { dq: -1, dr: 0 }, { dq: -1, dr: 1 }, { dq: 0, dr: 1 },
-      ];
-      for (const tile of tiles.values()) {
-        if (!tile.explored) continue;
-        const key = hexKey(tile.coord.q, tile.coord.r);
-        const sId = stateMap.get(key);
-        if (sId === undefined) continue;
+    // === 2. Coast lines (Chaikin smoothed) ===
+    ctx.strokeStyle = '#1A3A5A';
+    ctx.lineWidth = 1.5;
+    for (const path of coastPaths) {
+      if (path.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(path[i].x, path[i].y);
+      }
+      ctx.stroke();
+    }
 
-        // Bu hucre sinirda mi?
-        let isBorder = false;
-        for (const n of neighbors) {
-          const nKey = hexKey(tile.coord.q + n.dq, tile.coord.r + n.dr);
-          if (stateMap.get(nKey) !== sId) { isBorder = true; break; }
-        }
-        if (!isBorder) continue;
-
-        const { x, y } = hexToPixel(tile.coord.q, tile.coord.r);
-        const state = states[sId];
-        const borderColor = state?.color || '#fff';
+    // === 3. Grid overlay ===
+    if (showGrid) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 0.5;
+      for (const cell of graph.cells) {
+        if (cell.vertices.length < 3) continue;
         ctx.beginPath();
-        ctx.arc(x, y, HEX_SIZE * 0.8, 0, Math.PI * 2);
-        ctx.strokeStyle = borderColor + '88';
-        ctx.lineWidth = 2;
+        ctx.moveTo(cell.vertices[0].x, cell.vertices[0].y);
+        for (let i = 1; i < cell.vertices.length; i++) {
+          ctx.lineTo(cell.vertices[i].x, cell.vertices[i].y);
+        }
+        ctx.closePath();
         ctx.stroke();
       }
     }
 
-    // --- Rivers ---
+    // === 4. State borders ===
+    if (showBorders && stateMap.size > 0) {
+      for (const [a, b] of graph.edges) {
+        const sA = stateMap.get(cellKey(a));
+        const sB = stateMap.get(cellKey(b));
+        if (sA === undefined || sB === undefined || sA === sB) continue;
+
+        // Bu iki hücrenin ortak kenarını bul ve çiz
+        const shared = findSharedVertices(graph.cells[a], graph.cells[b]);
+        if (shared.length >= 2) {
+          const state = states[sA];
+          ctx.beginPath();
+          ctx.moveTo(shared[0].x, shared[0].y);
+          for (let i = 1; i < shared.length; i++) {
+            ctx.lineTo(shared[i].x, shared[i].y);
+          }
+          ctx.strokeStyle = state?.color || '#FFD700';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // === 5. Rivers ===
     if (showRivers) {
       for (const river of rivers) {
         if (river.path.length < 2) continue;
         ctx.beginPath();
-        const start = hexToPixel(river.path[0].q, river.path[0].r);
-        ctx.moveTo(start.x, start.y);
+        const c0 = graph.cells[river.path[0]].center;
+        ctx.moveTo(c0.x, c0.y);
+
+        // Bezier curve ile yumuşak nehir
         for (let i = 1; i < river.path.length; i++) {
-          const p = hexToPixel(river.path[i].q, river.path[i].r);
-          ctx.lineTo(p.x, p.y);
+          const ci = graph.cells[river.path[i]].center;
+          if (i < river.path.length - 1) {
+            const cn = graph.cells[river.path[i + 1]].center;
+            const cpx = ci.x;
+            const cpy = ci.y;
+            const ex = (ci.x + cn.x) / 2;
+            const ey = (ci.y + cn.y) / 2;
+            ctx.quadraticCurveTo(cpx, cpy, ex, ey);
+          } else {
+            ctx.lineTo(ci.x, ci.y);
+          }
         }
         ctx.strokeStyle = RIVER_COLOR;
-        ctx.lineWidth = Math.min(4, 1 + river.flux * 0.3);
+        ctx.lineWidth = Math.min(5, 1 + river.flux * 0.2);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.stroke();
       }
     }
 
-    // --- Routes ---
+    // === 6. Routes ===
     if (showRoutes) {
       for (const route of routes) {
         if (route.path.length < 2) continue;
         ctx.beginPath();
-        const start = hexToPixel(route.path[0].q, route.path[0].r);
-        ctx.moveTo(start.x, start.y);
-        for (let i = 1; i < route.path.length; i++) {
-          const p = hexToPixel(route.path[i].q, route.path[i].r);
-          ctx.lineTo(p.x, p.y);
-        }
-        ctx.strokeStyle = route.type === 'highway' ? '#D4A843' :
-                          route.type === 'road' ? '#AAA' : '#77777788';
-        ctx.lineWidth = route.type === 'highway' ? 2 : route.type === 'road' ? 1.5 : 0.8;
-        ctx.setLineDash(route.type === 'trail' ? [3, 3] : []);
+        // Routes use hex coords, convert via cell lookup
+        // For now draw between burg centers
+        const fromBurg = burgs[route.from];
+        const toBurg = burgs[route.to];
+        if (!fromBurg || !toBurg) continue;
+
+        // Basit düz çizgi (burg merkezleri arası)
+        ctx.moveTo(fromBurg.coord.q, fromBurg.coord.r);
+        ctx.lineTo(toBurg.coord.q, toBurg.coord.r);
+        ctx.strokeStyle = route.type === 'highway' ? '#D4A843AA' :
+                          route.type === 'road' ? '#AAAAAA66' : '#66666644';
+        ctx.lineWidth = route.type === 'highway' ? 2 : 1;
+        ctx.setLineDash(route.type === 'trail' ? [4, 4] : []);
         ctx.stroke();
         ctx.setLineDash([]);
       }
     }
 
-    // --- Burgs ---
+    // === 7. Burgs ===
     if (showBurgs) {
       for (const burg of burgs) {
-        const { x, y } = hexToPixel(burg.coord.q, burg.coord.r);
-        const size = burg.isCapital ? 6 : burg.population > 2000 ? 4 : 3;
+        // Burg coord: Voronoi'de coord.q = cell index
+        const cellIdx = burg.coord.q;
+        if (cellIdx < 0 || cellIdx >= graph.cells.length) continue;
+        const center = graph.cells[cellIdx].center;
 
-        // Burg circle
+        const size = burg.isCapital ? 7 : burg.population > 2000 ? 5 : 3.5;
+
+        // Glow
         ctx.beginPath();
-        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.arc(center.x, center.y, size + 2, 0, Math.PI * 2);
+        ctx.fillStyle = burg.isCapital ? 'rgba(255,215,0,0.3)' : 'rgba(255,255,255,0.15)';
+        ctx.fill();
+
+        // Circle
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, size, 0, Math.PI * 2);
         ctx.fillStyle = burg.isCapital ? '#FFD700' : '#FFF';
         ctx.fill();
         ctx.strokeStyle = '#000';
         ctx.lineWidth = burg.isCapital ? 2 : 1;
         ctx.stroke();
 
-        // Name label (zoomed in only)
-        if (zoom > 0.8 || burg.isCapital) {
-          ctx.fillStyle = '#000';
-          ctx.strokeStyle = '#FFF';
-          ctx.lineWidth = 2.5;
-          ctx.font = burg.isCapital ? 'bold 10px sans-serif' : '8px sans-serif';
+        // Label
+        if (zoom > 0.6 || burg.isCapital) {
+          ctx.font = burg.isCapital ? 'bold 11px sans-serif' : '9px sans-serif';
           ctx.textAlign = 'center';
-          ctx.strokeText(burg.name, x, y - size - 3);
-          ctx.fillText(burg.name, x, y - size - 3);
+          ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+          ctx.lineWidth = 3;
+          ctx.strokeText(burg.name, center.x, center.y - size - 4);
+          ctx.fillStyle = '#FFF';
+          ctx.fillText(burg.name, center.x, center.y - size - 4);
         }
       }
     }
 
-    // --- Markers ---
+    // === 8. Markers ===
     if (showMarkers) {
       for (const marker of markers) {
-        const { x, y } = hexToPixel(marker.coord.q, marker.coord.r);
-        ctx.font = '12px sans-serif';
+        const cellIdx = marker.coord.q;
+        if (cellIdx < 0 || cellIdx >= graph.cells.length) continue;
+        const center = graph.cells[cellIdx].center;
+        ctx.font = '14px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(marker.icon, x, y + 4);
+        ctx.fillText(marker.icon, center.x, center.y + 5);
       }
     }
 
-    // --- Selection highlight ---
-    if (selectedHex) {
-      const { x, y } = hexToPixel(selectedHex.q, selectedHex.r);
-      drawHexOutline(ctx, x, y, '#FFD700', 3);
+    // === 9. Selection ===
+    if (selectedCell !== null && selectedCell >= 0 && selectedCell < graph.cells.length) {
+      const cell = graph.cells[selectedCell];
+      if (cell.vertices.length >= 3) {
+        ctx.beginPath();
+        ctx.moveTo(cell.vertices[0].x, cell.vertices[0].y);
+        for (let i = 1; i < cell.vertices.length; i++) {
+          ctx.lineTo(cell.vertices[i].x, cell.vertices[i].y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
     }
 
     ctx.restore();
-  }, [tiles, rivers, burgs, routes, markers, states, stateMap, oceanDepthMap,
-      iceCells, cameraX, cameraY, zoom, selectedHex, players,
+  }, [graph, cellTiles, rivers, coastPaths, burgs, routes, markers,
+      states, stateMap, oceanDepthMap, iceCells,
+      mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell, players,
       showBiomes, showRivers, showBorders, showRoutes, showBurgs, showMarkers, showGrid]);
 
-  useEffect(() => {
-    draw();
-  }, [draw]);
+  useEffect(() => { draw(); }, [draw]);
 
-  // Canvas resize
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -261,57 +316,47 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     );
   }
 
-  // Fallback for native: basit View-based rendering
-  return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg }} />
-  );
+  return <View style={{ flex: 1, backgroundColor: '#0A1628' }} />;
 });
 
-// --- Helper functions ---
+// === Helpers ===
 
-// Buyuk hex ile bosluksuz cizim — kenarlar yumusatilmis
-function drawHex(ctx: CanvasRenderingContext2D, cx: number, cy: number, color: string): void {
-  // Hex yerine buyuk yuvarlak kose hex — komsularla overlap
-  const corners = getHexCorners(cx, cy, HEX_SIZE * 1.08);
+function drawPolygon(ctx: CanvasRenderingContext2D, vertices: Point[], color: string): void {
   ctx.beginPath();
-  // Yumusak koseler icin quadratic curve
-  const n = corners.length;
-  for (let i = 0; i < n; i++) {
-    const curr = corners[i];
-    const next = corners[(i + 1) % n];
-    const mx = (curr.x + next.x) / 2;
-    const my = (curr.y + next.y) / 2;
-    if (i === 0) {
-      const prev = corners[n - 1];
-      ctx.moveTo((prev.x + curr.x) / 2, (prev.y + curr.y) / 2);
-    }
-    ctx.quadraticCurveTo(curr.x, curr.y, mx, my);
+  ctx.moveTo(vertices[0].x, vertices[0].y);
+  for (let i = 1; i < vertices.length; i++) {
+    ctx.lineTo(vertices[i].x, vertices[i].y);
   }
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
 }
 
-function drawHexOutline(ctx: CanvasRenderingContext2D, cx: number, cy: number, color: string, lineWidth: number): void {
-  ctx.beginPath();
-  ctx.arc(cx, cy, HEX_SIZE * 0.85, 0, Math.PI * 2);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-  ctx.stroke();
-}
-
-function getElevationTintedColor(tile: HexTile): string {
-  const base = TERRAIN_COLORS[tile.terrain];
-  // Elevation-based brightness
-  const elev = tile.elevation;
-  const factor = 0.7 + elev * 0.5;
+function getTerrainColor(tile: HexTile): string {
+  const base = BIOME_COLORS[tile.terrain] || '#333';
+  // Elevation tint
+  const factor = 0.75 + tile.elevation * 0.4;
   return tintColor(base, factor);
 }
 
 function tintColor(hex: string, factor: number): string {
   const num = parseInt(hex.replace('#', ''), 16);
-  let r = Math.min(255, Math.floor(((num >> 16) & 0xff) * factor));
-  let g = Math.min(255, Math.floor(((num >> 8) & 0xff) * factor));
-  let b = Math.min(255, Math.floor((num & 0xff) * factor));
+  const r = Math.min(255, Math.floor(((num >> 16) & 0xff) * factor));
+  const g = Math.min(255, Math.floor(((num >> 8) & 0xff) * factor));
+  const b = Math.min(255, Math.floor((num & 0xff) * factor));
   return `rgb(${r},${g},${b})`;
+}
+
+function findSharedVertices(a: VoronoiCell, b: VoronoiCell): Point[] {
+  const shared: Point[] = [];
+  const tol = 1.0;
+  for (const va of a.vertices) {
+    for (const vb of b.vertices) {
+      if (Math.abs(va.x - vb.x) < tol && Math.abs(va.y - vb.y) < tol) {
+        shared.push(va);
+        break;
+      }
+    }
+  }
+  return shared;
 }
