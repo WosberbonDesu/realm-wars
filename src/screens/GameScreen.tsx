@@ -4,6 +4,7 @@ import { MapRenderer } from '../components/MapRenderer';
 import { GestureHandler } from '../components/GestureHandler';
 import { HUD } from '../components/HUD';
 import { TileInfoPanel } from '../components/TileInfoPanel';
+import { EditorPanel } from '../components/EditorPanel';
 import { useGameStore } from '../store/gameStore';
 import { GamePhase } from '../types/game';
 
@@ -84,6 +85,7 @@ export const GameScreen: React.FC = () => {
 
       <HUD />
       <TileInfoPanel />
+      <EditorPanel />
     </View>
   );
 };

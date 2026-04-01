@@ -6,6 +6,7 @@ import { VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiRoute } from '../engine
 import { cellKey } from '../engine/voronoiGrid';
 import { SEA_LEVEL } from '../engine/biomes';
 import { Alea } from '../engine/alea';
+import { useGameStore } from '../store/gameStore';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -98,6 +99,71 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const baseCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const baseCacheKeyRef = useRef<string>('');
+  const rafRef = useRef<number>(0);
+
+  // Base harita cache key: sadece harita verisi + layer toggle değiştiğinde yeniden çiz
+  const baseCacheKey = `${graph?.cells.length}_${showBiomes}_${showBorders}_${showPopulation}_${showGrid}_${burgs.length}_${states.length}`;
+
+  // Base haritayı offscreen canvas'a çiz (ağır işlemler burada)
+  const renderBase = useCallback(() => {
+    if (!graph) return null;
+
+    if (baseCacheKeyRef.current === baseCacheKey && baseCanvasRef.current) {
+      return baseCanvasRef.current;
+    }
+
+    if (!baseCanvasRef.current) {
+      baseCanvasRef.current = document.createElement('canvas');
+    }
+    const offscreen = baseCanvasRef.current;
+    offscreen.width = mapWidth;
+    offscreen.height = mapHeight;
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.clearRect(0, 0, mapWidth, mapHeight);
+
+    // === 1. Ocean ===
+    drawOcean(ctx, graph, cellTiles, mapWidth, mapHeight);
+
+    // === 2. Land biome ===
+    drawLandBiomes(ctx, graph, cellTiles, showBiomes);
+
+    // === 3. State overlay ===
+    if (showBorders) {
+      drawStateOverlay(ctx, graph, cellTiles, stateMap, states);
+    }
+
+    // === 4. Population ===
+    if (showPopulation) {
+      drawPopulation(ctx, graph, cellTiles);
+    }
+
+    // === 5. Coastlines ===
+    drawCoastlines(ctx, graph, cellTiles);
+
+    // === 6. Grid ===
+    if (showGrid) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 0.2;
+      for (const cell of graph.cells) {
+        if (cell.vertices.length < 3) continue;
+        ctx.beginPath();
+        ctx.moveTo(cell.vertices[0].x, cell.vertices[0].y);
+        for (let j = 1; j < cell.vertices.length; j++) ctx.lineTo(cell.vertices[j].x, cell.vertices[j].y);
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+
+    // === 7. State borders ===
+    if (showBorders) drawStateBorders(ctx, graph, stateMap);
+
+    baseCacheKeyRef.current = baseCacheKey;
+    return offscreen;
+  }, [graph, cellTiles, stateMap, states, mapWidth, mapHeight, showBiomes, showBorders, showPopulation, showGrid, baseCacheKey]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -117,43 +183,13 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     ctx.translate(ox, oy);
     ctx.scale(zoom, zoom);
 
-    // === 1. Ocean ===
-    drawOcean(ctx, graph, cellTiles, mapWidth, mapHeight);
-
-    // === 2. Land biome (TEK BÜYÜK PATH olarak - çizgi yok) ===
-    drawLandBiomes(ctx, graph, cellTiles, showBiomes);
-
-    // === 3. State overlay ===
-    if (showBorders) {
-      drawStateOverlay(ctx, graph, cellTiles, stateMap, states);
+    // Base haritayı cache'den çiz
+    const base = renderBase();
+    if (base) {
+      ctx.drawImage(base, 0, 0);
     }
 
-    // === 4. Population ===
-    if (showPopulation) {
-      drawPopulation(ctx, graph, cellTiles);
-    }
-
-    // === 5. Coastlines ===
-    drawCoastlines(ctx, graph, cellTiles);
-
-    // === 6. Grid (sadece toggle açıkken) ===
-    if (showGrid) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-      ctx.lineWidth = 0.2;
-      for (const cell of graph.cells) {
-        if (cell.vertices.length < 3) continue;
-        ctx.beginPath();
-        ctx.moveTo(cell.vertices[0].x, cell.vertices[0].y);
-        for (let j = 1; j < cell.vertices.length; j++) ctx.lineTo(cell.vertices[j].x, cell.vertices[j].y);
-        ctx.closePath();
-        ctx.stroke();
-      }
-    }
-
-    // === 7. State borders ===
-    if (showBorders) drawStateBorders(ctx, graph, stateMap);
-
-    // === 8. Rivers ===
+    // === 8. Rivers (hafif, her frame çizilebilir) ===
     if (showRivers) drawRivers(ctx, graph, rivers);
 
     // === 9. Routes ===
@@ -161,6 +197,9 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
 
     // === 10. Mythological markers ===
     drawMythMarkers(ctx, graph, cellTiles, mapWidth);
+
+    // === 10b. Custom markers ===
+    drawCustomMarkers(ctx, graph);
 
     // === 11. Burgs ===
     if (showBurgs) drawBurgs(ctx, graph, burgs, stateMap, zoom);
@@ -185,9 +224,15 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     ctx.restore();
   }, [graph, cellTiles, rivers, burgs, routes, states, stateMap, coastPaths,
       mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
-      showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation]);
+      showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation, renderBase]);
 
-  useEffect(() => { draw(); }, [draw]);
+  // requestAnimationFrame ile çizim (smooth)
+  useEffect(() => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [draw]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -209,18 +254,30 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
 
 // ===== ÇİZİM FONKSİYONLARI =====
 
-// Polygon çiz - stroke ile gap kapatma
+// Polygon çiz - vertex'leri hafif inflate ederek gap kaldır
 function fillCell(ctx: CanvasRenderingContext2D, verts: Point[], color: string): void {
+  if (verts.length < 3) return;
+
+  // Merkez hesapla
+  let cx = 0, cy = 0;
+  for (const v of verts) { cx += v.x; cy += v.y; }
+  cx /= verts.length; cy /= verts.length;
+
+  // Her vertex'i merkezden 0.5px uzaklaştır (inflate)
   ctx.beginPath();
-  ctx.moveTo(verts[0].x, verts[0].y);
-  for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i].x, verts[i].y);
+  for (let i = 0; i < verts.length; i++) {
+    const dx = verts[i].x - cx;
+    const dy = verts[i].y - cy;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const inflate = 0.5;
+    const nx = verts[i].x + (len > 0 ? dx / len * inflate : 0);
+    const ny = verts[i].y + (len > 0 ? dy / len * inflate : 0);
+    if (i === 0) ctx.moveTo(nx, ny);
+    else ctx.lineTo(nx, ny);
+  }
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
-  // Gap kapatma: aynı renkte çok ince stroke
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 0.7;
-  ctx.stroke();
 }
 
 function drawOcean(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], w: number, h: number): void {
@@ -401,6 +458,22 @@ function drawMythMarkers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, til
         break; // hücre başına 1 marker
       }
     }
+  }
+}
+
+function drawCustomMarkers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph): void {
+  const customMarkers = useGameStore.getState().customMarkers;
+  for (const marker of customMarkers) {
+    const cell = graph.cells[marker.cellIndex];
+    if (!cell) continue;
+    const { x, y } = cell.center;
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(marker.icon, x, y);
+    ctx.font = '7px Georgia, serif';
+    ctx.fillStyle = 'rgba(60,40,20,0.7)';
+    ctx.fillText(marker.name, x, y + 11);
   }
 }
 

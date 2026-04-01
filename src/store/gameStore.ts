@@ -32,6 +32,7 @@ interface GameStore {
   cultureMap: Map<string, number>;
   oceanDepthMap: Map<string, number>;
   iceCells: Set<string>;
+  customMarkers: { cellIndex: number; icon: string; name: string }[];
   mapWidth: number;
   mapHeight: number;
   seed: number;
@@ -83,6 +84,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   cultureMap: new Map(),
   oceanDepthMap: new Map(),
   iceCells: new Set(),
+  customMarkers: [],
   mapWidth: 1200,
   mapHeight: 800,
   seed: 0,

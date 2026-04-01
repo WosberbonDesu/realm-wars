@@ -270,6 +270,27 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
   addPit(graph, heights, rng, rng.nextInt(3, 5), rng.nextInt(10, 30),
     [w * 0.15, w * 0.85], [h * 0.20, h * 0.80], blobPower, w, h);
 
+  // Kıyı kenarına noise ekle (daha düzensiz kıyı çizgisi)
+  const coastNoise = createNoise2D(seed + 9999);
+  for (let i = 0; i < n; i++) {
+    // Sadece kıyı yakınındaki hücrelere (15-25 arası)
+    if (heights[i] > 12 && heights[i] < 28) {
+      const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
+      const noiseVal = coastNoise(nx * 30, ny * 30) * 8; // ±8 yükseklik varyasyonu
+      heights[i] = Math.max(0, Math.min(100, heights[i] + noiseVal));
+    }
+  }
+
+  // Ekstra küçük adalar (ada grubu oluşturur)
+  const islandCount = rng.nextInt(3, 8);
+  for (let a = 0; a < islandCount; a++) {
+    addHill(graph, heights, rng, 1, rng.nextInt(22, 35),
+      [w * 0.05, w * 0.95], [h * 0.05, h * 0.95], blobPower * 0.995, w, h);
+  }
+
+  // Son Mask (küçük adaları kenarlarda kırp)
+  applyMask(graph, heights, 2, w, h);
+
   // 0-100 → 0-1 normalize
   for (let i = 0; i < n; i++) {
     data.elevation[i] = Math.max(0, Math.min(1, heights[i] / 100));

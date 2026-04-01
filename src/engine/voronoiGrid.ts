@@ -43,7 +43,7 @@ export function generateJitteredPoints(config: VoronoiMapConfig): Point[] {
 
   const cols = Math.ceil(config.width / spacing);
   const rows = Math.ceil(config.height / spacing);
-  const jitterAmount = spacing * config.jitter * 0.5;
+  const jitterAmount = spacing * config.jitter * 0.8; // Azgaar-level irregularity
 
   // Margin: kenar noktaları
   const margin = spacing * 0.5;
