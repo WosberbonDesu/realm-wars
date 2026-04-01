@@ -172,6 +172,18 @@ export function generateVoronoiMap(
     }
   }
 
+  // --- 7b. River moisture boost ---
+  for (const river of rivers) {
+    for (const ci of river.path) {
+      voronoiData.moisture[ci] = Math.min(1, voronoiData.moisture[ci] + 0.15);
+      for (const ni of graph.cells[ci].neighbors) {
+        if (voronoiData.elevation[ni] >= SEA_LEVEL) {
+          voronoiData.moisture[ni] = Math.min(1, voronoiData.moisture[ni] + 0.05);
+        }
+      }
+    }
+  }
+
   // --- 8. Burgs ---
   const burgs = generateVoronoiBurgs(graph, voronoiData, terrainArr, landCells, riverCellSet, coastCellSet, rng, nameGen);
 
@@ -230,6 +242,15 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
       templatePangaea(graph, heights, rng, blobPower, linePower, w, h, n, seed);
       break;
   }
+
+  // Apply tectonic plate boundaries
+  applyTectonics(graph, heights, rng, w, h);
+
+  // Smooth tectonic effects
+  smoothHeights(graph, heights, 2);
+
+  // Apply hydraulic erosion (3 iterations)
+  applyErosion(graph, heights, 3);
 
   // 0-100 → 0-1 normalize
   for (let i = 0; i < n; i++) {
@@ -743,6 +764,159 @@ function addTrough(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
 
 // Mask: eliptik maske - ADA ŞEKLİ OLUŞTURUR
 // distance = (1 - nx²)(1 - ny²), power controls blending
+// === Tectonic Plates Simulation ===
+function applyTectonics(graph: VoronoiGraph, heights: Float32Array, rng: Alea, w: number, h: number): void {
+  const n = graph.cells.length;
+  const plateCount = rng.nextInt(4, 8);
+
+  // 1. Seed plates with random cells
+  const plateId = new Int32Array(n).fill(-1);
+  const plateSeeds: number[] = [];
+  for (let p = 0; p < plateCount; p++) {
+    const x = rng.nextFloat(w * 0.1, w * 0.9);
+    const y = rng.nextFloat(h * 0.1, h * 0.9);
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dx = graph.cells[i].center.x - x;
+      const dy = graph.cells[i].center.y - y;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    plateSeeds.push(best);
+    plateId[best] = p;
+  }
+
+  // 2. Flood-fill to assign all cells to plates (BFS)
+  const queue = [...plateSeeds];
+  let qi = 0;
+  while (qi < queue.length) {
+    const ci = queue[qi++];
+    for (const ni of graph.cells[ci].neighbors) {
+      if (plateId[ni] === -1) {
+        plateId[ni] = plateId[ci];
+        queue.push(ni);
+      }
+    }
+  }
+
+  // 3. Assign random velocity vectors to each plate
+  const plateVx = new Float32Array(plateCount);
+  const plateVy = new Float32Array(plateCount);
+  for (let p = 0; p < plateCount; p++) {
+    const angle = rng.nextFloat(0, Math.PI * 2);
+    const speed = rng.nextFloat(0.3, 1.0);
+    plateVx[p] = Math.cos(angle) * speed;
+    plateVy[p] = Math.sin(angle) * speed;
+  }
+
+  // 4. Find plate boundaries and compute stress
+  for (const [a, b] of graph.edges) {
+    if (plateId[a] === plateId[b]) continue; // same plate
+
+    const pA = plateId[a];
+    const pB = plateId[b];
+
+    // Relative velocity along boundary normal
+    const ca = graph.cells[a].center;
+    const cb = graph.cells[b].center;
+    const nx = cb.x - ca.x;
+    const ny = cb.y - ca.y;
+    const len = Math.sqrt(nx * nx + ny * ny);
+    if (len < 0.01) continue;
+
+    // Dot product of relative velocity with normal
+    const relVx = plateVx[pA] - plateVx[pB];
+    const relVy = plateVy[pA] - plateVy[pB];
+    const stress = (relVx * nx / len + relVy * ny / len);
+
+    // Convergent boundary (positive stress) → mountains
+    if (stress > 0.1) {
+      const boost = stress * rng.nextFloat(25, 45);
+      heights[a] = Math.min(100, heights[a] + boost);
+      heights[b] = Math.min(100, heights[b] + boost * 0.7);
+    }
+    // Divergent boundary (negative stress) → rift valleys / ocean trenches
+    else if (stress < -0.1) {
+      const drop = Math.abs(stress) * rng.nextFloat(10, 25);
+      heights[a] = Math.max(0, heights[a] - drop);
+      heights[b] = Math.max(0, heights[b] - drop * 0.7);
+    }
+    // Transform boundary → mild uplift
+    else {
+      heights[a] = Math.min(100, heights[a] + Math.abs(stress) * 5);
+    }
+  }
+
+  // 5. Spread boundary effects (BFS from boundaries, 3-5 cells deep)
+  const boundaryBoost = new Float32Array(n);
+  for (const [a, b] of graph.edges) {
+    if (plateId[a] !== plateId[b]) {
+      boundaryBoost[a] = Math.max(boundaryBoost[a], heights[a] * 0.3);
+      boundaryBoost[b] = Math.max(boundaryBoost[b], heights[b] * 0.3);
+    }
+  }
+  // BFS spread 3 levels
+  const frontier: number[] = [];
+  for (let i = 0; i < n; i++) if (boundaryBoost[i] > 0) frontier.push(i);
+  for (let level = 0; level < 3; level++) {
+    const next: number[] = [];
+    for (const fi of frontier) {
+      for (const ni of graph.cells[fi].neighbors) {
+        const spread = boundaryBoost[fi] * 0.5;
+        if (spread > boundaryBoost[ni]) {
+          boundaryBoost[ni] = spread;
+          next.push(ni);
+        }
+      }
+    }
+    frontier.length = 0;
+    frontier.push(...next);
+  }
+  for (let i = 0; i < n; i++) {
+    heights[i] = Math.min(100, heights[i] + boundaryBoost[i]);
+  }
+}
+
+// === Hydraulic Erosion Simulation ===
+function applyErosion(graph: VoronoiGraph, heights: Float32Array, iterations: number = 3): void {
+  const n = graph.cells.length;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const erosion = new Float32Array(n);
+    const sediment = new Float32Array(n);
+
+    for (let i = 0; i < n; i++) {
+      if (heights[i] < 20) continue; // skip water
+
+      // Find steepest downhill neighbor
+      let steepest = -1;
+      let maxSlope = 0;
+      for (const ni of graph.cells[i].neighbors) {
+        const slope = heights[i] - heights[ni];
+        if (slope > maxSlope) {
+          maxSlope = slope;
+          steepest = ni;
+        }
+      }
+
+      if (steepest < 0 || maxSlope < 0.5) continue;
+
+      // Erosion proportional to slope
+      const erodeAmount = Math.min(maxSlope * 0.15, heights[i] * 0.05);
+      erosion[i] += erodeAmount;
+      sediment[steepest] += erodeAmount * 0.6; // deposit downstream
+    }
+
+    // Apply erosion and deposition
+    for (let i = 0; i < n; i++) {
+      heights[i] = Math.max(0, heights[i] - erosion[i] + sediment[i]);
+    }
+  }
+
+  // Final smooth to blend erosion effects
+  smoothHeights(graph, heights, 2);
+}
+
 function applyMask(graph: VoronoiGraph, heights: Float32Array, power: number, w: number, h: number): void {
   for (let i = 0; i < graph.cells.length; i++) {
     const cx = graph.cells[i].center.x;
@@ -773,25 +947,161 @@ function smoothHeights(graph: VoronoiGraph, heights: Float32Array, factor: numbe
 }
 
 function generateTemperature(data: VoronoiMapData, graph: VoronoiGraph, w: number, h: number, seed: number): void {
-  const tn = createNoise2D(seed+3000);
-  for (let i = 0; i < graph.cells.length; i++) {
+  const n = graph.cells.length;
+  const tn = createNoise2D(seed + 3000);
+
+  // 1. Compute distance-to-ocean for each land cell (BFS)
+  const distToOcean = new Float32Array(n).fill(Infinity);
+  const oceanQueue: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (data.elevation[i] < SEA_LEVEL) {
+      distToOcean[i] = 0;
+      oceanQueue.push(i);
+    }
+  }
+  let qi = 0;
+  while (qi < oceanQueue.length) {
+    const ci = oceanQueue[qi++];
+    for (const ni of graph.cells[ci].neighbors) {
+      const newDist = distToOcean[ci] + 1;
+      if (newDist < distToOcean[ni]) {
+        distToOcean[ni] = newDist;
+        oceanQueue.push(ni);
+      }
+    }
+  }
+  const maxDist = Math.max(...distToOcean.filter(d => d < Infinity));
+
+  for (let i = 0; i < n; i++) {
     const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
-    let t = Math.max(0, Math.min(1, 1-Math.sqrt((nx-0.5)**2+(ny-0.5)**2)*1.6));
-    t = applyLapseRate(t, data.elevation[i]);
-    t += tn((nx-0.5)*10,(ny-0.5)*10)*0.1;
+
+    // Latitude-based temperature: ny=0 is north (cold), ny=0.5 is equator (hot), ny=1 is south (cold)
+    // Use sinusoidal curve: hottest at equator
+    const latitude = Math.abs(ny - 0.5) * 2; // 0 at equator, 1 at poles
+    let t = 1 - latitude * 0.95; // base temp from latitude
+
+    // Equatorial warm belt (wider warm zone)
+    t = Math.pow(t, 0.7); // flatten the curve near equator
+
+    // Lapse rate: elevation cooling
+    // Real: ~6.5°C per 1000m, we model as 0.55 per unit above sea level
+    if (data.elevation[i] > SEA_LEVEL) {
+      const landElev = (data.elevation[i] - SEA_LEVEL) / (1 - SEA_LEVEL);
+      t -= landElev * 0.55;
+    }
+
+    // Ocean proximity: coasts buffer temperature toward 0.5 (marine climate)
+    // Continental interiors have more extreme temperatures
+    if (data.elevation[i] >= SEA_LEVEL && maxDist > 0) {
+      const oceanInfluence = 1 - Math.min(distToOcean[i] / maxDist, 1);
+      // Pull temperature toward 0.5 based on ocean proximity
+      t = t + (0.5 - t) * oceanInfluence * 0.3;
+    }
+
+    // Ocean cells: moderate temperature (sea surface temp)
+    if (data.elevation[i] < SEA_LEVEL) {
+      t = Math.max(t, 0.1); // oceans don't get as cold
+      t = Math.min(t, 0.85); // oceans don't get as hot
+    }
+
+    // Add noise for regional variation (±0.08)
+    t += tn((nx - 0.5) * 12, (ny - 0.5) * 12) * 0.08;
+
     data.temperature[i] = Math.max(0, Math.min(1, t));
   }
 }
 
 function generateMoisture(data: VoronoiMapData, graph: VoronoiGraph, w: number, h: number, seed: number): void {
-  const mn1 = createNoise2D(seed+5000), mn2 = createNoise2D(seed+6000);
-  for (let i = 0; i < graph.cells.length; i++) {
+  const n = graph.cells.length;
+  const rng = new Alea(seed + 5555);
+  const mn = createNoise2D(seed + 5000);
+
+  // Prevailing wind direction (global westerlies + trade winds approximation)
+  // Wind comes from the west in mid-latitudes, east near equator
+  const windDir = rng.nextFloat(230, 280) * Math.PI / 180; // radians, roughly from west
+  const windDx = Math.cos(windDir);
+  const windDy = Math.sin(windDir);
+
+  // 1. Compute base moisture from distance-to-ocean along wind direction
+  // Cells close to the windward coast get more moisture
+  const moisture = new Float32Array(n);
+
+  // First: all ocean cells have max moisture
+  for (let i = 0; i < n; i++) {
+    if (data.elevation[i] < SEA_LEVEL) {
+      moisture[i] = 0.85;
+    }
+  }
+
+  // 2. Sort cells by wind direction (upwind to downwind)
+  // Cells that the wind reaches first get processed first
+  const windOrder = Array.from({ length: n }, (_, i) => i)
+    .sort((a, b) => {
+      const ca = graph.cells[a].center;
+      const cb = graph.cells[b].center;
+      // Project onto wind direction (dot product)
+      const projA = ca.x * windDx + ca.y * windDy;
+      const projB = cb.x * windDx + cb.y * windDy;
+      return projA - projB; // upwind first
+    });
+
+  // 3. Propagate moisture downwind, reduce when hitting mountains
+  for (const i of windOrder) {
+    if (data.elevation[i] < SEA_LEVEL) continue;
+
+    // Start with neighbor moisture from upwind direction
+    let maxUpwindMoisture = 0;
+    for (const ni of graph.cells[i].neighbors) {
+      // Check if neighbor is upwind
+      const dx = graph.cells[i].center.x - graph.cells[ni].center.x;
+      const dy = graph.cells[i].center.y - graph.cells[ni].center.y;
+      const dot = dx * windDx + dy * windDy;
+      if (dot > 0) { // neighbor is upwind
+        maxUpwindMoisture = Math.max(maxUpwindMoisture, moisture[ni]);
+      }
+    }
+
+    // Base moisture from upwind propagation (slight decay)
+    let m = maxUpwindMoisture * 0.92;
+
+    // Rain shadow: high elevation forces moisture to drop (orographic lift)
+    if (data.elevation[i] > 0.5) {
+      const elevFactor = (data.elevation[i] - 0.5) * 2; // 0-1 for elevation 0.5-1.0
+      // Orographic precipitation: moisture drops sharply on windward side
+      m -= elevFactor * 0.4;
+      // But some precipitation falls here (windward wet)
+      m = Math.max(m, 0.1);
+    }
+
+    // Temperature influence: warm air holds more moisture
+    m *= (0.7 + data.temperature[i] * 0.4);
+
+    // Noise for local variation
     const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
-    const sx = (nx-0.5)*20, sy = (ny-0.5)*20;
-    let m = mn1(sx*0.4,sy*0.4)*0.5+mn2(sx*0.8,sy*0.8)*0.25+0.35;
-    if (data.elevation[i]<SEA_LEVEL) m=0.8;
-    else { const le=(data.elevation[i]-SEA_LEVEL)/(1-SEA_LEVEL); if(le>0.5) m-=(le-0.5)*0.3; }
-    data.moisture[i] = Math.max(0, Math.min(1, m));
+    m += mn((nx - 0.5) * 15, (ny - 0.5) * 15) * 0.12;
+
+    moisture[i] = Math.max(0.02, Math.min(1, m));
+  }
+
+  // 4. Smooth moisture slightly (2 passes)
+  for (let pass = 0; pass < 2; pass++) {
+    const smoothed = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      if (data.elevation[i] < SEA_LEVEL) { smoothed[i] = moisture[i]; continue; }
+      let sum = moisture[i] * 2;
+      let count = 2;
+      for (const ni of graph.cells[i].neighbors) {
+        sum += moisture[ni];
+        count++;
+      }
+      smoothed[i] = sum / count;
+    }
+    for (let i = 0; i < n; i++) moisture[i] = smoothed[i];
+  }
+
+  // Copy to data
+  for (let i = 0; i < n; i++) {
+    data.moisture[i] = Math.max(0, Math.min(1, moisture[i]));
   }
 }
 
@@ -856,12 +1166,13 @@ function generateVoronoiRivers(graph: VoronoiGraph, elevation: Float32Array, moi
     if (depressions === 0) break;
   }
 
-  // --- Step 3: drainWater ---
+  // --- Step 3: drainWater with watershed accumulation ---
   const flux = new Float32Array(n);
   const downhill = new Int32Array(n).fill(-1);
   const riverIds = new Int32Array(n).fill(-1);
+  const watershedArea = new Float32Array(n).fill(1); // each cell contributes area=1
 
-  // Find downhill for each cell
+  // Find downhill for each cell (steepest descent)
   for (let i = 0; i < n; i++) {
     if (h[i] < SEA_LEVEL) continue;
     let lowest = -1, lowestH = h[i];
@@ -871,21 +1182,24 @@ function generateVoronoiRivers(graph: VoronoiGraph, elevation: Float32Array, moi
     downhill[i] = lowest;
   }
 
-  // Sort HIGH to LOW, drain flux
+  // Sort HIGH to LOW
   const highToLow = Array.from({ length: n }, (_, i) => i)
     .filter(i => h[i] >= SEA_LEVEL)
     .sort((a, b) => h[b] - h[a]);
 
   for (const i of highToLow) {
-    // Add precipitation
-    flux[i] += moisture[i] * 100 / cellsModifier; // Azgaar uses prec/cellsModifier
+    // Precipitation: based on moisture and temperature
+    // Warmer, moister cells produce more runoff
+    const precip = moisture[i] * (0.5 + elevation[i] * 0.3) * 80 / cellsModifier;
+    flux[i] += precip;
 
     const min = downhill[i];
     if (min < 0) continue;
-    if (h[i] <= h[min]) continue; // still depressed
+    if (h[i] <= h[min]) continue;
 
-    // Pass flux downhill
+    // Pass flux AND watershed area downhill
     flux[min] += flux[i];
+    watershedArea[min] += watershedArea[i];
   }
 
   // --- Step 4: Trace rivers from high-flux cells ---
