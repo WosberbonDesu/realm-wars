@@ -69,6 +69,8 @@ interface GameStore {
   showTemperature: boolean;
   showMoisture: boolean;
   showCultures: boolean;
+  showList: boolean;
+  showLegend: boolean;
   isGenerating: boolean;
   toggleLayer: (layer: string) => void;
 
@@ -123,6 +125,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   showTemperature: false,
   showMoisture: false,
   showCultures: false,
+  showList: false,
+  showLegend: false,
   isGenerating: false,
 
   setScreen: (s) => set({ screen: s }),

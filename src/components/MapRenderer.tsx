@@ -321,13 +321,15 @@ function fillCell(ctx: CanvasRenderingContext2D, verts: Point[], color: string):
   ctx.fill();
 }
 
+// Göl renkleri (okyanusdan daha açık, turkuaz)
+const LAKE_COLORS = ['#6db8d4', '#5da8c8', '#4d98bc'];
+
 function drawOcean(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], w: number, h: number): void {
   const n = graph.cells.length;
 
-  // Hybrid depth: BFS from coast + actual elevation for blending
+  // 1. BFS depth from coast
   const bfsDepth = new Int32Array(n).fill(-1);
   const queue: number[] = [];
-
   for (let i = 0; i < n; i++) {
     if (tiles[i].elevation >= SEA_LEVEL) continue;
     for (const ni of graph.cells[i].neighbors) {
@@ -344,16 +346,47 @@ function drawOcean(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: He
     }
   }
 
+  // 2. Göl tespiti: harita kenarına bağlı olmayan su kütleleri
+  // Kenar su hücrelerinden BFS → ulaşılamayan su = göl
+  const isOcean = new Uint8Array(n); // 1=okyanus, 0=göl veya kara
+  const edgeMargin = 20; // px
+  const oceanQueue: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (tiles[i].elevation >= SEA_LEVEL) continue;
+    const c = graph.cells[i].center;
+    if (c.x < edgeMargin || c.x > w - edgeMargin || c.y < edgeMargin || c.y > h - edgeMargin) {
+      isOcean[i] = 1;
+      oceanQueue.push(i);
+    }
+  }
+  let oqi = 0;
+  while (oqi < oceanQueue.length) {
+    const ci = oceanQueue[oqi++];
+    for (const ni of graph.cells[ci].neighbors) {
+      if (tiles[ni].elevation < SEA_LEVEL && !isOcean[ni]) {
+        isOcean[ni] = 1;
+        oceanQueue.push(ni);
+      }
+    }
+  }
+
+  // 3. Çiz
   for (let i = 0; i < n; i++) {
     if (tiles[i].elevation >= SEA_LEVEL) continue;
     const cell = graph.cells[i];
     if (cell.vertices.length < 3) continue;
 
-    // Blend BFS depth + actual elevation for more realistic ocean floor
-    const bfs = bfsDepth[i] >= 0 ? bfsDepth[i] : 8;
-    const elevDepth = Math.floor((SEA_LEVEL - tiles[i].elevation) / SEA_LEVEL * 8);
-    const blended = Math.min(Math.round(bfs * 0.6 + elevDepth * 0.4), OCEAN_COLORS.length - 1);
-    fillCell(ctx, cell.vertices, OCEAN_COLORS[blended]);
+    if (isOcean[i]) {
+      // Okyanus: derinlik bazlı renk
+      const bfs = bfsDepth[i] >= 0 ? bfsDepth[i] : 8;
+      const elevDepth = Math.floor((SEA_LEVEL - tiles[i].elevation) / SEA_LEVEL * 8);
+      const blended = Math.min(Math.round(bfs * 0.6 + elevDepth * 0.4), OCEAN_COLORS.length - 1);
+      fillCell(ctx, cell.vertices, OCEAN_COLORS[blended]);
+    } else {
+      // Göl: açık turkuaz
+      const d = Math.min(bfsDepth[i] >= 0 ? bfsDepth[i] : 2, LAKE_COLORS.length - 1);
+      fillCell(ctx, cell.vertices, LAKE_COLORS[d]);
+    }
   }
 }
 

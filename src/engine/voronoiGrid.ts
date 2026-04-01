@@ -116,7 +116,8 @@ export function createVoronoiMap(config: Partial<VoronoiMapConfig> = {}): Vorono
   const points = generateJitteredPoints(cfg);
 
   // 2. Lloyd relaxation ile hücre boyutlarını eşitle
-  const relaxed = lloydRelax(points, cfg.width, cfg.height, 2);
+  // 1 iterasyon: performans için yeterli, 2 çok yavaş
+  const relaxed = lloydRelax(points, cfg.width, cfg.height, 1);
 
   // 3. Voronoi graph
   const graph = createVoronoiGraph(relaxed, cfg.width, cfg.height);

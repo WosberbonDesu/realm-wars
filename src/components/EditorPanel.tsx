@@ -23,6 +23,10 @@ const MARKER_OPTIONS = [
   { icon: '👻', name: 'Hayalet Sehir' },
 ];
 
+// Undo stack: her editor aksiyonunu kaydet
+type UndoAction = { type: 'addBurg'; burgId: number } | { type: 'addMarker'; cellIndex: number } | { type: 'deleteMarker'; marker: { cellIndex: number; icon: string; name: string } } | { type: 'rename'; target: 'burg' | 'state'; id: number; oldName: string };
+const undoStack: UndoAction[] = [];
+
 export const EditorPanel: React.FC = () => {
   const [activeTool, setActiveTool] = useState<EditorTool>('none');
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -30,6 +34,7 @@ export const EditorPanel: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [showMarkerPicker, setShowMarkerPicker] = useState(false);
   const [selectedMarkerIcon, setSelectedMarkerIcon] = useState('🐉');
+  const [, forceUpdate] = useState(0);
 
   const selectedCell = useGameStore(s => s.selectedCell);
   const cellTiles = useGameStore(s => s.cellTiles);
@@ -61,25 +66,31 @@ export const EditorPanel: React.FC = () => {
       score: 5,
     };
 
-    // Store'u güncelle
     useGameStore.setState({ burgs: [...burgs, newBurg] });
+    undoStack.push({ type: 'addBurg', burgId: newBurg.id });
+    forceUpdate(v => v + 1);
   };
 
   const handleRename = () => {
     if (!renameTarget || !newName.trim()) return;
 
     if (renameTarget.type === 'burg') {
+      const oldBurg = burgs.find(b => b.id === renameTarget.id);
+      undoStack.push({ type: 'rename', target: 'burg', id: renameTarget.id, oldName: oldBurg?.name || '' });
       const updated = burgs.map(b =>
         b.id === renameTarget.id ? { ...b, name: newName.trim() } : b
       );
       useGameStore.setState({ burgs: updated });
     } else if (renameTarget.type === 'state') {
+      const oldState = states.find(s => s.id === renameTarget.id);
+      undoStack.push({ type: 'rename', target: 'state', id: renameTarget.id, oldName: oldState?.name || '' });
       const updated = states.map(s =>
         s.id === renameTarget.id ? { ...s, name: newName.trim() } : s
       );
       useGameStore.setState({ states: updated });
     }
 
+    forceUpdate(v => v + 1);
     setShowRenameModal(false);
     setRenameTarget(null);
     setNewName('');
@@ -94,16 +105,46 @@ export const EditorPanel: React.FC = () => {
       name: MARKER_OPTIONS.find(m => m.icon === selectedMarkerIcon)?.name || 'Bilinmeyen',
     };
     useGameStore.setState({ customMarkers: [...customMarkers, marker] });
+    undoStack.push({ type: 'addMarker', cellIndex: selectedCell });
+    forceUpdate(v => v + 1);
     setShowMarkerPicker(false);
   };
 
   const handleDeleteMarker = () => {
     if (selectedCell === null) return;
     const markers = useGameStore.getState().customMarkers;
+    const deleted = markers.find(m => m.cellIndex === selectedCell);
+    if (deleted) undoStack.push({ type: 'deleteMarker', marker: deleted });
     useGameStore.setState({ customMarkers: markers.filter(m => m.cellIndex !== selectedCell) });
+    forceUpdate(v => v + 1);
   };
 
   const hasCustomMarker = selectedCell !== null && customMarkers.some(m => m.cellIndex === selectedCell);
+
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const action = undoStack.pop()!;
+    const s = useGameStore.getState();
+    switch (action.type) {
+      case 'addBurg':
+        useGameStore.setState({ burgs: s.burgs.filter(b => b.id !== action.burgId) });
+        break;
+      case 'addMarker':
+        useGameStore.setState({ customMarkers: s.customMarkers.filter(m => m.cellIndex !== action.cellIndex) });
+        break;
+      case 'deleteMarker':
+        useGameStore.setState({ customMarkers: [...s.customMarkers, action.marker] });
+        break;
+      case 'rename':
+        if (action.target === 'burg') {
+          useGameStore.setState({ burgs: s.burgs.map(b => b.id === action.id ? { ...b, name: action.oldName } : b) });
+        } else {
+          useGameStore.setState({ states: s.states.map(st => st.id === action.id ? { ...st, name: action.oldName } : st) });
+        }
+        break;
+    }
+    forceUpdate(v => v + 1);
+  };
 
   return (
     <View style={styles.container}>
@@ -153,6 +194,10 @@ export const EditorPanel: React.FC = () => {
 
         {hasCustomMarker && (
           <ToolBtn icon="🗑️" label="Marker Sil" onPress={handleDeleteMarker} />
+        )}
+
+        {undoStack.length > 0 && (
+          <ToolBtn icon="↩️" label="Geri Al" onPress={handleUndo} />
         )}
       </View>
 

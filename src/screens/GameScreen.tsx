@@ -6,9 +6,11 @@ import { HUD } from '../components/HUD';
 import { TileInfoPanel } from '../components/TileInfoPanel';
 import { StateDetailPanel } from '../components/StateDetailPanel';
 import { MapStatsPanel } from '../components/MapStatsPanel';
+import { ListPanel } from '../components/ListPanel';
 import { EditorPanel } from '../components/EditorPanel';
 import { ExportButton } from '../components/ExportButton';
 import { Minimap } from '../components/Minimap';
+import { LegendPanel } from '../components/LegendPanel';
 import { useGameStore } from '../store/gameStore';
 import { GamePhase } from '../types/game';
 
@@ -44,6 +46,8 @@ export const GameScreen: React.FC = () => {
   const showTemperature = useGameStore(s => s.showTemperature);
   const showMoisture = useGameStore(s => s.showMoisture);
   const showCultures = useGameStore(s => s.showCultures);
+  const showList = useGameStore(s => s.showList);
+  const showLegend = useGameStore(s => s.showLegend);
   const cultures = useGameStore(s => s.cultures);
   const cultureMap = useGameStore(s => s.cultureMap);
   const toggleLayer = useGameStore(s => s.toggleLayer);
@@ -114,6 +118,8 @@ export const GameScreen: React.FC = () => {
         <LB label="Nem" on={showMoisture} p={() => toggleLayer('showMoisture')} />
         <LB label="Kultur" on={showCultures} p={() => toggleLayer('showCultures')} />
         <LB label="Istatistik" on={showStats} p={() => toggleLayer('showStats')} />
+        <LB label="Liste" on={showList} p={() => toggleLayer('showList')} />
+        <LB label="Lejand" on={showLegend} p={() => toggleLayer('showLegend')} />
         <ExportButton />
       </ScrollView>
 
@@ -122,6 +128,8 @@ export const GameScreen: React.FC = () => {
       <TileInfoPanel />
       <StateDetailPanel />
       <MapStatsPanel />
+      <ListPanel />
+      <LegendPanel />
       <EditorPanel />
 
       {isGenerating && (
