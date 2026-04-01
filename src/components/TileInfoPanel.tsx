@@ -4,16 +4,22 @@ import { useGameStore } from '../store/gameStore';
 import { TERRAIN_ICONS } from '../constants/game';
 import { TERRAIN_NAMES } from '../constants/terrain';
 import { COLORS } from '../constants/theme';
+import { cellKey } from '../engine/voronoiGrid';
 
 export const TileInfoPanel: React.FC = () => {
   const selectedCell = useGameStore(s => s.selectedCell);
   const selectCell = useGameStore(s => s.selectCell);
   const cellTiles = useGameStore(s => s.cellTiles);
+  const stateMap = useGameStore(s => s.stateMap);
 
   if (selectedCell === null || selectedCell < 0 || selectedCell >= cellTiles.length) return null;
 
   const tile = cellTiles[selectedCell];
   if (!tile) return null;
+
+  // If this cell belongs to a state, StateDetailPanel will show instead
+  const hasState = stateMap.get(cellKey(selectedCell)) !== undefined;
+  if (hasState) return null;
 
   return (
     <View style={styles.container}>

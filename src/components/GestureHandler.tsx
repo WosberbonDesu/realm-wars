@@ -79,7 +79,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({ children }) => {
       we.preventDefault();
       const s = useGameStore.getState();
       const delta = we.deltaY > 0 ? 0.9 : 1.1;
-      targetZoomRef.current = Math.max(0.3, Math.min(4, (targetZoomRef.current || s.cameraZoom) * delta));
+      targetZoomRef.current = Math.max(0.3, Math.min(3, (targetZoomRef.current || s.cameraZoom) * delta));
       startSmoothZoom();
     };
 
@@ -117,7 +117,7 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({ children }) => {
           if (lastPinchDist.current > 0) {
             const s = useGameStore.getState();
             const newZoom = s.cameraZoom * (dist / lastPinchDist.current);
-            targetZoomRef.current = Math.max(0.3, Math.min(4, newZoom));
+            targetZoomRef.current = Math.max(0.3, Math.min(3, newZoom));
             s.setCameraZoom(targetZoomRef.current);
           }
           lastPinchDist.current = dist;

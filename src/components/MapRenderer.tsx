@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { View, Dimensions, Platform } from 'react-native';
 import { HexTile, HexTerrain } from '../types/game';
 import { Point, VoronoiGraph, VoronoiCell } from '../engine/voronoi';
-import { VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiRoute } from '../engine/voronoiMapGenerator';
+import { VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiRoute } from '../engine/voronoiMapGenerator';
 import { cellKey } from '../engine/voronoiGrid';
 import { SEA_LEVEL } from '../engine/biomes';
 import { Alea } from '../engine/alea';
@@ -96,6 +96,11 @@ interface MapRendererProps {
   showIce: boolean;
   showWind: boolean;
   showElevation: boolean;
+  showTemperature: boolean;
+  showMoisture: boolean;
+  showCultures: boolean;
+  cultures: VoronoiCulture[];
+  cultureMap: Map<string, number>;
 }
 
 export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
@@ -103,6 +108,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
   showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
   showRelief, showEmblems, showIce, showWind, showElevation,
+  showTemperature, showMoisture, showCultures, cultures, cultureMap,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -201,8 +207,20 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     // === 7b. Elevation heatmap overlay ===
     if (showElevation) drawElevationHeatmap(ctx, graph, cellTiles);
 
-    // === 8. Rivers (hafif, her frame çizilebilir) ===
+    // === 7c. Temperature heatmap ===
+    if (showTemperature) drawTemperatureHeatmap(ctx, graph, cellTiles);
+
+    // === 7d. Moisture heatmap ===
+    if (showMoisture) drawMoistureHeatmap(ctx, graph, cellTiles);
+
+    // === 7e. Culture overlay ===
+    if (showCultures) drawCultureOverlay(ctx, graph, cellTiles, cultureMap, cultures);
+
+    // === 8. Rivers ===
     if (showRivers) drawRivers(ctx, graph, rivers);
+
+    // === 8b. River labels ===
+    if (showRivers) drawRiverLabels(ctx, graph, rivers);
 
     // === 9. Routes ===
     if (showRoutes) drawRoutes(ctx, graph, routes);
@@ -246,7 +264,8 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   }, [graph, cellTiles, rivers, burgs, routes, states, stateMap,
       mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
       showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
-      showRelief, showEmblems, showIce, showWind, showElevation, renderBase]);
+      showRelief, showEmblems, showIce, showWind, showElevation,
+      showTemperature, showMoisture, showCultures, cultures, cultureMap, renderBase]);
 
   // requestAnimationFrame ile çizim (smooth)
   useEffect(() => {
@@ -613,6 +632,108 @@ function drawElevationHeatmap(ctx: CanvasRenderingContext2D, graph: VoronoiGraph
   ctx.restore();
 }
 
+// ===== TEMPERATURE HEATMAP =====
+function drawTemperatureHeatmap(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile) continue;
+    const cell = graph.cells[i];
+    if (cell.vertices.length < 3) continue;
+    // HSL: kırmızı(0)=sıcak, mavi(240)=soğuk
+    const hue = Math.floor((1 - tile.temperature) * 240);
+    fillCell(ctx, cell.vertices, `hsl(${hue}, 80%, 50%)`);
+  }
+  ctx.restore();
+}
+
+// ===== MOISTURE HEATMAP =====
+function drawMoistureHeatmap(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile) continue;
+    const cell = graph.cells[i];
+    if (cell.vertices.length < 3) continue;
+    // Kahverengi(kuru) → yeşil(orta) → mavi(ıslak)
+    const m = tile.moisture;
+    const hue = Math.floor(m * 120 + 30);
+    const light = Math.floor(40 + m * 20);
+    fillCell(ctx, cell.vertices, `hsl(${hue}, 70%, ${light}%)`);
+  }
+  ctx.restore();
+}
+
+// ===== CULTURE OVERLAY =====
+const CULTURE_COLORS_MAP = [
+  '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
+  '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4',
+];
+
+function drawCultureOverlay(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], cultureMap: Map<string, number>, cultures: VoronoiCulture[]): void {
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile || tile.elevation < SEA_LEVEL) continue;
+    const cell = graph.cells[i];
+    if (cell.vertices.length < 3) continue;
+    const cId = cultureMap.get(cellKey(i));
+    if (cId === undefined || cId < 0) continue;
+    const color = CULTURE_COLORS_MAP[cId % CULTURE_COLORS_MAP.length];
+    fillCell(ctx, cell.vertices, color);
+  }
+  ctx.restore();
+
+  // Kültür etiketleri
+  for (const culture of cultures) {
+    if (culture.cells.length < 5) continue;
+    let cx = 0, cy = 0;
+    for (const ci of culture.cells) {
+      cx += graph.cells[ci].center.x;
+      cy += graph.cells[ci].center.y;
+    }
+    cx /= culture.cells.length;
+    cy /= culture.cells.length;
+    const fs = Math.min(14, Math.max(7, Math.sqrt(culture.cells.length) * 0.5));
+    ctx.font = `italic ${fs}px Georgia, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(80,40,20,0.5)';
+    ctx.fillText(culture.name, cx, cy);
+  }
+}
+
+// ===== RIVER LABELS =====
+function drawRiverLabels(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, rivers: VoronoiRiver[]): void {
+  for (const river of rivers) {
+    if (river.path.length < 6) continue;
+    const midIdx = Math.floor(river.path.length / 2);
+    const cell = graph.cells[river.path[midIdx]];
+    if (!cell) continue;
+    const prevCell = graph.cells[river.path[Math.max(0, midIdx - 1)]];
+    const nextCell = graph.cells[river.path[Math.min(river.path.length - 1, midIdx + 1)]];
+    if (!prevCell || !nextCell) continue;
+    const angle = Math.atan2(
+      nextCell.center.y - prevCell.center.y,
+      nextCell.center.x - prevCell.center.x,
+    );
+    ctx.save();
+    ctx.translate(cell.center.x, cell.center.y);
+    // Ters dönük yazı okumak zor, düzelt
+    const adjustedAngle = angle > Math.PI / 2 || angle < -Math.PI / 2 ? angle + Math.PI : angle;
+    ctx.rotate(adjustedAngle);
+    ctx.font = 'italic 7px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(40,80,130,0.55)';
+    ctx.fillText(river.name, 0, -3);
+    ctx.restore();
+  }
+}
+
 // ===== ICE LAYER =====
 function drawIceLayer(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
   for (let i = 0; i < graph.cells.length; i++) {
@@ -852,7 +973,9 @@ function drawEmblemsOnMap(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, st
 // Emblem generation helper (cached)
 let _emblemCache: { key: string; emblems: Emblem[] } | null = null;
 function generateEmblemsForStates(count: number, rng: Alea): Emblem[] {
-  const key = `${count}`;
+  const mapW = useGameStore.getState().mapWidth;
+  const seed = useGameStore.getState().seed;
+  const key = `${count}_${mapW}_${seed}`;
   if (_emblemCache?.key === key) return _emblemCache.emblems;
   const emblems = generateEmblems(count, rng);
   _emblemCache = { key, emblems };

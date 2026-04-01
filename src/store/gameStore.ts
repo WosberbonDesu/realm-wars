@@ -67,6 +67,10 @@ interface GameStore {
   showIce: boolean;
   showWind: boolean;
   showElevation: boolean;
+  showTemperature: boolean;
+  showMoisture: boolean;
+  showCultures: boolean;
+  isGenerating: boolean;
   toggleLayer: (layer: string) => void;
 
   // Actions
@@ -118,6 +122,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   showIce: true,
   showWind: false,
   showElevation: false,
+  showTemperature: false,
+  showMoisture: false,
+  showCultures: false,
+  isGenerating: false,
 
   setScreen: (s) => set({ screen: s }),
   setCameraPos: (x, y) => set({ cameraX: x, cameraY: y }),
@@ -128,6 +136,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleLayer: (layer) => set((s) => ({ [layer]: !(s as any)[layer] } as any)),
 
   newGame: (seed, template) => {
+    set({ isGenerating: true });
     const gameSeed = seed ?? Math.floor(Math.random() * 999999999);
     const mapTemplate = template ?? get().mapTemplate ?? 'highIsland';
 
@@ -159,6 +168,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     set({
+      isGenerating: false,
       voronoiGraph: result.voronoi.graph,
       cellTiles: result.cellTiles,
       rivers: result.rivers,

@@ -36,6 +36,7 @@ export const EditorPanel: React.FC = () => {
   const burgs = useGameStore(s => s.burgs);
   const states = useGameStore(s => s.states);
   const stateMap = useGameStore(s => s.stateMap);
+  const customMarkers = useGameStore(s => s.customMarkers);
 
   const store = useGameStore;
 
@@ -96,6 +97,14 @@ export const EditorPanel: React.FC = () => {
     setShowMarkerPicker(false);
   };
 
+  const handleDeleteMarker = () => {
+    if (selectedCell === null) return;
+    const markers = useGameStore.getState().customMarkers;
+    useGameStore.setState({ customMarkers: markers.filter(m => m.cellIndex !== selectedCell) });
+  };
+
+  const hasCustomMarker = selectedCell !== null && customMarkers.some(m => m.cellIndex === selectedCell);
+
   return (
     <View style={styles.container}>
       {/* Araç çubuğu */}
@@ -140,6 +149,10 @@ export const EditorPanel: React.FC = () => {
               setShowRenameModal(true);
             }}
           />
+        )}
+
+        {hasCustomMarker && (
+          <ToolBtn icon="🗑️" label="Marker Sil" onPress={handleDeleteMarker} />
         )}
       </View>
 
@@ -265,8 +278,8 @@ const styles = StyleSheet.create({
   infoState: { color: '#8aa0b8', fontSize: 11, fontWeight: '600' },
   infoText: { color: '#607080', fontSize: 10 },
   modalOverlay: {
-    position: 'absolute', top: -500, left: 0, right: 0, bottom: 0,
-    height: 1000, backgroundColor: 'rgba(0,0,0,0.6)',
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 100, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center', alignItems: 'center',
   },
   modal: {

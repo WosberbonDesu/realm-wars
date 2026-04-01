@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { MapRenderer } from '../components/MapRenderer';
 import { GestureHandler } from '../components/GestureHandler';
 import { HUD } from '../components/HUD';
@@ -8,6 +8,7 @@ import { StateDetailPanel } from '../components/StateDetailPanel';
 import { MapStatsPanel } from '../components/MapStatsPanel';
 import { EditorPanel } from '../components/EditorPanel';
 import { ExportButton } from '../components/ExportButton';
+import { Minimap } from '../components/Minimap';
 import { useGameStore } from '../store/gameStore';
 import { GamePhase } from '../types/game';
 
@@ -40,7 +41,13 @@ export const GameScreen: React.FC = () => {
   const showIce = useGameStore(s => s.showIce);
   const showWind = useGameStore(s => s.showWind);
   const showElevation = useGameStore(s => s.showElevation);
+  const showTemperature = useGameStore(s => s.showTemperature);
+  const showMoisture = useGameStore(s => s.showMoisture);
+  const showCultures = useGameStore(s => s.showCultures);
+  const cultures = useGameStore(s => s.cultures);
+  const cultureMap = useGameStore(s => s.cultureMap);
   const toggleLayer = useGameStore(s => s.toggleLayer);
+  const isGenerating = useGameStore(s => s.isGenerating);
 
   if (!game) return null;
 
@@ -82,10 +89,15 @@ export const GameScreen: React.FC = () => {
           showIce={showIce}
           showWind={showWind}
           showElevation={showElevation}
+          showTemperature={showTemperature}
+          showMoisture={showMoisture}
+          showCultures={showCultures}
+          cultures={cultures}
+          cultureMap={cultureMap}
         />
       </GestureHandler>
 
-      <View style={styles.lp}>
+      <ScrollView style={styles.lp} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 4 }}>
         <LB label="Biome" on={showBiomes} p={() => toggleLayer('showBiomes')} />
         <LB label="Nehir" on={showRivers} p={() => toggleLayer('showRivers')} />
         <LB label="Devlet" on={showBorders} p={() => toggleLayer('showBorders')} />
@@ -98,15 +110,26 @@ export const GameScreen: React.FC = () => {
         <LB label="Buz" on={showIce} p={() => toggleLayer('showIce')} />
         <LB label="Ruzgar" on={showWind} p={() => toggleLayer('showWind')} />
         <LB label="Yukseklik" on={showElevation} p={() => toggleLayer('showElevation')} />
+        <LB label="Sicaklik" on={showTemperature} p={() => toggleLayer('showTemperature')} />
+        <LB label="Nem" on={showMoisture} p={() => toggleLayer('showMoisture')} />
+        <LB label="Kultur" on={showCultures} p={() => toggleLayer('showCultures')} />
         <LB label="Istatistik" on={showStats} p={() => toggleLayer('showStats')} />
         <ExportButton />
-      </View>
+      </ScrollView>
 
       <HUD />
+      <Minimap />
       <TileInfoPanel />
       <StateDetailPanel />
       <MapStatsPanel />
       <EditorPanel />
+
+      {isGenerating && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text style={styles.loadingText}>Harita Olusturuluyor...</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -122,9 +145,17 @@ const styles = StyleSheet.create({
   go: { flex: 1, backgroundColor: '#0A1628', justifyContent: 'center', alignItems: 'center' },
   goTitle: { color: '#FFD700', fontSize: 36, fontWeight: '900', marginBottom: 20 },
   goLink: { color: '#4A90D9', fontSize: 18, fontWeight: '700' },
-  lp: { position: 'absolute', top: 60, right: 8, gap: 4 },
+  lp: { position: 'absolute', top: 60, right: 8, maxHeight: '80%' },
   lb: { backgroundColor: 'rgba(15,25,35,0.85)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#2A3A4A' },
   lba: { backgroundColor: 'rgba(74,144,217,0.25)', borderColor: '#4A90D9' },
   lt: { color: '#607080', fontSize: 11, fontWeight: '600' },
   lta: { color: '#6AADE6' },
+  loadingOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  loadingText: {
+    color: '#FFD700', fontSize: 18, fontWeight: '700', marginTop: 16,
+  },
 });

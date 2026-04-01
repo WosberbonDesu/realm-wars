@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A3A4A',
     borderBottomWidth: 0,
-    maxHeight: 360,
+    maxHeight: 300,
   },
   scroll: {},
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },

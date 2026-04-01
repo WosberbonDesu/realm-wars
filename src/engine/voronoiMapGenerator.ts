@@ -604,8 +604,9 @@ function enforceWaterRatio(graph: VoronoiGraph, heights: Float32Array, rng: Alea
     // Komşuları da hafif düşür (doğal kıyı oluştur)
     for (const ni of graph.cells[idx].neighbors) {
       if (heights[ni] >= seaLevel && heights[ni] < seaLevel + 8) {
+        const wasBefore = heights[ni] >= seaLevel; // check BEFORE modifying
         heights[ni] = Math.max(0, heights[ni] - rng.nextFloat(3, 8));
-        if (heights[ni] < seaLevel) converted++;
+        if (wasBefore && heights[ni] < seaLevel) converted++;
       }
     }
   }
