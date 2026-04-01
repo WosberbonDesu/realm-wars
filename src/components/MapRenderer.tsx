@@ -270,6 +270,10 @@ function fillPoly(ctx: CanvasRenderingContext2D, verts: Point[], color: string):
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
+  // Anti-aliasing gap kapatma: aynı renkte ince stroke
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
 }
 
 function strokePoly(ctx: CanvasRenderingContext2D, verts: Point[]): void {
@@ -383,7 +387,8 @@ function drawRivers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, rivers: 
         ctx.lineTo(ci.x, ci.y);
       }
     }
-    ctx.lineWidth = Math.min(5, 0.5 + river.flux * 0.12);
+    // Azgaar: ince başlar, denize doğru kalınlaşır
+    ctx.lineWidth = Math.min(3, 0.3 + Math.sqrt(river.flux) * 0.08);
     ctx.stroke();
   }
 }
@@ -441,53 +446,25 @@ function drawBurgs(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, burgs: Vo
     const { x, y } = cell.center;
 
     if (burg.isCapital) {
-      // === BAŞKENT: Kale ikonu ===
-      const s = 6;
-
-      // Kale temeli (dikdörtgen)
-      ctx.fillStyle = '#8B4513';
-      ctx.fillRect(x - s, y - s * 0.3, s * 2, s * 1.3);
-
-      // Kale kuleleri (3 adet)
-      ctx.fillStyle = '#A0522D';
-      ctx.fillRect(x - s, y - s * 1.2, s * 0.5, s * 0.9);
-      ctx.fillRect(x - s * 0.25, y - s * 1.4, s * 0.5, s * 1.1);
-      ctx.fillRect(x + s * 0.5, y - s * 1.2, s * 0.5, s * 0.9);
-
-      // Mazgallar (kule tepelerinde)
-      ctx.fillStyle = '#654321';
-      for (let t = 0; t < 3; t++) {
-        const tx = x - s + t * s * 0.75;
-        const ty = t === 1 ? y - s * 1.4 : y - s * 1.2;
-        ctx.fillRect(tx, ty - 1.5, 2, 1.5);
-        ctx.fillRect(tx + 3, ty - 1.5, 2, 1.5);
-      }
-
-      // Kapı
-      ctx.fillStyle = '#3D2B1F';
+      // === BAŞKENT: Azgaar tarzı yıldız + büyük daire ===
+      const s = 5;
+      // Dış halka
       ctx.beginPath();
-      ctx.arc(x, y + s * 0.5, s * 0.25, Math.PI, 0);
-      ctx.fillRect(x - s * 0.25, y + s * 0.25, s * 0.5, s * 0.25);
+      ctx.arc(x, y, s + 1, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
       ctx.fill();
-
-      // Bayrak
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x, y - s * 1.4);
-      ctx.lineTo(x, y - s * 2.2);
-      ctx.stroke();
-
-      // Bayrak kumaşı (devlet rengi)
+      // İç daire (devlet rengi)
       const sId = stateMap.get(cellKey(burg.cellIndex));
-      const flagColor = sId !== undefined ? AZGAAR_STATE_COLORS[sId % AZGAAR_STATE_COLORS.length] : '#c00';
-      ctx.fillStyle = flagColor;
+      const stColor = sId !== undefined ? AZGAAR_STATE_COLORS[sId % AZGAAR_STATE_COLORS.length] : '#dababf';
       ctx.beginPath();
-      ctx.moveTo(x, y - s * 2.2);
-      ctx.lineTo(x + s * 0.6, y - s * 1.9);
-      ctx.lineTo(x, y - s * 1.6);
+      ctx.arc(x, y, s, 0, Math.PI * 2);
+      ctx.fillStyle = stColor;
       ctx.fill();
-
+      // Merkez nokta
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
     } else {
       // === NORMAL BURG: Azgaar tarzı küçük daire ===
       const size = burg.population > 3000 ? 3 : burg.population > 1000 ? 2.2 : 1.5;
