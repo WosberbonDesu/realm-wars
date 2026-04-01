@@ -242,19 +242,22 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
           + noise3(sx * 1.0, sy * 1.0) * 0.1
           + noise4(sx * 2.0, sy * 2.0) * 0.05;
 
-    // 2. Continent shape - GÜÇLÜ kenar düşüşü
-    // Kenardan merkeze mesafe (0=kenar, 1=merkez)
-    const edgeDistX = Math.min(nx, 1 - nx) * 2;  // 0-1
-    const edgeDistY = Math.min(ny, 1 - ny) * 2;  // 0-1
+    // 2. Continent shape - kenar düşüşü + iç detay
+    const edgeDistX = Math.min(nx, 1 - nx) * 2;
+    const edgeDistY = Math.min(ny, 1 - ny) * 2;
     const edgeDist = Math.min(edgeDistX, edgeDistY);
 
-    // Kenarlar kesin okyanus (-0.3), merkez yüksek
-    const continentFalloff = smoothstep(0, 0.35, edgeDist);
-    e += continentFalloff * 0.55 - 0.25;
+    // Kenarlar okyanus, merkez kıta (ama çok güçlü değil - adalar oluşsun)
+    const continentFalloff = smoothstep(0, 0.3, edgeDist);
+    e += continentFalloff * 0.45 - 0.2;
 
-    // 3. Kıta iç detay (birden fazla blob)
-    const blobNoise = noise1(nx * 8, ny * 8) * 0.15;
-    e += blobNoise * continentFalloff;
+    // 3. Kıta iç detay + ada oluşturucu blob'lar
+    const blobNoise = noise1(nx * 6, ny * 6) * 0.18;
+    e += blobNoise * Math.max(0.3, continentFalloff);
+
+    // Ek blob'lar: yarımada ve ada oluşturur
+    const coastBlob = noise2(nx * 12, ny * 12) * 0.08;
+    e += coastBlob;
 
     // 4. Hills
     const px = graph.cells[i].center.x, py = graph.cells[i].center.y;
@@ -351,15 +354,35 @@ function generateVoronoiRivers(graph: VoronoiGraph, elevation: Float32Array, moi
   const downhill = new Int32Array(n).fill(-1);
   const flux = new Float32Array(n);
 
+  // Depression filling: çukurları doldur (her hücrenin en az bir komşusu daha alçak olmalı)
+  const elevCopy = new Float32Array(elevation);
+  let changed = true;
+  for (let iter = 0; iter < 100 && changed; iter++) {
+    changed = false;
+    for (let i = 0; i < n; i++) {
+      if (elevCopy[i] < SEA_LEVEL) continue;
+      let hasLower = false;
+      let minNeighbor = Infinity;
+      for (const ni of graph.cells[i].neighbors) {
+        if (elevCopy[ni] < elevCopy[i]) { hasLower = true; break; }
+        if (elevCopy[ni] < minNeighbor) minNeighbor = elevCopy[ni];
+      }
+      if (!hasLower && minNeighbor < Infinity) {
+        elevCopy[i] = minNeighbor + 0.0005;
+        changed = true;
+      }
+    }
+  }
+
   // Her kara hücresine başlangıç flux (yağış) ata ve downhill yön belirle
   for (let i = 0; i < n; i++) {
-    if (elevation[i] < SEA_LEVEL) continue;
-    flux[i] = moisture[i] * 0.5; // base precipitation
+    if (elevCopy[i] < SEA_LEVEL) continue;
+    flux[i] = moisture[i]; // full precipitation as flux start
 
-    let lowest = -1, lowestElev = elevation[i];
+    let lowest = -1, lowestElev = elevCopy[i];
     for (const ni of graph.cells[i].neighbors) {
-      if (elevation[ni] < lowestElev) {
-        lowestElev = elevation[ni];
+      if (elevCopy[ni] < lowestElev) {
+        lowestElev = elevCopy[ni];
         lowest = ni;
       }
     }
@@ -377,9 +400,12 @@ function generateVoronoiRivers(graph: VoronoiGraph, elevation: Float32Array, moi
     }
   }
 
-  // Nehir eşiği: toplam hücre sayısına göre dinamik
-  const landCount = sorted.length;
-  const minFlux = landCount * 0.003; // ~2000 kara hücrede eşik ~6
+  // Debug: max flux'u bul
+  let maxFlux = 0;
+  for (const i of sorted) { if (flux[i] > maxFlux) maxFlux = flux[i]; }
+
+  // Nehir eşiği: max flux'un %5'i (dinamik, haritaya uyumlu)
+  const minFlux = Math.max(2, maxFlux * 0.03);
 
   const rivers: VoronoiRiver[] = [];
   const visited = new Set<number>();

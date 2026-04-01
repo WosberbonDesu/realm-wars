@@ -78,26 +78,24 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     // === Pass 1: Ocean depth layers (Azgaar'daki gri konturlar) ===
     drawOceanLayers(ctx, graph, cellTiles, mapWidth, mapHeight);
 
-    // === Pass 2: Land cells - biome veya state colors ===
+    // === Pass 2: Land cells - biome altında, üstüne state overlay ===
     for (let i = 0; i < graph.cells.length; i++) {
       const cell = graph.cells[i];
       if (cell.vertices.length < 3) continue;
       const tile = cellTiles[i];
-      if (!tile || tile.elevation < SEA_LEVEL) continue; // okyanusları atla
+      if (!tile || tile.elevation < SEA_LEVEL) continue;
 
-      let color: string;
-      const sId = stateMap.get(cellKey(i));
+      // Biome rengi (her zaman çiz - base layer)
+      const biomeColor = showBiomes ? getBiomeColor(tile) : BIOME_FILL[tile.terrain] || '#888';
+      fillPoly(ctx, cell.vertices, biomeColor);
 
-      if (showBorders && sId !== undefined && sId >= 0 && sId < states.length) {
-        // Political mode: devlet rengi
-        color = states[sId].color + 'BB';
-      } else if (showBiomes) {
-        color = getBiomeColor(tile);
-      } else {
-        color = BIOME_FILL[tile.terrain] || '#888';
+      // State overlay (yarı saydam, biome üzerine)
+      if (showBorders) {
+        const sId = stateMap.get(cellKey(i));
+        if (sId !== undefined && sId >= 0 && sId < states.length) {
+          fillPoly(ctx, cell.vertices, states[sId].color + '88');
+        }
       }
-
-      fillPoly(ctx, cell.vertices, color);
     }
 
     // === Pass 3: Kıyı çizgileri (belirgin) ===
@@ -239,8 +237,8 @@ function drawOceanLayers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, til
 }
 
 function drawCoastlines(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
-  ctx.strokeStyle = '#5A6A5A';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#2A4A3A';
+  ctx.lineWidth = 2;
 
   for (const [a, b] of graph.edges) {
     const aLand = tiles[a]?.elevation >= SEA_LEVEL;
@@ -259,8 +257,8 @@ function drawCoastlines(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tile
 }
 
 function drawStateBorders(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, stateMap: Map<string, number>, states: VoronoiState[]): void {
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
+  // Sınır segmentlerini topla ve birleştir
+  const borderSegments: Point[][] = [];
 
   for (const [a, b] of graph.edges) {
     const sA = stateMap.get(cellKey(a));
@@ -270,13 +268,34 @@ function drawStateBorders(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, st
 
     const shared = findSharedVertices(graph.cells[a], graph.cells[b]);
     if (shared.length >= 2) {
-      ctx.beginPath();
-      ctx.moveTo(shared[0].x, shared[0].y);
-      for (let i = 1; i < shared.length; i++) ctx.lineTo(shared[i].x, shared[i].y);
-      ctx.strokeStyle = '#333333AA';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
+      borderSegments.push(shared);
     }
+  }
+
+  // Her segmenti çiz (hafif gölge + ana çizgi)
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Gölge
+  for (const seg of borderSegments) {
+    ctx.beginPath();
+    ctx.moveTo(seg[0].x + 1, seg[0].y + 1);
+    for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i].x + 1, seg[i].y + 1);
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+  }
+
+  // Ana sınır çizgisi
+  for (const seg of borderSegments) {
+    ctx.beginPath();
+    ctx.moveTo(seg[0].x, seg[0].y);
+    for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i].x, seg[i].y);
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([5, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 }
 
