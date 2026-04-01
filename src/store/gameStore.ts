@@ -3,7 +3,7 @@ import {
   GameState, GamePhase, Player, HexTile, HexCoord,
   hexKey, BuildingType, UnitType, Building, Army, Unit, Resources,
 } from '../types/game';
-import { generateVoronoiMap, VoronoiMapResult, VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiRoute } from '../engine/voronoiMapGenerator';
+import { generateVoronoiMap, VoronoiMapResult, VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiRoute, MapTemplate } from '../engine/voronoiMapGenerator';
 import { VoronoiGraph, Point } from '../engine/voronoi';
 import { cellKey, findCellAtPoint } from '../engine/voronoiGrid';
 import { BattleResult } from '../engine/combat';
@@ -36,6 +36,7 @@ interface GameStore {
   mapWidth: number;
   mapHeight: number;
   seed: number;
+  mapTemplate: MapTemplate;
 
   // Game
   game: GameState | null;
@@ -60,10 +61,15 @@ interface GameStore {
   showMarkers: boolean;
   showPopulation: boolean;
   showGrid: boolean;
+  showStats: boolean;
+  showRelief: boolean;
+  showEmblems: boolean;
+  showIce: boolean;
+  showWind: boolean;
   toggleLayer: (layer: string) => void;
 
   // Actions
-  newGame: (seed?: number) => void;
+  newGame: (seed?: number, template?: MapTemplate) => void;
   selectCell: (cellIndex: number | null) => void;
   toggleBuildMenu: () => void;
   dismissBattle: () => void;
@@ -88,6 +94,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   mapWidth: 1200,
   mapHeight: 800,
   seed: 0,
+  mapTemplate: 'highIsland',
   game: null,
   lastBattle: null,
   cameraX: 0,
@@ -104,6 +111,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   showMarkers: true,
   showPopulation: true,
   showGrid: false,
+  showStats: false,
+  showRelief: true,
+  showEmblems: true,
+  showIce: true,
+  showWind: false,
 
   setScreen: (s) => set({ screen: s }),
   setCameraPos: (x, y) => set({ cameraX: x, cameraY: y }),
@@ -113,14 +125,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   dismissBattle: () => set({ showBattleResult: false, lastBattle: null }),
   toggleLayer: (layer) => set((s) => ({ [layer]: !(s as any)[layer] } as any)),
 
-  newGame: (seed) => {
+  newGame: (seed, template = 'highIsland') => {
     const gameSeed = seed ?? Date.now();
 
     // Voronoi harita üret
     // Tarayıcı pencere boyutuna göre harita boyutu
     const mapW = typeof window !== 'undefined' ? Math.max(window.innerWidth, 1400) : 1600;
     const mapH = typeof window !== 'undefined' ? Math.max(window.innerHeight, 900) : 1000;
-    const result = generateVoronoiMap(gameSeed, mapW, mapH, 4000);
+    const result = generateVoronoiMap(gameSeed, mapW, mapH, 4000, template);
 
     // Basit game state (voronoi uyumlu)
     const players: Player[] = [
@@ -159,6 +171,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       mapWidth: result.width,
       mapHeight: result.height,
       seed: gameSeed,
+      mapTemplate: template,
       game,
       screen: 'game',
       selectedCell: null,

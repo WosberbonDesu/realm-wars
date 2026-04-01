@@ -7,6 +7,7 @@ import { cellKey } from '../engine/voronoiGrid';
 import { SEA_LEVEL } from '../engine/biomes';
 import { Alea } from '../engine/alea';
 import { useGameStore } from '../store/gameStore';
+import { renderEmblemToCanvas, generateEmblems, Emblem } from '../engine/emblemGenerator';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -91,12 +92,17 @@ interface MapRendererProps {
   showBurgs: boolean;
   showGrid: boolean;
   showPopulation: boolean;
+  showRelief: boolean;
+  showEmblems: boolean;
+  showIce: boolean;
+  showWind: boolean;
 }
 
 export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   graph, cellTiles, rivers, burgs, routes, states, stateMap, coastPaths,
   mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
   showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
+  showRelief, showEmblems, showIce, showWind,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -104,7 +110,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   const rafRef = useRef<number>(0);
 
   // Base harita cache key: sadece harita verisi + layer toggle değiştiğinde yeniden çiz
-  const baseCacheKey = `${graph?.cells.length}_${showBiomes}_${showBorders}_${showPopulation}_${showGrid}_${burgs.length}_${states.length}`;
+  const baseCacheKey = `${graph?.cells.length}_${showBiomes}_${showBorders}_${showPopulation}_${showGrid}_${showIce}_${burgs.length}_${states.length}`;
 
   // Base haritayı offscreen canvas'a çiz (ağır işlemler burada)
   const renderBase = useCallback(() => {
@@ -144,6 +150,9 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     // === 5. Coastlines ===
     drawCoastlines(ctx, graph, cellTiles);
 
+    // === 5b. Ice layer ===
+    if (showIce) drawIceLayer(ctx, graph, cellTiles);
+
     // === 6. Grid ===
     if (showGrid) {
       ctx.strokeStyle = 'rgba(0,0,0,0.06)';
@@ -163,7 +172,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
 
     baseCacheKeyRef.current = baseCacheKey;
     return offscreen;
-  }, [graph, cellTiles, stateMap, states, mapWidth, mapHeight, showBiomes, showBorders, showPopulation, showGrid, baseCacheKey]);
+  }, [graph, cellTiles, stateMap, states, mapWidth, mapHeight, showBiomes, showBorders, showPopulation, showGrid, showIce, baseCacheKey]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -195,6 +204,12 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     // === 9. Routes ===
     if (showRoutes) drawRoutes(ctx, graph, routes);
 
+    // === 9b. Relief icons (dağ/orman/çöl) ===
+    if (showRelief) drawReliefLayer(ctx, graph, cellTiles, mapWidth);
+
+    // === 9c. Wind arrows ===
+    if (showWind) drawWindLayer(ctx, graph, cellTiles, mapWidth);
+
     // === 10. Mythological markers ===
     drawMythMarkers(ctx, graph, cellTiles, mapWidth);
 
@@ -203,6 +218,9 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
 
     // === 11. Burgs ===
     if (showBurgs) drawBurgs(ctx, graph, burgs, stateMap, zoom);
+
+    // === 11b. State emblems ===
+    if (showEmblems) drawEmblemsOnMap(ctx, graph, states, stateMap, mapWidth);
 
     // === 12. State labels ===
     if (showBorders) drawStateLabels(ctx, graph, states);
@@ -224,7 +242,8 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     ctx.restore();
   }, [graph, cellTiles, rivers, burgs, routes, states, stateMap, coastPaths,
       mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
-      showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation, renderBase]);
+      showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
+      showRelief, showEmblems, showIce, showWind, renderBase]);
 
   // requestAnimationFrame ile çizim (smooth)
   useEffect(() => {
@@ -461,6 +480,252 @@ function drawMythMarkers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, til
   }
 }
 
+// ===== ICE LAYER =====
+function drawIceLayer(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile) continue;
+    // Buz: sıcaklık < 0.15
+    if (tile.temperature > 0.15) continue;
+
+    const cell = graph.cells[i];
+    if (cell.vertices.length < 3) continue;
+
+    if (tile.elevation >= SEA_LEVEL) {
+      // Buzul (kara)
+      if (tile.elevation > 0.6) {
+        fillCell(ctx, cell.vertices, 'rgba(200,220,240,0.6)');
+      } else {
+        // Buz rafı
+        fillCell(ctx, cell.vertices, 'rgba(180,210,235,0.4)');
+      }
+    } else {
+      // Deniz buzu
+      fillCell(ctx, cell.vertices, 'rgba(195,215,230,0.5)');
+    }
+  }
+
+  // Buz kristal efektleri
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  const iceRng = new Alea(graph.cells.length * 13);
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile || tile.temperature > 0.12) continue;
+    if (iceRng.next() > 0.08) continue;
+    const c = graph.cells[i].center;
+    ctx.font = `${8 + iceRng.nextFloat(0, 6)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('❄', c.x + iceRng.nextFloat(-5, 5), c.y + iceRng.nextFloat(-5, 5));
+  }
+  ctx.restore();
+}
+
+// ===== RELIEF ICONS (Dağ/Orman/Çöl dekorasyonları) =====
+// Voronoi uyumlu - hex grid yerine cell center kullanır
+
+const RELIEF_CONFIG: Record<string, { icons: string[]; density: number; sizeMin: number; sizeMax: number }> = {
+  mountain: { icons: ['▲', '▲', '⛰'], density: 0.7, sizeMin: 8, sizeMax: 14 },
+  snow: { icons: ['▲', '❄'], density: 0.5, sizeMin: 7, sizeMax: 12 },
+  forest_cold: { icons: ['🌲', '🌲', '🌲'], density: 0.6, sizeMin: 7, sizeMax: 11 },
+  forest_temp: { icons: ['🌳', '🌳', '🌲'], density: 0.6, sizeMin: 7, sizeMax: 11 },
+  forest_trop: { icons: ['🌴', '🌳'], density: 0.5, sizeMin: 7, sizeMax: 11 },
+  desert: { icons: ['〰', '🌵'], density: 0.3, sizeMin: 6, sizeMax: 10 },
+  swamp: { icons: ['⌇', '⌇'], density: 0.4, sizeMin: 6, sizeMax: 9 },
+  tundra: { icons: ['∧', '⬢'], density: 0.2, sizeMin: 5, sizeMax: 8 },
+  hills: { icons: ['∧', '∧'], density: 0.15, sizeMin: 5, sizeMax: 8 },
+};
+
+function getReliefType(tile: HexTile): string | null {
+  if (tile.elevation < SEA_LEVEL) return null;
+  if (tile.elevation > 0.75) return tile.temperature < 0.15 ? 'snow' : 'mountain';
+  if (tile.elevation > 0.55) return 'hills';
+  // Biome-based
+  const biomeId = tile.terrain;
+  if (biomeId === HexTerrain.Mountain || biomeId === HexTerrain.Snow) return tile.temperature < 0.15 ? 'snow' : 'mountain';
+  if (biomeId === HexTerrain.Forest) {
+    if (tile.temperature > 0.7) return 'forest_trop';
+    if (tile.temperature < 0.3) return 'forest_cold';
+    return 'forest_temp';
+  }
+  if (biomeId === HexTerrain.Desert) return 'desert';
+  if (biomeId === HexTerrain.Swamp) return 'swamp';
+  if (biomeId === HexTerrain.Tundra) return 'tundra';
+  return null;
+}
+
+function drawReliefLayer(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], mapW: number): void {
+  const rng = new Alea(mapW * 31 + graph.cells.length);
+
+  ctx.save();
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile) continue;
+    const reliefType = getReliefType(tile);
+    if (!reliefType) continue;
+
+    const config = RELIEF_CONFIG[reliefType];
+    if (!config) continue;
+
+    if (rng.next() > config.density) continue;
+
+    const c = graph.cells[i].center;
+    const icon = config.icons[Math.floor(rng.next() * config.icons.length)];
+    const size = config.sizeMin + rng.nextFloat(0, config.sizeMax - config.sizeMin);
+    const ox = rng.nextFloat(-4, 4);
+    const oy = rng.nextFloat(-4, 4);
+
+    // Metin bazlı ikonlar (▲, ∧, ⬢, 〰, ⌇) farklı renk
+    if (icon === '▲' || icon === '⛰') {
+      ctx.font = `bold ${size}px sans-serif`;
+      ctx.fillStyle = reliefType === 'snow' ? 'rgba(160,175,190,0.6)' : 'rgba(90,75,60,0.5)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, c.x + ox, c.y + oy);
+    } else if (icon === '∧' || icon === '⬢') {
+      ctx.font = `bold ${size}px sans-serif`;
+      ctx.fillStyle = 'rgba(100,90,70,0.4)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, c.x + ox, c.y + oy);
+    } else if (icon === '〰') {
+      // Kumul dalgası
+      ctx.strokeStyle = 'rgba(180,150,80,0.4)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      const sx = c.x + ox - size * 0.4;
+      ctx.moveTo(sx, c.y + oy);
+      ctx.quadraticCurveTo(sx + size * 0.2, c.y + oy - size * 0.25, sx + size * 0.4, c.y + oy);
+      ctx.quadraticCurveTo(sx + size * 0.6, c.y + oy + size * 0.25, sx + size * 0.8, c.y + oy);
+      ctx.stroke();
+    } else if (icon === '⌇') {
+      // Bataklık çizgileri
+      ctx.strokeStyle = 'rgba(70,100,60,0.4)';
+      ctx.lineWidth = 0.8;
+      for (let j = -2; j <= 2; j++) {
+        ctx.beginPath();
+        ctx.moveTo(c.x + ox + j * 2.5, c.y + oy - size * 0.25);
+        ctx.lineTo(c.x + ox + j * 2.5, c.y + oy + size * 0.25);
+        ctx.stroke();
+      }
+    } else if (icon === '❄') {
+      ctx.font = `${size}px sans-serif`;
+      ctx.globalAlpha = 0.4;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, c.x + ox, c.y + oy);
+      ctx.globalAlpha = 1;
+    } else {
+      // Emoji ikonlar (🌲, 🌳, 🌴, 🌵)
+      ctx.font = `${size}px sans-serif`;
+      ctx.globalAlpha = 0.65;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, c.x + ox, c.y + oy);
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+}
+
+// ===== WIND LAYER =====
+function drawWindLayer(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], mapW: number): void {
+  const rng = new Alea(mapW * 47);
+  // Prevailing wind direction (batıdan doğuya)
+  const prevDir = 250 + rng.nextFloat(-30, 30); // derece
+  const prevRad = (prevDir * Math.PI) / 180;
+
+  ctx.save();
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = '#a0c0e0';
+  ctx.lineWidth = 0.8;
+
+  for (let i = 0; i < graph.cells.length; i++) {
+    if (rng.next() > 0.06) continue; // sadece %6 hücrede ok göster
+    const tile = tiles[i];
+    if (!tile) continue;
+
+    const c = graph.cells[i].center;
+
+    // Yüksekliğe göre yön sapması
+    let dir = prevRad;
+    let strength = 0.5;
+
+    if (tile.elevation >= SEA_LEVEL) {
+      if (tile.elevation > 0.6) {
+        strength = 0.2; // dağlar bloklar
+        dir += rng.nextFloat(-0.5, 0.5);
+      } else if (tile.terrain === HexTerrain.Forest) {
+        strength = 0.35;
+      }
+    } else {
+      strength = 0.7; // denizde güçlü
+    }
+
+    dir += rng.nextFloat(-0.2, 0.2);
+
+    const len = 8 + strength * 10;
+    const ex = c.x + Math.cos(dir) * len;
+    const ey = c.y + Math.sin(dir) * len;
+
+    // Ok çiz
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+
+    // Ok ucu
+    const headLen = 3;
+    const headAngle = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - Math.cos(dir - headAngle) * headLen, ey - Math.sin(dir - headAngle) * headLen);
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - Math.cos(dir + headAngle) * headLen, ey - Math.sin(dir + headAngle) * headLen);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ===== EMBLEM RENDERING =====
+function drawEmblemsOnMap(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, states: VoronoiState[], stateMap: Map<string, number>, mapW: number): void {
+  // Her state için capital hücresinin yanına küçük emblem çiz
+  const rng = new Alea(mapW * 71 + states.length);
+  const emblems = generateEmblemsForStates(states.length, rng);
+
+  for (let si = 0; si < states.length; si++) {
+    const state = states[si];
+    if (state.cells.length === 0) continue;
+
+    const emblem = emblems[si];
+    if (!emblem) continue;
+
+    // Devlet merkezi bul
+    let cx = 0, cy = 0;
+    for (const ci of state.cells) {
+      cx += graph.cells[ci].center.x;
+      cy += graph.cells[ci].center.y;
+    }
+    cx /= state.cells.length;
+    cy /= state.cells.length;
+
+    // State label'ın biraz altına çiz
+    const fs = Math.min(20, Math.max(9, Math.sqrt(state.cells.length) * 0.65));
+    renderEmblemToCanvas(ctx, emblem, cx, cy + fs + 8, 18);
+  }
+}
+
+// Emblem generation helper (cached)
+let _emblemCache: { key: string; emblems: Emblem[] } | null = null;
+function generateEmblemsForStates(count: number, rng: Alea): Emblem[] {
+  const key = `${count}`;
+  if (_emblemCache?.key === key) return _emblemCache.emblems;
+  const emblems = generateEmblems(count, rng);
+  _emblemCache = { key, emblems };
+  return emblems;
+}
+
 function drawCustomMarkers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph): void {
   const customMarkers = useGameStore.getState().customMarkers;
   for (const marker of customMarkers) {
@@ -568,4 +833,57 @@ function sharedVerts(a: VoronoiCell, b: VoronoiCell): Point[] {
     }
   }
   return r;
+}
+
+// ===== FULL-RES EXPORT =====
+
+export function renderFullMapToCanvas(
+  canvas: HTMLCanvasElement,
+  graph: VoronoiGraph,
+  cellTiles: HexTile[],
+  rivers: VoronoiRiver[],
+  burgs: VoronoiBurg[],
+  routes: VoronoiRoute[],
+  states: VoronoiState[],
+  stateMap: Map<string, number>,
+  mapWidth: number,
+  mapHeight: number,
+  showBiomes: boolean,
+  showRivers: boolean,
+  showBorders: boolean,
+  showRoutes: boolean,
+  showBurgs: boolean,
+  showPopulation: boolean,
+): void {
+  canvas.width = mapWidth;
+  canvas.height = mapHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.clearRect(0, 0, mapWidth, mapHeight);
+
+  // 1. Ocean
+  drawOcean(ctx, graph, cellTiles, mapWidth, mapHeight);
+  // 2. Land biomes
+  drawLandBiomes(ctx, graph, cellTiles, showBiomes);
+  // 3. State overlay
+  if (showBorders) drawStateOverlay(ctx, graph, cellTiles, stateMap, states);
+  // 4. Population
+  if (showPopulation) drawPopulation(ctx, graph, cellTiles);
+  // 5. Coastlines
+  drawCoastlines(ctx, graph, cellTiles);
+  // 6. State borders
+  if (showBorders) drawStateBorders(ctx, graph, stateMap);
+  // 7. Rivers
+  if (showRivers) drawRivers(ctx, graph, rivers);
+  // 8. Routes
+  if (showRoutes) drawRoutes(ctx, graph, routes);
+  // 9. Myth markers
+  drawMythMarkers(ctx, graph, cellTiles, mapWidth);
+  // 10. Custom markers
+  drawCustomMarkers(ctx, graph);
+  // 11. Burgs (zoom=1 for full-res)
+  if (showBurgs) drawBurgs(ctx, graph, burgs, stateMap, 1);
+  // 12. State labels
+  if (showBorders) drawStateLabels(ctx, graph, states);
 }

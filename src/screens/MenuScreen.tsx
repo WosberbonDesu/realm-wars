@@ -2,18 +2,27 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { COLORS } from '../constants/theme';
+import { MapTemplate } from '../engine/voronoiMapGenerator';
+
+const TEMPLATE_OPTIONS: { key: MapTemplate; label: string; icon: string }[] = [
+  { key: 'highIsland', label: 'Ada', icon: '\u{1F3DD}' },
+  { key: 'continent', label: 'Kita', icon: '\u{1F30D}' },
+  { key: 'archipelago', label: 'Takimada', icon: '\u{1F30A}' },
+  { key: 'pangaea', label: 'Pangaea', icon: '\u{1F5FA}' },
+];
 
 export const MenuScreen: React.FC = () => {
   const newGame = useGameStore(s => s.newGame);
   const [seedInput, setSeedInput] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<MapTemplate>('highIsland');
 
   const handleNewGame = () => {
     const seed = seedInput.trim() ? parseInt(seedInput, 10) || hashSeed(seedInput) : undefined;
-    newGame(seed);
+    newGame(seed, selectedTemplate);
   };
 
   const handleRandomGame = () => {
-    newGame();
+    newGame(undefined, selectedTemplate);
   };
 
   return (
@@ -25,6 +34,33 @@ export const MenuScreen: React.FC = () => {
       </View>
 
       <Text style={styles.subtitle}>Fantezi Strateji Oyunu</Text>
+
+      {/* Template selector */}
+      <View style={styles.templateContainer}>
+        <Text style={styles.seedLabel}>Harita Tipi</Text>
+        <View style={styles.templateRow}>
+          {TEMPLATE_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              style={[
+                styles.templateButton,
+                selectedTemplate === opt.key && styles.templateButtonActive,
+              ]}
+              onPress={() => setSelectedTemplate(opt.key)}
+            >
+              <Text style={styles.templateIcon}>{opt.icon}</Text>
+              <Text
+                style={[
+                  styles.templateLabel,
+                  selectedTemplate === opt.key && styles.templateLabelActive,
+                ]}
+              >
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       {/* Seed input */}
       <View style={styles.seedContainer}>
@@ -111,6 +147,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 40,
     letterSpacing: 2,
+  },
+  templateContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  templateRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  templateButton: {
+    flex: 1,
+    backgroundColor: COLORS.bgLight,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  templateButtonActive: {
+    borderColor: COLORS.primaryLight,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+  },
+  templateIcon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  templateLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  templateLabelActive: {
+    color: COLORS.textPrimary,
   },
   seedContainer: {
     width: '100%',

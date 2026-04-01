@@ -4,7 +4,10 @@ import { MapRenderer } from '../components/MapRenderer';
 import { GestureHandler } from '../components/GestureHandler';
 import { HUD } from '../components/HUD';
 import { TileInfoPanel } from '../components/TileInfoPanel';
+import { StateDetailPanel } from '../components/StateDetailPanel';
+import { MapStatsPanel } from '../components/MapStatsPanel';
 import { EditorPanel } from '../components/EditorPanel';
+import { ExportButton } from '../components/ExportButton';
 import { useGameStore } from '../store/gameStore';
 import { GamePhase } from '../types/game';
 
@@ -32,6 +35,11 @@ export const GameScreen: React.FC = () => {
   const showBurgs = useGameStore(s => s.showBurgs);
   const showPopulation = useGameStore(s => s.showPopulation);
   const showGrid = useGameStore(s => s.showGrid);
+  const showStats = useGameStore(s => s.showStats);
+  const showRelief = useGameStore(s => s.showRelief);
+  const showEmblems = useGameStore(s => s.showEmblems);
+  const showIce = useGameStore(s => s.showIce);
+  const showWind = useGameStore(s => s.showWind);
   const toggleLayer = useGameStore(s => s.toggleLayer);
 
   if (!game) return null;
@@ -70,6 +78,10 @@ export const GameScreen: React.FC = () => {
           showBurgs={showBurgs}
           showPopulation={showPopulation}
           showGrid={showGrid}
+          showRelief={showRelief}
+          showEmblems={showEmblems}
+          showIce={showIce}
+          showWind={showWind}
         />
       </GestureHandler>
 
@@ -81,10 +93,18 @@ export const GameScreen: React.FC = () => {
         <LB label="Sehir" on={showBurgs} p={() => toggleLayer('showBurgs')} />
         <LB label="Nufus" on={showPopulation} p={() => toggleLayer('showPopulation')} />
         <LB label="Grid" on={showGrid} p={() => toggleLayer('showGrid')} />
+        <LB label="Arazi" on={showRelief} p={() => toggleLayer('showRelief')} />
+        <LB label="Arma" on={showEmblems} p={() => toggleLayer('showEmblems')} />
+        <LB label="Buz" on={showIce} p={() => toggleLayer('showIce')} />
+        <LB label="Ruzgar" on={showWind} p={() => toggleLayer('showWind')} />
+        <LB label="Istatistik" on={showStats} p={() => toggleLayer('showStats')} />
+        <ExportButton />
       </View>
 
       <HUD />
       <TileInfoPanel />
+      <StateDetailPanel />
+      <MapStatsPanel />
       <EditorPanel />
     </View>
   );

@@ -14,6 +14,7 @@ import {
 import { TERRAIN_RESOURCES } from '../constants/game';
 
 // ===== Types =====
+export type MapTemplate = 'highIsland' | 'continent' | 'archipelago' | 'pangaea';
 export interface VoronoiRiver {
   id: number;
   path: number[];
@@ -99,6 +100,7 @@ export function generateVoronoiMap(
   width: number = 1200,
   height: number = 800,
   cellCount: number = 3000,
+  template: MapTemplate = 'highIsland',
 ): VoronoiMapResult {
   const rng = new Alea(seed);
   const nameGen = new NameGenerator(seed);
@@ -109,7 +111,7 @@ export function generateVoronoiMap(
   const n = graph.cells.length;
 
   // --- 2. Heightmap ---
-  generateHeightmap(voronoiData, graph, rng, width, height, seed);
+  generateHeightmap(voronoiData, graph, rng, width, height, seed, template);
 
   // --- 3. Temperature ---
   generateTemperature(voronoiData, graph, width, height, seed);
@@ -206,7 +208,7 @@ export function generateVoronoiMap(
 // Elevation: 0-100, sea level = 20
 // Tüm hücreler 0'dan başlar (okyanus), Hill/Range ile yükseltilir, Mask ile ada şekli verilir
 
-function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea, w: number, h: number, seed: number): void {
+function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea, w: number, h: number, seed: number, template: MapTemplate = 'highIsland'): void {
   const n = graph.cells.length;
   const heights = new Float32Array(n); // 0-100 scale
 
@@ -214,7 +216,30 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
   const blobPower = n < 2000 ? 0.95 : n < 5000 ? 0.97 : n < 10000 ? 0.98 : 0.99;
   const linePower = n < 5000 ? 0.78 : n < 10000 ? 0.81 : 0.86;
 
-  // === High Island Template (Azgaar'ın en sık kullanılan template'i) ===
+  switch (template) {
+    case 'highIsland':
+      templateHighIsland(graph, heights, rng, blobPower, linePower, w, h, n, seed);
+      break;
+    case 'continent':
+      templateContinent(graph, heights, rng, blobPower, linePower, w, h, n, seed);
+      break;
+    case 'archipelago':
+      templateArchipelago(graph, heights, rng, blobPower, linePower, w, h, n, seed);
+      break;
+    case 'pangaea':
+      templatePangaea(graph, heights, rng, blobPower, linePower, w, h, n, seed);
+      break;
+  }
+
+  // 0-100 → 0-1 normalize
+  for (let i = 0; i < n; i++) {
+    data.elevation[i] = Math.max(0, Math.min(1, heights[i] / 100));
+  }
+}
+
+// === High Island Template (Azgaar'ın en sık kullanılan template'i) ===
+function templateHighIsland(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
+  blobPower: number, linePower: number, w: number, h: number, n: number, seed: number): void {
 
   // Hill 1 90-100 65-75 47-53 (büyük merkez tepe)
   addHill(graph, heights, rng, 1, rng.nextInt(90, 100),
@@ -273,10 +298,9 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
   // Kıyı kenarına noise ekle (daha düzensiz kıyı çizgisi)
   const coastNoise = createNoise2D(seed + 9999);
   for (let i = 0; i < n; i++) {
-    // Sadece kıyı yakınındaki hücrelere (15-25 arası)
     if (heights[i] > 12 && heights[i] < 28) {
       const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
-      const noiseVal = coastNoise(nx * 30, ny * 30) * 8; // ±8 yükseklik varyasyonu
+      const noiseVal = coastNoise(nx * 30, ny * 30) * 8;
       heights[i] = Math.max(0, Math.min(100, heights[i] + noiseVal));
     }
   }
@@ -290,11 +314,205 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
 
   // Son Mask (küçük adaları kenarlarda kırp)
   applyMask(graph, heights, 2, w, h);
+}
 
-  // 0-100 → 0-1 normalize
+// === Continent Template - Large landmass filling most of the map ===
+function templateContinent(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
+  blobPower: number, linePower: number, w: number, h: number, n: number, seed: number): void {
+
+  // Multiple large hills spread across 70% of the map
+  addHill(graph, heights, rng, 1, rng.nextInt(90, 100),
+    [w * 0.35, w * 0.65], [h * 0.40, h * 0.60], blobPower, w, h);
+
+  addHill(graph, heights, rng, 1, rng.nextInt(90, 100),
+    [w * 0.20, w * 0.40], [h * 0.30, h * 0.50], blobPower, w, h);
+
+  addHill(graph, heights, rng, 1, rng.nextInt(90, 95),
+    [w * 0.55, w * 0.80], [h * 0.35, h * 0.65], blobPower, w, h);
+
+  addHill(graph, heights, rng, 1, rng.nextInt(90, 95),
+    [w * 0.30, w * 0.60], [h * 0.55, h * 0.75], blobPower, w, h);
+
+  // Add base elevation to fill gaps
+  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 10);
+
+  // Medium hills to fill interior
+  addHill(graph, heights, rng, rng.nextInt(4, 6), rng.nextInt(25, 40),
+    [w * 0.15, w * 0.85], [h * 0.20, h * 0.80], blobPower, w, h);
+
+  // Multiple mountain ranges (3-4)
+  addRange(graph, heights, rng, 1, rng.nextInt(40, 55),
+    [w * 0.30, w * 0.70], [h * 0.35, h * 0.50], linePower, w, h);
+
+  addRange(graph, heights, rng, 1, rng.nextInt(35, 50),
+    [w * 0.20, w * 0.50], [h * 0.50, h * 0.65], linePower, w, h);
+
+  addRange(graph, heights, rng, 1, rng.nextInt(35, 45),
+    [w * 0.50, w * 0.80], [h * 0.40, h * 0.60], linePower, w, h);
+
+  addRange(graph, heights, rng, Math.round(rng.nextFloat(0, 1)), rng.nextInt(30, 40),
+    [w * 0.25, w * 0.75], [h * 0.25, h * 0.40], linePower, w, h);
+
+  // Multiply 0.85 land (slightly less flattening than high island)
   for (let i = 0; i < n; i++) {
-    data.elevation[i] = Math.max(0, Math.min(1, heights[i] / 100));
+    if (heights[i] >= 20) heights[i] = (heights[i] - 20) * 0.85 + 20;
   }
+
+  // Light mask (level 1-2) - less aggressive so continent stays large
+  applyMask(graph, heights, rng.nextInt(1, 2), w, h);
+
+  smoothHeights(graph, heights, 2);
+
+  // Troughs for river valleys
+  addTrough(graph, heights, rng, rng.nextInt(2, 4), rng.nextInt(15, 25),
+    [w * 0.20, w * 0.80], [h * 0.25, h * 0.75], linePower, w, h);
+
+  // Pits for bays/inlets
+  addPit(graph, heights, rng, rng.nextInt(2, 4), rng.nextInt(10, 20),
+    [w * 0.10, w * 0.90], [h * 0.15, h * 0.85], blobPower, w, h);
+
+  // Coast noise
+  const coastNoise = createNoise2D(seed + 9999);
+  for (let i = 0; i < n; i++) {
+    if (heights[i] > 12 && heights[i] < 28) {
+      const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
+      const noiseVal = coastNoise(nx * 25, ny * 25) * 6;
+      heights[i] = Math.max(0, Math.min(100, heights[i] + noiseVal));
+    }
+  }
+
+  // Small peripheral islands
+  const islandCount = rng.nextInt(2, 5);
+  for (let a = 0; a < islandCount; a++) {
+    addHill(graph, heights, rng, 1, rng.nextInt(22, 35),
+      [w * 0.05, w * 0.95], [h * 0.05, h * 0.95], blobPower * 0.995, w, h);
+  }
+
+  // Final light mask
+  applyMask(graph, heights, 1, w, h);
+}
+
+// === Archipelago Template - Many small islands ===
+function templateArchipelago(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
+  blobPower: number, linePower: number, w: number, h: number, n: number, seed: number): void {
+
+  // Many small hills (15-25 each) at random positions - creates 8-15 small-medium islands
+  const islandCount = rng.nextInt(10, 18);
+  for (let a = 0; a < islandCount; a++) {
+    addHill(graph, heights, rng, 1, rng.nextInt(15, 25),
+      [w * 0.08, w * 0.92], [h * 0.08, h * 0.92], blobPower * 0.993, w, h);
+  }
+
+  // A few slightly larger islands to anchor the cluster
+  addHill(graph, heights, rng, 1, rng.nextInt(30, 40),
+    [w * 0.35, w * 0.65], [h * 0.35, h * 0.65], blobPower * 0.995, w, h);
+
+  addHill(graph, heights, rng, 1, rng.nextInt(25, 35),
+    [w * 0.20, w * 0.45], [h * 0.25, h * 0.55], blobPower * 0.994, w, h);
+
+  addHill(graph, heights, rng, 1, rng.nextInt(25, 35),
+    [w * 0.55, w * 0.80], [h * 0.45, h * 0.75], blobPower * 0.994, w, h);
+
+  // Small ranges on some islands for mountains
+  addRange(graph, heights, rng, Math.round(rng.nextFloat(1, 2)), rng.nextInt(20, 30),
+    [w * 0.30, w * 0.70], [h * 0.30, h * 0.70], linePower, w, h);
+
+  // No large central landmass - use aggressive mask (level 4-5)
+  applyMask(graph, heights, rng.nextInt(4, 5), w, h);
+
+  smoothHeights(graph, heights, 1);
+
+  // Coast noise for irregular coastlines
+  const coastNoise = createNoise2D(seed + 9999);
+  for (let i = 0; i < n; i++) {
+    if (heights[i] > 12 && heights[i] < 28) {
+      const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
+      const noiseVal = coastNoise(nx * 35, ny * 35) * 10;
+      heights[i] = Math.max(0, Math.min(100, heights[i] + noiseVal));
+    }
+  }
+
+  // Extra tiny islands scattered around
+  const extraIslands = rng.nextInt(5, 10);
+  for (let a = 0; a < extraIslands; a++) {
+    addHill(graph, heights, rng, 1, rng.nextInt(18, 28),
+      [w * 0.05, w * 0.95], [h * 0.05, h * 0.95], blobPower * 0.992, w, h);
+  }
+
+  // Pits to break up any accidental connections
+  addPit(graph, heights, rng, rng.nextInt(3, 6), rng.nextInt(15, 25),
+    [w * 0.15, w * 0.85], [h * 0.15, h * 0.85], blobPower, w, h);
+
+  // Final aggressive mask
+  applyMask(graph, heights, 3, w, h);
+}
+
+// === Pangaea Template - Massive supercontinent ===
+function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
+  blobPower: number, linePower: number, w: number, h: number, n: number, seed: number): void {
+
+  // One enormous hill (95-100) covering center
+  addHill(graph, heights, rng, 1, rng.nextInt(95, 100),
+    [w * 0.40, w * 0.60], [h * 0.40, h * 0.60], blobPower, w, h);
+
+  // Add +15 to all cells - raises everything significantly
+  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 15);
+
+  // Large supporting hills to fill out the supercontinent
+  addHill(graph, heights, rng, 1, rng.nextInt(80, 95),
+    [w * 0.20, w * 0.40], [h * 0.30, h * 0.50], blobPower, w, h);
+
+  addHill(graph, heights, rng, 1, rng.nextInt(80, 95),
+    [w * 0.60, w * 0.80], [h * 0.50, h * 0.70], blobPower, w, h);
+
+  addHill(graph, heights, rng, 1, rng.nextInt(75, 90),
+    [w * 0.30, w * 0.55], [h * 0.60, h * 0.80], blobPower, w, h);
+
+  addHill(graph, heights, rng, 1, rng.nextInt(75, 90),
+    [w * 0.45, w * 0.70], [h * 0.20, h * 0.40], blobPower, w, h);
+
+  // Fill-in hills for gaps
+  addHill(graph, heights, rng, rng.nextInt(4, 6), rng.nextInt(30, 50),
+    [w * 0.15, w * 0.85], [h * 0.15, h * 0.85], blobPower, w, h);
+
+  // Multiple ranges connecting edges - creates mountain spines
+  addRange(graph, heights, rng, 1, rng.nextInt(45, 60),
+    [w * 0.20, w * 0.80], [h * 0.40, h * 0.55], linePower, w, h);
+
+  addRange(graph, heights, rng, 1, rng.nextInt(40, 55),
+    [w * 0.30, w * 0.70], [h * 0.25, h * 0.45], linePower, w, h);
+
+  addRange(graph, heights, rng, 1, rng.nextInt(40, 55),
+    [w * 0.25, w * 0.65], [h * 0.55, h * 0.75], linePower, w, h);
+
+  addRange(graph, heights, rng, 1, rng.nextInt(35, 45),
+    [w * 0.40, w * 0.60], [h * 0.15, h * 0.85], linePower, w, h);
+
+  // Very light mask (level 1) - keeps the supercontinent intact
+  applyMask(graph, heights, 1, w, h);
+
+  smoothHeights(graph, heights, 3);
+
+  // Troughs for inland seas and large river valleys
+  addTrough(graph, heights, rng, rng.nextInt(3, 5), rng.nextInt(20, 35),
+    [w * 0.25, w * 0.75], [h * 0.25, h * 0.75], linePower, w, h);
+
+  // A few pits for inland seas/lakes
+  addPit(graph, heights, rng, rng.nextInt(2, 4), rng.nextInt(20, 35),
+    [w * 0.20, w * 0.80], [h * 0.20, h * 0.80], blobPower, w, h);
+
+  // Coast noise
+  const coastNoise = createNoise2D(seed + 9999);
+  for (let i = 0; i < n; i++) {
+    if (heights[i] > 12 && heights[i] < 28) {
+      const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
+      const noiseVal = coastNoise(nx * 20, ny * 20) * 5;
+      heights[i] = Math.max(0, Math.min(100, heights[i] + noiseVal));
+    }
+  }
+
+  // Final very light mask
+  applyMask(graph, heights, 1, w, h);
 }
 
 // Hill: BFS flood-fill ile blob şeklinde yükseklik ekle
