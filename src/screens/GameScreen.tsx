@@ -92,7 +92,7 @@ const LB: React.FC<{ label: string; on: boolean; p: () => void }> = ({ label, on
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#788878' },
+  container: { flex: 1, backgroundColor: '#083D5D' },
   go: { flex: 1, backgroundColor: '#0A1628', justifyContent: 'center', alignItems: 'center' },
   goTitle: { color: '#FFD700', fontSize: 36, fontWeight: '900', marginBottom: 20 },
   goLink: { color: '#4A90D9', fontSize: 18, fontWeight: '700' },

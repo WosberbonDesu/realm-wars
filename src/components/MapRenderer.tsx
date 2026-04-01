@@ -9,8 +9,8 @@ import { SEA_LEVEL } from '../engine/biomes';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Azgaar-tarzı okyanus renkleri (gri tonları, kıyıdan uzaklaştıkça koyulaşır)
-const OCEAN_GRAYS = ['#B8C4B8', '#A8B8A8', '#98AC98', '#88A088', '#789478', '#688868'];
+// Gerçekçi okyanus renkleri (kıyıda açık, derinde koyu mavi)
+const OCEAN_COLORS = ['#7FCDEE', '#5BB5D5', '#3E9DBD', '#2885A5', '#1A6D8D', '#0F5575', '#083D5D'];
 
 // Biome renkleri (Azgaar tarzı - daha doğal, daha soft)
 const BIOME_FILL: Record<string, string> = {
@@ -67,8 +67,8 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     const ox = w / 2 - mapWidth / 2 * zoom + cameraX * zoom;
     const oy = h / 2 - mapHeight / 2 * zoom + cameraY * zoom;
 
-    // Background (Azgaar-tarzı gri-yeşil)
-    ctx.fillStyle = '#788878';
+    // Background - derin okyanus
+    ctx.fillStyle = '#083D5D';
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
@@ -175,7 +175,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       </View>
     );
   }
-  return <View style={{ flex: 1, backgroundColor: '#788878' }} />;
+  return <View style={{ flex: 1, backgroundColor: '#083D5D' }} />;
 });
 
 // ===== Drawing functions =====
@@ -233,8 +233,8 @@ function drawOceanLayers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, til
     const cell = graph.cells[i];
     if (cell.vertices.length < 3) continue;
 
-    const d = Math.min(depth[i] >= 0 ? depth[i] : 5, OCEAN_GRAYS.length - 1);
-    fillPoly(ctx, cell.vertices, OCEAN_GRAYS[d]);
+    const d = Math.min(depth[i] >= 0 ? depth[i] : 6, OCEAN_COLORS.length - 1);
+    fillPoly(ctx, cell.vertices, OCEAN_COLORS[d]);
   }
 }
 
@@ -348,32 +348,58 @@ function drawBurgs(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, burgs: Vo
 
     const size = burg.isCapital ? 5 : burg.population > 2000 ? 3.5 : 2;
 
-    // Shadow
-    ctx.beginPath();
-    ctx.arc(x + 0.5, y + 0.5, size + 0.5, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fill();
+    if (burg.isCapital) {
+      // Başkent: star/crown şekli
+      const s = 7;
+      // Altın yıldız
+      ctx.beginPath();
+      for (let j = 0; j < 5; j++) {
+        const angle = -Math.PI / 2 + (j * 2 * Math.PI) / 5;
+        const outerX = x + Math.cos(angle) * s;
+        const outerY = y + Math.sin(angle) * s;
+        if (j === 0) ctx.moveTo(outerX, outerY);
+        else ctx.lineTo(outerX, outerY);
+        const innerAngle = angle + Math.PI / 5;
+        ctx.lineTo(x + Math.cos(innerAngle) * s * 0.4, y + Math.sin(innerAngle) * s * 0.4);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#FFD700';
+      ctx.fill();
+      ctx.strokeStyle = '#8B6914';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
 
-    // Circle
-    ctx.beginPath();
-    ctx.arc(x, y, size, 0, Math.PI * 2);
-    ctx.fillStyle = burg.isCapital ? '#FFD700' : '#FFFFFF';
-    ctx.fill();
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = burg.isCapital ? 1.5 : 0.8;
-    ctx.stroke();
+      // Taç emoji üstte
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('👑', x, y - 10);
+    } else {
+      // Normal burg: daire
+      ctx.beginPath();
+      ctx.arc(x + 0.4, y + 0.4, size + 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fillStyle = burg.population > 2000 ? '#FFF' : '#DDD';
+      ctx.fill();
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
 
     // Label
     if (zoom > 0.5 || burg.isCapital || burg.population > 2000) {
-      const fontSize = burg.isCapital ? 11 : burg.population > 2000 ? 9 : 7;
+      const fontSize = burg.isCapital ? 12 : burg.population > 2000 ? 9 : 7;
       ctx.font = `${burg.isCapital ? 'bold ' : ''}${fontSize}px "Segoe UI", sans-serif`;
       ctx.textAlign = 'center';
-      // Text outline
-      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-      ctx.lineWidth = 2.5;
-      ctx.strokeText(burg.name, x, y - size - 3);
-      ctx.fillStyle = '#333';
-      ctx.fillText(burg.name, x, y - size - 3);
+      const labelY = burg.isCapital ? y - 18 : y - size - 3;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(burg.name, x, labelY);
+      ctx.fillStyle = '#222';
+      ctx.fillText(burg.name, x, labelY);
     }
   }
 }

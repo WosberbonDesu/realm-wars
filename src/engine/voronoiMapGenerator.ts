@@ -207,35 +207,119 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
   const noise1 = createNoise2D(seed);
   const noise2 = createNoise2D(seed + 1337);
   const noise3 = createNoise2D(seed + 7919);
-  const useArch = rng.next() > 0.6;
+  const noise4 = createNoise2D(seed + 4242);
 
+  // Daha belirgin tepeler
   const hills: { x: number; y: number; str: number; sz: number }[] = [];
-  for (let i = 0; i < rng.nextInt(3, 7); i++) {
-    hills.push({ x: rng.nextFloat(w * 0.15, w * 0.85), y: rng.nextFloat(h * 0.15, h * 0.85), str: rng.nextFloat(0.15, 0.4), sz: rng.nextFloat(w * 0.08, w * 0.2) });
+  for (let i = 0; i < rng.nextInt(5, 10); i++) {
+    hills.push({
+      x: rng.nextFloat(w * 0.1, w * 0.9),
+      y: rng.nextFloat(h * 0.1, h * 0.9),
+      str: rng.nextFloat(0.2, 0.5),
+      sz: rng.nextFloat(w * 0.1, w * 0.25),
+    });
   }
+
+  // Dağ sıraları
   const ranges: { x1: number; y1: number; x2: number; y2: number; rw: number; rh: number }[] = [];
-  for (let i = 0; i < rng.nextInt(1, 3); i++) {
-    const a = rng.nextFloat(0, Math.PI), l = w * rng.nextFloat(0.3, 0.6);
-    ranges.push({ x1: w/2+Math.cos(a)*l*0.5, y1: h/2+Math.sin(a)*l*0.5, x2: w/2-Math.cos(a)*l*0.5, y2: h/2-Math.sin(a)*l*0.5, rw: rng.nextFloat(w*0.02, w*0.06), rh: rng.nextFloat(0.3, 0.5) });
+  for (let i = 0; i < rng.nextInt(1, 4); i++) {
+    const a = rng.nextFloat(0, Math.PI), l = w * rng.nextFloat(0.3, 0.7);
+    const cx = w * rng.nextFloat(0.3, 0.7), cy = h * rng.nextFloat(0.3, 0.7);
+    ranges.push({
+      x1: cx + Math.cos(a) * l * 0.5, y1: cy + Math.sin(a) * l * 0.5,
+      x2: cx - Math.cos(a) * l * 0.5, y2: cy - Math.sin(a) * l * 0.5,
+      rw: rng.nextFloat(w * 0.03, w * 0.08), rh: rng.nextFloat(0.3, 0.6),
+    });
   }
 
   for (let i = 0; i < n; i++) {
     const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
     const sx = (nx - 0.5) * 20, sy = (ny - 0.5) * 20;
-    let e = noise1(sx*0.3,sy*0.3)*0.4 + noise2(sx*0.6,sy*0.6)*0.25 + noise3(sx*1.2,sy*1.2)*0.1;
-    const dc = Math.sqrt((nx-0.5)**2+(ny-0.5)**2)*2;
-    if (useArch) {
-      const centers = [{cx:0.3,cy:0.5},{cx:0.7,cy:0.3},{cx:0.5,cy:0.7},{cx:0.6,cy:0.6}];
-      let mx = 0;
-      for (const c of centers) { const d = Math.sqrt((nx-c.cx)**2+(ny-c.cy)**2)/0.3; mx = Math.max(mx, Math.max(0, 1-d)); }
-      e += mx * 0.35;
-    } else {
-      e += Math.max(0, 1-dc*1.3)*0.35;
+
+    // 1. Base noise
+    let e = noise1(sx * 0.25, sy * 0.25) * 0.3
+          + noise2(sx * 0.5, sy * 0.5) * 0.2
+          + noise3(sx * 1.0, sy * 1.0) * 0.1
+          + noise4(sx * 2.0, sy * 2.0) * 0.05;
+
+    // 2. Continent shape - GÜÇLÜ kenar düşüşü
+    // Kenardan merkeze mesafe (0=kenar, 1=merkez)
+    const edgeDistX = Math.min(nx, 1 - nx) * 2;  // 0-1
+    const edgeDistY = Math.min(ny, 1 - ny) * 2;  // 0-1
+    const edgeDist = Math.min(edgeDistX, edgeDistY);
+
+    // Kenarlar kesin okyanus (-0.3), merkez yüksek
+    const continentFalloff = smoothstep(0, 0.35, edgeDist);
+    e += continentFalloff * 0.55 - 0.25;
+
+    // 3. Kıta iç detay (birden fazla blob)
+    const blobNoise = noise1(nx * 8, ny * 8) * 0.15;
+    e += blobNoise * continentFalloff;
+
+    // 4. Hills
+    const px = graph.cells[i].center.x, py = graph.cells[i].center.y;
+    for (const hl of hills) {
+      const d = Math.sqrt((px - hl.x) ** 2 + (py - hl.y) ** 2);
+      if (d < hl.sz) e += ((1 - d / hl.sz) ** 2) * hl.str * continentFalloff;
     }
-    const cx = graph.cells[i].center.x, cy = graph.cells[i].center.y;
-    for (const hl of hills) { const d = Math.sqrt((cx-hl.x)**2+(cy-hl.y)**2); if (d<hl.sz) e += ((1-d/hl.sz)**2)*hl.str; }
-    for (const rn of ranges) { const d = ptSegDist(cx,cy,rn.x1,rn.y1,rn.x2,rn.y2); if (d<rn.rw) e += ((1-d/rn.rw)**2)*rn.rh; }
-    data.elevation[i] = Math.max(0, Math.min(1, (e+0.5)/1.5));
+
+    // 5. Mountain ranges
+    for (const rn of ranges) {
+      const d = ptSegDist(px, py, rn.x1, rn.y1, rn.x2, rn.y2);
+      if (d < rn.rw) e += ((1 - d / rn.rw) ** 2) * rn.rh * continentFalloff;
+    }
+
+    // Normalize: hedef dağılım: ~30% su, ~70% kara
+    const normalized = (e + 0.3) / 0.9;
+    data.elevation[i] = Math.max(0, Math.min(1, normalized));
+  }
+
+  // İç göletleri temizle - küçük su bölgelerini kaldır
+  removeSmallWaterBodies(data, graph, 15);
+}
+
+// Smoothstep fonksiyonu (kenar yumuşatma için)
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+// Küçük iç göletleri kaldır (BFS ile su bölgelerini bul, küçükleri kara yap)
+function removeSmallWaterBodies(data: VoronoiMapData, graph: VoronoiGraph, minSize: number): void {
+  const n = graph.cells.length;
+  const visited = new Uint8Array(n);
+  const isWater = (i: number) => data.elevation[i] < SEA_LEVEL;
+
+  for (let i = 0; i < n; i++) {
+    if (visited[i] || !isWater(i)) continue;
+
+    // BFS: bağlı su bölgesi bul
+    const region: number[] = [];
+    const queue = [i];
+    visited[i] = 1;
+    let touchesEdge = false;
+
+    while (queue.length > 0) {
+      const ci = queue.shift()!;
+      region.push(ci);
+
+      // Harita kenarına değiyor mu?
+      const { nx, ny } = normalizeCoord(graph.cells[ci], data.config.width, data.config.height);
+      if (nx < 0.03 || nx > 0.97 || ny < 0.03 || ny > 0.97) touchesEdge = true;
+
+      for (const ni of graph.cells[ci].neighbors) {
+        if (visited[ni] || !isWater(ni)) continue;
+        visited[ni] = 1;
+        queue.push(ni);
+      }
+    }
+
+    // Kenara değmeyen küçük su bölgesi = iç gölet → kara yap
+    if (!touchesEdge && region.length < minSize) {
+      for (const ci of region) {
+        data.elevation[ci] = SEA_LEVEL + 0.02; // hafif kara
+      }
+    }
   }
 }
 

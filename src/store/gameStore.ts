@@ -113,7 +113,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const gameSeed = seed ?? Date.now();
 
     // Voronoi harita üret
-    const result = generateVoronoiMap(gameSeed, 1200, 800, 3000);
+    // Tarayıcı pencere boyutuna göre harita boyutu
+    const mapW = typeof window !== 'undefined' ? Math.max(window.innerWidth, 1400) : 1600;
+    const mapH = typeof window !== 'undefined' ? Math.max(window.innerHeight, 900) : 1000;
+    const result = generateVoronoiMap(gameSeed, mapW, mapH, 4000);
 
     // Basit game state (voronoi uyumlu)
     const players: Player[] = [
