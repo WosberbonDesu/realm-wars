@@ -29,60 +29,66 @@ const BIOME_FILL: Record<string, string> = {
   [HexTerrain.Snow]: '#ebebeb',      // Glacier
 };
 
-// Azgaar biome renkleri (orijinal kaynak kodundan)
-// 0:Marine #466eab, 1:Hot desert #fbe79f, 2:Cold desert #b5b887
-// 3:Savanna #d2d082, 4:Grassland #c8d68f, 5:Tropical seasonal forest #b6d95d
-// 6:Temperate deciduous forest #29bc56, 7:Tropical rainforest #7dcb35
-// 8:Temperate rainforest #409c43, 9:Taiga #4b6b32, 10:Tundra #96784b
-// 11:Glacier #d5e7eb, 12:Wetland #0b9131
+// Azgaar biome renkleri (exact from source)
+const BIOME_COLOR_BY_ID = [
+  '#466eab', // 0: Marine
+  '#fbe79f', // 1: Hot desert
+  '#b5b887', // 2: Cold desert
+  '#d2d082', // 3: Savanna
+  '#c8d68f', // 4: Grassland
+  '#b6d95d', // 5: Tropical seasonal forest
+  '#29bc56', // 6: Temperate deciduous forest
+  '#7dcb35', // 7: Tropical rainforest
+  '#409c43', // 8: Temperate rainforest
+  '#4b6b32', // 9: Taiga
+  '#96784b', // 10: Tundra
+  '#d5e7eb', // 11: Glacier
+  '#0b9131', // 12: Wetland
+];
+
+// Azgaar's exact 5x26 biome matrix (moisture band x temp band, hot→cold)
+// moisture bands: 0=driest, 4=wettest
+// temp bands: 0=hottest (25+), 25=coldest (-5)
+const BIOME_MATRIX = [
+  // moisture 0 (dry)
+  [1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,10,10],
+  // moisture 1
+  [3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,9,9,9,9,10,10,10,10],
+  // moisture 2
+  [5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,9,9,9,9,10,10,10,10],
+  // moisture 3
+  [5,5,5,5,6,6,6,6,6,8,8,8,8,8,8,8,8,8,9,9,9,9,10,10,10,10],
+  // moisture 4 (wet)
+  [7,7,7,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,10,10,10,10],
+];
 
 function getDetailedBiomeColor(tile: HexTile): string {
   const e = tile.elevation;
   const m = tile.moisture;
   const t = tile.temperature;
 
-  if (e < SEA_LEVEL) return '#466eab'; // Marine
+  if (e < SEA_LEVEL) return BIOME_COLOR_BY_ID[0]; // Marine
 
-  // Glacier
-  if (t < 0.12 || (e > 0.82 && t < 0.25)) return '#d5e7eb';
-  // Tundra
-  if (t < 0.22) return '#96784b';
-  // Taiga
-  if (t < 0.35 && m > 0.3) return '#4b6b32';
+  // Azgaar: temp < -5 → Glacier
+  if (t < 0.1) return BIOME_COLOR_BY_ID[11];
 
-  // Mountain
-  if (e > 0.75) return '#8c8c8c';
-  if (e > 0.65) return '#a09882';
-
-  // Tropik (t > 0.7)
-  if (t > 0.7) {
-    if (m > 0.7) return '#0b9131'; // Wetland
-    if (m > 0.5) return '#7dcb35'; // Tropical Rainforest
-    if (m > 0.3) return '#b6d95d'; // Tropical Seasonal Forest
-    if (m > 0.15) return '#d2d082'; // Savanna
-    return '#fbe79f'; // Hot Desert
+  // Mountain tinting
+  if (e > 0.75) {
+    const shade = Math.floor(128 + (1 - e) * 200);
+    return `rgb(${shade},${shade - 10},${shade - 15})`;
   }
 
-  // Ilıman sıcak (t > 0.5)
-  if (t > 0.5) {
-    if (m > 0.7) return '#0b9131'; // Wetland
-    if (m > 0.5) return '#29bc56'; // Temperate Deciduous Forest
-    if (m > 0.3) return '#c8d68f'; // Grassland
-    if (m > 0.15) return '#d2d082'; // Savanna/Steppe
-    return '#b5b887'; // Cold Desert
-  }
+  // Wetland check (Azgaar: temp > -2, moisture > 40 AND low elevation)
+  if (t > 0.15 && m > 0.65 && e < 0.35) return BIOME_COLOR_BY_ID[12];
 
-  // Ilıman (t > 0.35)
-  if (t > 0.35) {
-    if (m > 0.6) return '#409c43'; // Temperate Rainforest
-    if (m > 0.35) return '#29bc56'; // Temperate Deciduous Forest
-    if (m > 0.2) return '#c8d68f'; // Grassland
-    return '#b5b887'; // Cold Desert
-  }
+  // Hot desert check
+  if (t > 0.85 && m < 0.15) return BIOME_COLOR_BY_ID[1];
 
-  // Soğuk
-  if (m > 0.4) return '#4b6b32'; // Taiga
-  return '#96784b'; // Tundra
+  // Biome matrix lookup
+  const moistBand = Math.min(Math.floor(m * 5), 4);
+  const tempBand = Math.min(Math.max(Math.floor((1 - t) * 26), 0), 25);
+  const biomeId = BIOME_MATRIX[moistBand][tempBand];
+  return BIOME_COLOR_BY_ID[biomeId];
 }
 
 // Azgaar C_12 state renkleri (kaynak kodundan)

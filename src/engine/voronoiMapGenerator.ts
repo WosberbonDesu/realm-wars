@@ -558,101 +558,133 @@ function generateMoisture(data: VoronoiMapData, graph: VoronoiGraph, w: number, 
 
 // ===== Rivers =====
 function generateVoronoiRivers(graph: VoronoiGraph, elevation: Float32Array, moisture: Float32Array, n: number, nameGen: NameGenerator): VoronoiRiver[] {
-  const downhill = new Int32Array(n).fill(-1);
-  const flux = new Float32Array(n);
+  // === Azgaar's river algorithm ===
+  // 1. resolveDepressions
+  // 2. drainWater (flux accumulation + river tracing)
 
-  // Depression filling: çukurları doldur (her hücrenin en az bir komşusu daha alçak olmalı)
-  const elevCopy = new Float32Array(elevation);
-  let changed = true;
-  for (let iter = 0; iter < 100 && changed; iter++) {
-    changed = false;
-    for (let i = 0; i < n; i++) {
-      if (elevCopy[i] < SEA_LEVEL) continue;
-      let hasLower = false;
-      let minNeighbor = Infinity;
-      for (const ni of graph.cells[i].neighbors) {
-        if (elevCopy[ni] < elevCopy[i]) { hasLower = true; break; }
-        if (elevCopy[ni] < minNeighbor) minNeighbor = elevCopy[ni];
-      }
-      if (!hasLower && minNeighbor < Infinity) {
-        elevCopy[i] = minNeighbor + 0.0005;
-        changed = true;
-      }
+  const h = new Float32Array(elevation); // working copy
+  const cellsModifier = Math.pow(n / 10000, 0.25);
+  const MIN_FLUX = 30 / cellsModifier; // Azgaar: 30 base
+
+  // --- Step 1: alterHeights (tiny gradient based on coast distance) ---
+  // Compute distance-to-coast (t field)
+  const t = new Int8Array(n);
+  for (let i = 0; i < n; i++) {
+    if (h[i] < SEA_LEVEL) { t[i] = -1; continue; }
+    let nearWater = false;
+    for (const ni of graph.cells[i].neighbors) {
+      if (h[ni] < SEA_LEVEL) { nearWater = true; break; }
+    }
+    t[i] = nearWater ? 1 : 2;
+  }
+  // BFS to expand t inward for land
+  const tQueue: number[] = [];
+  for (let i = 0; i < n; i++) { if (t[i] === 1) tQueue.push(i); }
+  let qi = 0;
+  while (qi < tQueue.length) {
+    const ci = tQueue[qi++];
+    for (const ni of graph.cells[ci].neighbors) {
+      if (t[ni] === 2) { t[ni] = Math.min(t[ci] + 1, 10) as any; tQueue.push(ni); }
+    }
+  }
+  // Add tiny gradient
+  for (let i = 0; i < n; i++) {
+    if (h[i] >= SEA_LEVEL) {
+      h[i] += t[i] / 10000;
     }
   }
 
-  // Her kara hücresine başlangıç flux (yağış) ata ve downhill yön belirle
-  for (let i = 0; i < n; i++) {
-    if (elevCopy[i] < SEA_LEVEL) continue;
-    flux[i] = moisture[i]; // full precipitation as flux start
+  // --- Step 2: resolveDepressions ---
+  // Sort land cells low to high, raise sinks
+  const landSorted = Array.from({ length: n }, (_, i) => i)
+    .filter(i => h[i] >= SEA_LEVEL)
+    .sort((a, b) => h[a] - h[b]);
 
-    let lowest = -1, lowestElev = elevCopy[i];
-    for (const ni of graph.cells[i].neighbors) {
-      if (elevCopy[ni] < lowestElev) {
-        lowestElev = elevCopy[ni];
-        lowest = ni;
+  for (let iter = 0; iter < 50; iter++) {
+    let depressions = 0;
+    for (const i of landSorted) {
+      let minNeighborH = Infinity;
+      let hasLower = false;
+      for (const ni of graph.cells[i].neighbors) {
+        if (h[ni] < h[i]) { hasLower = true; break; }
+        if (h[ni] < minNeighborH) minNeighborH = h[ni];
       }
+      if (!hasLower && minNeighborH < Infinity) {
+        h[i] = minNeighborH + 0.001;
+        depressions++;
+      }
+    }
+    if (depressions === 0) break;
+  }
+
+  // --- Step 3: drainWater ---
+  const flux = new Float32Array(n);
+  const downhill = new Int32Array(n).fill(-1);
+  const riverIds = new Int32Array(n).fill(-1);
+
+  // Find downhill for each cell
+  for (let i = 0; i < n; i++) {
+    if (h[i] < SEA_LEVEL) continue;
+    let lowest = -1, lowestH = h[i];
+    for (const ni of graph.cells[i].neighbors) {
+      if (h[ni] < lowestH) { lowestH = h[ni]; lowest = ni; }
     }
     downhill[i] = lowest;
   }
 
-  // Yüksekten alçağa sırala, flux akıt
-  const sorted = Array.from({ length: n }, (_, i) => i)
-    .filter(i => elevation[i] >= SEA_LEVEL)
-    .sort((a, b) => elevation[b] - elevation[a]);
+  // Sort HIGH to LOW, drain flux
+  const highToLow = Array.from({ length: n }, (_, i) => i)
+    .filter(i => h[i] >= SEA_LEVEL)
+    .sort((a, b) => h[b] - h[a]);
 
-  for (const i of sorted) {
-    if (downhill[i] >= 0) {
-      flux[downhill[i]] += flux[i];
-    }
+  for (const i of highToLow) {
+    // Add precipitation
+    flux[i] += moisture[i] * 100 / cellsModifier; // Azgaar uses prec/cellsModifier
+
+    const min = downhill[i];
+    if (min < 0) continue;
+    if (h[i] <= h[min]) continue; // still depressed
+
+    // Pass flux downhill
+    flux[min] += flux[i];
   }
 
-  // Debug: max flux'u bul
-  let maxFlux = 0;
-  for (const i of sorted) { if (flux[i] > maxFlux) maxFlux = flux[i]; }
-
-  // Nehir eşiği: max flux'un %5'i (dinamik, haritaya uyumlu)
-  const minFlux = Math.max(2, maxFlux * 0.03);
-
+  // --- Step 4: Trace rivers from high-flux cells ---
   const rivers: VoronoiRiver[] = [];
-  const visited = new Set<number>();
+  const usedCells = new Set<number>();
+  let nextRiverId = 0;
 
-  // Yüksek flux'lu hücreleri trace et
-  const sources = sorted
-    .filter(i => flux[i] >= minFlux && !visited.has(i))
+  // Sort by flux descending, trace each river
+  const byFlux = highToLow
+    .filter(i => flux[i] >= MIN_FLUX)
     .sort((a, b) => flux[b] - flux[a]);
 
-  for (const src of sources) {
-    if (visited.has(src)) continue;
+  for (const src of byFlux) {
+    if (usedCells.has(src)) continue;
+    if (flux[src] < MIN_FLUX) continue;
 
-    // Kaynağı bul: bu hücrenin yukarısına doğru git
-    let source = src;
-    const upstream = new Set<number>([src]);
-    // En yüksek flux contributor'ı bul
-    // Aslında direkt trace et: src'den denize kadar
     const path: number[] = [];
     let cur = src;
 
-    while (cur >= 0 && !visited.has(cur)) {
+    while (cur >= 0 && !usedCells.has(cur)) {
       path.push(cur);
-      visited.add(cur);
+      usedCells.add(cur);
+      riverIds[cur] = nextRiverId;
 
       const next = downhill[cur];
-      if (next < 0) break; // çıkmaz
-      if (elevation[next] < SEA_LEVEL) {
-        path.push(next); // denize son adım
-        break;
-      }
+      if (next < 0) break;
+      if (h[next] < SEA_LEVEL) { path.push(next); break; } // reached ocean
       cur = next;
     }
 
     if (path.length >= 2) {
       rivers.push({
-        id: rivers.length,
+        id: nextRiverId,
         path,
         flux: flux[src],
         name: nameGen.riverName(),
       });
+      nextRiverId++;
     }
   }
 
@@ -763,6 +795,45 @@ function generateVoronoiStates(graph: VoronoiGraph, data: VoronoiMapData, landCe
     for (const ci of s.cells) { for (const ni of graph.cells[ci].neighbors) { const nS = cellState[ni]; if (nS >= 0 && nS !== s.id) ns.add(nS); } }
     s.neighbors = [...ns];
   }
+
+  // === State normalization (Azgaar: smooth borders) ===
+  // Her non-capital hücre için: komşularının çoğunluğu farklı devletteyse, o devlete geç
+  for (let pass = 0; pass < 3; pass++) {
+    for (let i = 0; i < graph.cells.length; i++) {
+      if (data.elevation[i] < SEA_LEVEL) continue;
+      const curState = cellState[i];
+      if (curState < 0) continue;
+
+      // Capital veya burg hücresini değiştirme
+      const isBurgCell = burgs.some(b => b.cellIndex === i);
+      if (isBurgCell) continue;
+
+      // Komşu devletleri say
+      const neighborStates = new Map<number, number>();
+      let sameCount = 0;
+      for (const ni of graph.cells[i].neighbors) {
+        const ns = cellState[ni];
+        if (ns < 0) continue;
+        if (ns === curState) { sameCount++; }
+        else { neighborStates.set(ns, (neighborStates.get(ns) || 0) + 1); }
+      }
+
+      // En çok komşusu olan farklı devlet
+      let bestOther = -1, bestCount = 0;
+      for (const [sId, cnt] of neighborStates) {
+        if (cnt > bestCount) { bestCount = cnt; bestOther = sId; }
+      }
+
+      // Azgaar: adversaries >= 2 && adversaries > buddies && buddies <= 2
+      if (bestCount >= 2 && bestCount > sameCount && sameCount <= 2) {
+        // Devleti değiştir
+        states[curState].cells = states[curState].cells.filter(c => c !== i);
+        cellState[i] = bestOther;
+        states[bestOther].cells.push(i);
+      }
+    }
+  }
+
   // Burg ataması
   for (const b of burgs) { const sId = cellState[b.cellIndex]; if (sId >= 0) { b.stateId = sId; if (!states[sId].burgIds.includes(b.id)) states[sId].burgIds.push(b.id); } }
   return states;
