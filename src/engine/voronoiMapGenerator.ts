@@ -249,8 +249,14 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
   // Smooth tectonic effects
   smoothHeights(graph, heights, 2);
 
-  // Apply hydraulic erosion (3 iterations)
-  applyErosion(graph, heights, 3);
+  // Apply hydraulic erosion (multiple passes for deeper valleys)
+  applyErosion(graph, heights, 5);
+
+  // Asimetrik maske: elipsin merkezi hafif kaydırılır (doğal görünüm)
+  applyAsymmetricNoise(graph, heights, rng, w, h, seed);
+
+  // Son smoothing (erozyon sonrası doğal geçişler)
+  smoothHeights(graph, heights, 2);
 
   // 0-100 → 0-1 normalize
   for (let i = 0; i < n; i++) {
@@ -534,6 +540,42 @@ function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
 
   // Final very light mask
   applyMask(graph, heights, 1, w, h);
+}
+
+// Asimetrik noise: harita kenarlarını düzensizleştirir, simetrik ada görünümünü kırar
+function applyAsymmetricNoise(graph: VoronoiGraph, heights: Float32Array, rng: Alea, w: number, h: number, seed: number): void {
+  const noise = createNoise2D(seed + 7777);
+  const n = graph.cells.length;
+
+  // Merkez kayması (asimetri)
+  const cxOff = rng.nextFloat(-0.1, 0.1);
+  const cyOff = rng.nextFloat(-0.1, 0.1);
+
+  for (let i = 0; i < n; i++) {
+    const { nx, ny } = normalizeCoord(graph.cells[i], w, h);
+
+    // Multi-oktav noise (farklı frekanslarda detay)
+    const n1 = noise(nx * 4, ny * 4) * 12;       // büyük ölçek varyasyon
+    const n2 = noise(nx * 12, ny * 12) * 5;       // orta ölçek detay
+    const n3 = noise(nx * 30, ny * 30) * 2;       // küçük ölçek pürüz
+
+    // Kenar mesafesi (asimetrik merkez)
+    const cx = nx - 0.5 + cxOff;
+    const cy = ny - 0.5 + cyOff;
+    const edgeDist = Math.min(nx, 1 - nx, ny, 1 - ny); // 0 = kenarda, 0.5 = merkezde
+
+    // Kenar yakınında noise daha güçlü (kıyı detayı)
+    const edgeFactor = edgeDist < 0.15 ? (0.15 - edgeDist) / 0.15 : 0;
+    const noiseAmount = n1 + n2 + n3 * (1 + edgeFactor * 3);
+
+    // Kıyı yakınındaki hücrelere daha fazla etki
+    if (heights[i] > 10 && heights[i] < 35) {
+      heights[i] = Math.max(0, Math.min(100, heights[i] + noiseAmount * 1.2));
+    } else if (heights[i] >= 35) {
+      // Kara içi: daha az etki (topoğrafik varyasyon)
+      heights[i] = Math.max(0, Math.min(100, heights[i] + noiseAmount * 0.3));
+    }
+  }
 }
 
 // Hill: BFS flood-fill ile blob şeklinde yükseklik ekle
@@ -829,21 +871,27 @@ function applyTectonics(graph: VoronoiGraph, heights: Float32Array, rng: Alea, w
     const relVy = plateVy[pA] - plateVy[pB];
     const stress = (relVx * nx / len + relVy * ny / len);
 
-    // Convergent boundary (positive stress) → mountains
-    if (stress > 0.1) {
-      const boost = stress * rng.nextFloat(25, 45);
+    // Convergent boundary (positive stress) → mountain chains
+    if (stress > 0.05) {
+      const boost = stress * rng.nextFloat(30, 55);
       heights[a] = Math.min(100, heights[a] + boost);
-      heights[b] = Math.min(100, heights[b] + boost * 0.7);
+      heights[b] = Math.min(100, heights[b] + boost * 0.8);
+      // Paralel kenar yükseltme (dağ sırası genişliği)
+      for (const ni of graph.cells[a].neighbors) {
+        if (plateId[ni] === plateId[a]) {
+          heights[ni] = Math.min(100, heights[ni] + boost * 0.3);
+        }
+      }
     }
     // Divergent boundary (negative stress) → rift valleys / ocean trenches
-    else if (stress < -0.1) {
-      const drop = Math.abs(stress) * rng.nextFloat(10, 25);
+    else if (stress < -0.05) {
+      const drop = Math.abs(stress) * rng.nextFloat(15, 30);
       heights[a] = Math.max(0, heights[a] - drop);
-      heights[b] = Math.max(0, heights[b] - drop * 0.7);
+      heights[b] = Math.max(0, heights[b] - drop * 0.8);
     }
-    // Transform boundary → mild uplift
+    // Transform boundary → mild uplift + earthquake zones
     else {
-      heights[a] = Math.min(100, heights[a] + Math.abs(stress) * 5);
+      heights[a] = Math.min(100, heights[a] + Math.abs(stress) * 8);
     }
   }
 
@@ -855,10 +903,10 @@ function applyTectonics(graph: VoronoiGraph, heights: Float32Array, rng: Alea, w
       boundaryBoost[b] = Math.max(boundaryBoost[b], heights[b] * 0.3);
     }
   }
-  // BFS spread 3 levels
+  // BFS spread 5 levels (wider mountain foothills)
   const frontier: number[] = [];
   for (let i = 0; i < n; i++) if (boundaryBoost[i] > 0) frontier.push(i);
-  for (let level = 0; level < 3; level++) {
+  for (let level = 0; level < 5; level++) {
     const next: number[] = [];
     for (const fi of frontier) {
       for (const ni of graph.cells[fi].neighbors) {
@@ -901,10 +949,10 @@ function applyErosion(graph: VoronoiGraph, heights: Float32Array, iterations: nu
 
       if (steepest < 0 || maxSlope < 0.5) continue;
 
-      // Erosion proportional to slope
-      const erodeAmount = Math.min(maxSlope * 0.15, heights[i] * 0.05);
+      // Erosion proportional to slope (stronger for realistic valleys)
+      const erodeAmount = Math.min(maxSlope * 0.22, heights[i] * 0.08);
       erosion[i] += erodeAmount;
-      sediment[steepest] += erodeAmount * 0.6; // deposit downstream
+      sediment[steepest] += erodeAmount * 0.55; // deposit downstream (less = deeper valleys)
     }
 
     // Apply erosion and deposition
@@ -1117,7 +1165,7 @@ function generateVoronoiRivers(graph: VoronoiGraph, elevation: Float32Array, moi
 
   const h = new Float32Array(elevation); // working copy
   const cellsModifier = Math.pow(n / 10000, 0.25);
-  const MIN_FLUX = 30 / cellsModifier; // Azgaar: 30 base
+  const MIN_FLUX = 18 / cellsModifier; // Daha fazla nehir: düşük eşik
 
   // --- Step 1: alterHeights (tiny gradient based on coast distance) ---
   // Compute distance-to-coast (t field)

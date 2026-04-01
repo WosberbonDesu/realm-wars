@@ -150,7 +150,7 @@ export function findCoastEdges(
   graph: VoronoiGraph,
   isLand: (cellIndex: number) => boolean,
   smoothIterations: number = 2,
-  fractalAmount: number = 2.5,
+  fractalAmount: number = 3.5,
 ): { from: number; to: number; smoothPath: Point[] }[] {
   const coastEdges: { from: number; to: number; smoothPath: Point[] }[] = [];
 
@@ -172,7 +172,7 @@ export function findCoastEdges(
 }
 
 // Midpoint displacement ile fraktal kıyı detayı
-function addFractalDetail(points: Point[], amount: number, depth: number = 2): Point[] {
+function addFractalDetail(points: Point[], amount: number, depth: number = 3): Point[] {
   if (depth <= 0 || points.length < 2) return points;
 
   const result: Point[] = [points[0]];
