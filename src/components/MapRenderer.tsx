@@ -95,13 +95,14 @@ interface MapRendererProps {
   showEmblems: boolean;
   showIce: boolean;
   showWind: boolean;
+  showElevation: boolean;
 }
 
 export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   graph, cellTiles, rivers, burgs, routes, states, stateMap,
   mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
   showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
-  showRelief, showEmblems, showIce, showWind,
+  showRelief, showEmblems, showIce, showWind, showElevation,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -197,6 +198,9 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       ctx.drawImage(base, 0, 0);
     }
 
+    // === 7b. Elevation heatmap overlay ===
+    if (showElevation) drawElevationHeatmap(ctx, graph, cellTiles);
+
     // === 8. Rivers (hafif, her frame çizilebilir) ===
     if (showRivers) drawRivers(ctx, graph, rivers);
 
@@ -242,7 +246,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   }, [graph, cellTiles, rivers, burgs, routes, states, stateMap,
       mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
       showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
-      showRelief, showEmblems, showIce, showWind, renderBase]);
+      showRelief, showEmblems, showIce, showWind, showElevation, renderBase]);
 
   // requestAnimationFrame ile çizim (smooth)
   useEffect(() => {
@@ -524,6 +528,60 @@ function drawMythMarkers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, til
       }
     }
   }
+}
+
+// ===== ELEVATION HEATMAP =====
+function drawElevationHeatmap(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[]): void {
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile) continue;
+    const cell = graph.cells[i];
+    if (cell.vertices.length < 3) continue;
+
+    const e = tile.elevation;
+    let r: number, g: number, b: number;
+
+    if (e < SEA_LEVEL) {
+      // Su: mavi tonları (derin→açık)
+      const t = e / SEA_LEVEL;
+      r = Math.floor(10 + t * 40);
+      g = Math.floor(20 + t * 80);
+      b = Math.floor(80 + t * 120);
+    } else {
+      // Kara: yeşil → sarı → kahverengi → beyaz
+      const t = (e - SEA_LEVEL) / (1 - SEA_LEVEL);
+      if (t < 0.25) {
+        // Düşük: yeşil
+        r = Math.floor(40 + t * 4 * 120);
+        g = Math.floor(140 + t * 4 * 60);
+        b = Math.floor(40);
+      } else if (t < 0.5) {
+        // Orta: sarı-kahverengi
+        const u = (t - 0.25) * 4;
+        r = Math.floor(160 + u * 60);
+        g = Math.floor(200 - u * 80);
+        b = Math.floor(40 + u * 20);
+      } else if (t < 0.75) {
+        // Yüksek: kahverengi
+        const u = (t - 0.5) * 4;
+        r = Math.floor(220 - u * 40);
+        g = Math.floor(120 - u * 40);
+        b = Math.floor(60 + u * 40);
+      } else {
+        // Çok yüksek: beyaz
+        const u = (t - 0.75) * 4;
+        r = Math.floor(180 + u * 75);
+        g = Math.floor(80 + u * 175);
+        b = Math.floor(100 + u * 155);
+      }
+    }
+
+    fillCell(ctx, cell.vertices, `rgb(${r},${g},${b})`);
+  }
+  ctx.restore();
 }
 
 // ===== ICE LAYER =====

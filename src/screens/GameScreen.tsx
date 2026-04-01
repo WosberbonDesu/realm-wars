@@ -39,6 +39,7 @@ export const GameScreen: React.FC = () => {
   const showEmblems = useGameStore(s => s.showEmblems);
   const showIce = useGameStore(s => s.showIce);
   const showWind = useGameStore(s => s.showWind);
+  const showElevation = useGameStore(s => s.showElevation);
   const toggleLayer = useGameStore(s => s.toggleLayer);
 
   if (!game) return null;
@@ -80,6 +81,7 @@ export const GameScreen: React.FC = () => {
           showEmblems={showEmblems}
           showIce={showIce}
           showWind={showWind}
+          showElevation={showElevation}
         />
       </GestureHandler>
 
@@ -95,6 +97,7 @@ export const GameScreen: React.FC = () => {
         <LB label="Arma" on={showEmblems} p={() => toggleLayer('showEmblems')} />
         <LB label="Buz" on={showIce} p={() => toggleLayer('showIce')} />
         <LB label="Ruzgar" on={showWind} p={() => toggleLayer('showWind')} />
+        <LB label="Yukseklik" on={showElevation} p={() => toggleLayer('showElevation')} />
         <LB label="Istatistik" on={showStats} p={() => toggleLayer('showStats')} />
         <ExportButton />
       </View>

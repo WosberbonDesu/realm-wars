@@ -66,6 +66,7 @@ interface GameStore {
   showEmblems: boolean;
   showIce: boolean;
   showWind: boolean;
+  showElevation: boolean;
   toggleLayer: (layer: string) => void;
 
   // Actions
@@ -116,6 +117,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   showEmblems: true,
   showIce: true,
   showWind: false,
+  showElevation: false,
 
   setScreen: (s) => set({ screen: s }),
   setCameraPos: (x, y) => set({ cameraX: x, cameraY: y }),
