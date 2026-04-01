@@ -4,11 +4,7 @@ import { HexTile, HexTerrain } from '../types/game';
 import { TERRAIN_COLORS, RIVER_COLOR } from '../constants/game';
 import { COLORS } from '../constants/theme';
 import { Point, VoronoiGraph, VoronoiCell } from '../engine/voronoi';
-import { VoronoiRiver } from '../engine/voronoiMapGenerator';
-import { Burg } from '../engine/burgGenerator';
-import { Route } from '../engine/routeGenerator';
-import { Marker } from '../engine/markerGenerator';
-import { State } from '../engine/stateGenerator';
+import { VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiRoute } from '../engine/voronoiMapGenerator';
 import { cellKey } from '../engine/voronoiGrid';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -35,10 +31,9 @@ interface MapRendererProps {
   cellTiles: HexTile[];
   rivers: VoronoiRiver[];
   coastPaths: Point[][];
-  burgs: Burg[];
-  routes: Route[];
-  markers: Marker[];
-  states: State[];
+  burgs: VoronoiBurg[];
+  routes: VoronoiRoute[];
+  states: VoronoiState[];
   stateMap: Map<string, number>;
   oceanDepthMap: Map<string, number>;
   iceCells: Set<string>;
@@ -59,7 +54,7 @@ interface MapRendererProps {
 }
 
 export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
-  graph, cellTiles, rivers, coastPaths, burgs, routes, markers,
+  graph, cellTiles, rivers, coastPaths, burgs, routes,
   states, stateMap, oceanDepthMap, iceCells,
   mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell, players,
   showBiomes, showRivers, showBorders, showRoutes, showBurgs, showMarkers, showGrid,
@@ -203,19 +198,18 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       for (const route of routes) {
         if (route.path.length < 2) continue;
         ctx.beginPath();
-        // Routes use hex coords, convert via cell lookup
-        // For now draw between burg centers
-        const fromBurg = burgs[route.from];
-        const toBurg = burgs[route.to];
-        if (!fromBurg || !toBurg) continue;
-
-        // Basit düz çizgi (burg merkezleri arası)
-        ctx.moveTo(fromBurg.coord.q, fromBurg.coord.r);
-        ctx.lineTo(toBurg.coord.q, toBurg.coord.r);
-        ctx.strokeStyle = route.type === 'highway' ? '#D4A843AA' :
-                          route.type === 'road' ? '#AAAAAA66' : '#66666644';
-        ctx.lineWidth = route.type === 'highway' ? 2 : 1;
+        const c0 = graph.cells[route.path[0]]?.center;
+        if (!c0) continue;
+        ctx.moveTo(c0.x, c0.y);
+        for (let i = 1; i < route.path.length; i++) {
+          const ci = graph.cells[route.path[i]]?.center;
+          if (ci) ctx.lineTo(ci.x, ci.y);
+        }
+        ctx.strokeStyle = route.type === 'highway' ? '#D4A843CC' :
+                          route.type === 'road' ? '#AAAAAABB' : '#77777766';
+        ctx.lineWidth = route.type === 'highway' ? 2.5 : route.type === 'road' ? 1.5 : 0.8;
         ctx.setLineDash(route.type === 'trail' ? [4, 4] : []);
+        ctx.lineCap = 'round';
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -224,8 +218,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     // === 7. Burgs ===
     if (showBurgs) {
       for (const burg of burgs) {
-        // Burg coord: Voronoi'de coord.q = cell index
-        const cellIdx = burg.coord.q;
+        const cellIdx = burg.cellIndex;
         if (cellIdx < 0 || cellIdx >= graph.cells.length) continue;
         const center = graph.cells[cellIdx].center;
 
@@ -259,19 +252,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       }
     }
 
-    // === 8. Markers ===
-    if (showMarkers) {
-      for (const marker of markers) {
-        const cellIdx = marker.coord.q;
-        if (cellIdx < 0 || cellIdx >= graph.cells.length) continue;
-        const center = graph.cells[cellIdx].center;
-        ctx.font = '14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(marker.icon, center.x, center.y + 5);
-      }
-    }
-
-    // === 9. Selection ===
+    // === 8. Selection ===
     if (selectedCell !== null && selectedCell >= 0 && selectedCell < graph.cells.length) {
       const cell = graph.cells[selectedCell];
       if (cell.vertices.length >= 3) {
@@ -288,10 +269,10 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     }
 
     ctx.restore();
-  }, [graph, cellTiles, rivers, coastPaths, burgs, routes, markers,
+  }, [graph, cellTiles, rivers, coastPaths, burgs, routes,
       states, stateMap, oceanDepthMap, iceCells,
       mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell, players,
-      showBiomes, showRivers, showBorders, showRoutes, showBurgs, showMarkers, showGrid]);
+      showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid]);
 
   useEffect(() => { draw(); }, [draw]);
 

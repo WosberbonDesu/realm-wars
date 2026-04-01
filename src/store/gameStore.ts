@@ -3,14 +3,10 @@ import {
   GameState, GamePhase, Player, HexTile, HexCoord,
   hexKey, BuildingType, UnitType, Building, Army, Unit, Resources,
 } from '../types/game';
-import { generateVoronoiMap, VoronoiMapResult, VoronoiRiver } from '../engine/voronoiMapGenerator';
+import { generateVoronoiMap, VoronoiMapResult, VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiRoute } from '../engine/voronoiMapGenerator';
 import { VoronoiGraph, Point } from '../engine/voronoi';
 import { cellKey, findCellAtPoint } from '../engine/voronoiGrid';
-import { simulateBattle, BattleResult } from '../engine/combat';
-import { Burg } from '../engine/burgGenerator';
-import { Route } from '../engine/routeGenerator';
-import { Marker } from '../engine/markerGenerator';
-import { State } from '../engine/stateGenerator';
+import { BattleResult } from '../engine/combat';
 import {
   STARTING_RESOURCES, PLAYER_COLORS,
   BUILDING_COSTS, BUILDING_HEALTH, BUILDING_PRODUCTION,
@@ -28,11 +24,12 @@ interface GameStore {
   cellTiles: HexTile[];
   rivers: VoronoiRiver[];
   coastPaths: Point[][];
-  burgs: Burg[];
-  routes: Route[];
-  markers: Marker[];
-  states: State[];
+  burgs: VoronoiBurg[];
+  routes: VoronoiRoute[];
+  states: VoronoiState[];
+  cultures: VoronoiCulture[];
   stateMap: Map<string, number>;
+  cultureMap: Map<string, number>;
   oceanDepthMap: Map<string, number>;
   iceCells: Set<string>;
   mapWidth: number;
@@ -79,9 +76,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   coastPaths: [],
   burgs: [],
   routes: [],
-  markers: [],
   states: [],
+  cultures: [],
   stateMap: new Map(),
+  cultureMap: new Map(),
   oceanDepthMap: new Map(),
   iceCells: new Set(),
   mapWidth: 1200,
@@ -143,11 +141,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       cellTiles: result.cellTiles,
       rivers: result.rivers,
       coastPaths: result.coastPaths,
-      burgs: [],   // TODO: voronoi-based burg generation
-      routes: [],
-      markers: [],
-      states: [],
-      stateMap: new Map(),
+      burgs: result.burgs,
+      routes: result.routes,
+      states: result.states,
+      cultures: result.cultures,
+      stateMap: result.stateMap,
+      cultureMap: result.cultureMap,
       oceanDepthMap: new Map(),
       iceCells: new Set(),
       mapWidth: result.width,

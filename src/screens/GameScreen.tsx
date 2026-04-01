@@ -16,7 +16,6 @@ export const GameScreen: React.FC = () => {
   const coastPaths = useGameStore(s => s.coastPaths);
   const burgs = useGameStore(s => s.burgs);
   const routes = useGameStore(s => s.routes);
-  const markers = useGameStore(s => s.markers);
   const states = useGameStore(s => s.states);
   const stateMap = useGameStore(s => s.stateMap);
   const oceanDepthMap = useGameStore(s => s.oceanDepthMap);
@@ -60,7 +59,6 @@ export const GameScreen: React.FC = () => {
           coastPaths={coastPaths}
           burgs={burgs}
           routes={routes}
-          markers={markers}
           states={states}
           stateMap={stateMap}
           oceanDepthMap={oceanDepthMap}
