@@ -1381,19 +1381,27 @@ function generateVoronoiRivers(graph: VoronoiGraph, elevation: Float32Array, moi
 }
 
 // ===== Burgs =====
-function generateVoronoiBurgs(graph: VoronoiGraph, data: VoronoiMapData, terrain: HexTerrain[], landCells: number[], riverCells: Set<number>, coastCells: Set<number>, rng: Alea, nameGen: NameGenerator, maxBurgs: number = 30): VoronoiBurg[] {
+function generateVoronoiBurgs(graph: VoronoiGraph, data: VoronoiMapData, terrain: HexTerrain[], landCells: number[], riverCells: Set<number>, coastCells: Set<number>, rng: Alea, nameGen: NameGenerator, maxBurgs: number = 55): VoronoiBurg[] {
   const scores = new Map<number, number>();
   for (const i of landCells) {
     if (terrain[i] === HexTerrain.Snow || terrain[i] === HexTerrain.Mountain) continue;
     let s = 0;
-    if (riverCells.has(i)) s += 8;
-    if (coastCells.has(i)) s += 6;
-    s += data.moisture[i] * 4 + data.temperature[i] * 3;
-    s -= ((data.elevation[i]-SEA_LEVEL)/(1-SEA_LEVEL)) * 5;
-    if (terrain[i] === HexTerrain.Plains) s += 4;
-    if (terrain[i] === HexTerrain.Forest) s += 2;
-    if (terrain[i] === HexTerrain.Desert) s -= 3;
-    s += rng.nextFloat(-1, 1);
+    // Nehir ve kıyı büyük avantaj
+    if (riverCells.has(i)) s += 10;
+    if (coastCells.has(i)) s += 7;
+    // Nehir + kıyı kesişimi = liman şehri (ekstra bonus)
+    if (riverCells.has(i) && coastCells.has(i)) s += 5;
+    s += data.moisture[i] * 5 + data.temperature[i] * 4;
+    s -= ((data.elevation[i]-SEA_LEVEL)/(1-SEA_LEVEL)) * 4;
+    if (terrain[i] === HexTerrain.Plains) s += 5;
+    if (terrain[i] === HexTerrain.Forest) s += 3;
+    if (terrain[i] === HexTerrain.Desert) s -= 2;
+    if (terrain[i] === HexTerrain.Swamp) s -= 1;
+    // Kavşak noktaları: çok komşusu olan hücreler
+    const neighbors = graph.cells[i].neighbors;
+    const landNeighborCount = neighbors.filter(ni => data.elevation[ni] >= SEA_LEVEL).length;
+    if (landNeighborCount >= 5) s += 2;
+    s += rng.nextFloat(-2, 2);
     scores.set(i, Math.max(0, s));
   }
   const sorted = [...scores.entries()].sort((a,b) => b[1]-a[1]);
@@ -1401,11 +1409,18 @@ function generateVoronoiBurgs(graph: VoronoiGraph, data: VoronoiMapData, terrain
   const placed: number[] = [];
   for (const [ci, score] of sorted) {
     if (burgs.length >= maxBurgs) break;
-    const tooClose = placed.some(pi => cellDistance(graph, pi, ci) < 40);
+    // Minimum mesafe: ilk 10 şehir 35px, sonrası 22px (daha sık yerleşim)
+    const minDist = burgs.length < 10 ? 35 : 22;
+    const tooClose = placed.some(pi => cellDistance(graph, pi, ci) < minDist);
     if (tooClose) continue;
+    // Nüfus: üst sıra şehirler çok daha büyük
+    let popMult = 1;
+    if (burgs.length < 2) popMult = 5;       // ilk 2: metropol
+    else if (burgs.length < 5) popMult = 3;   // 3-5: büyük şehir
+    else if (burgs.length < 12) popMult = 2;  // 6-12: orta şehir
     burgs.push({
       id: burgs.length, cellIndex: ci, name: nameGen.cityName(),
-      population: Math.floor(score * 500 + rng.nextFloat(500, 2000)) * (burgs.length < 3 ? 4 : burgs.length < 8 ? 2 : 1),
+      population: Math.floor(score * 600 + rng.nextFloat(800, 3000)) * popMult,
       isCapital: false, stateId: -1, port: coastCells.has(ci), score,
     });
     placed.push(ci);
