@@ -483,63 +483,111 @@ function drawStateBorders(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, st
 function drawRivers(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, rivers: VoronoiRiver[]): void {
   // Küçük nehirler önce, büyükler üstte
   const sorted = [...rivers].sort((a, b) => a.flux - b.flux);
+  const rng = new Alea(graph.cells.length * 53);
 
   for (const river of sorted) {
     if (river.path.length < 2) continue;
 
-    const maxWidth = Math.min(4.5, 0.4 + Math.sqrt(river.flux) * 0.08);
-    const minWidth = Math.max(0.3, maxWidth * 0.15);
-    const pathLen = river.path.length;
+    // Kontrol noktalarını topla
+    const pts: Point[] = [];
+    for (const ci of river.path) {
+      const cell = graph.cells[ci];
+      if (cell) pts.push(cell.center);
+    }
+    if (pts.length < 2) continue;
 
-    // Segment bazlı çizim (her segment farklı kalınlık)
-    for (let i = 0; i < pathLen - 1; i++) {
-      const ca = graph.cells[river.path[i]]?.center;
-      const cb = graph.cells[river.path[i + 1]]?.center;
-      if (!ca || !cb) continue;
+    // Doğal menderes: her noktaya küçük perpendicular offset ekle
+    const meandered: Point[] = [pts[0]]; // kaynak noktası sabit
+    for (let i = 1; i < pts.length - 1; i++) {
+      const prev = pts[i - 1];
+      const curr = pts[i];
+      const next = pts[i + 1];
+      // Normal yön (akış yönüne dik)
+      const dx = next.x - prev.x;
+      const dy = next.y - prev.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 0.1) { meandered.push(curr); continue; }
+      const nx = -dy / len;
+      const ny = dx / len;
+      // Menderes offset: nehir büyüklüğüne ve pozisyona göre
+      const t = i / (pts.length - 1);
+      const amplitude = (2 + Math.sqrt(river.flux) * 0.15) * (0.3 + t * 0.7);
+      const offset = rng.nextFloat(-amplitude, amplitude);
+      meandered.push({
+        x: curr.x + nx * offset,
+        y: curr.y + ny * offset,
+      });
+    }
+    meandered.push(pts[pts.length - 1]); // ağız noktası sabit
 
-      // Tapered width: kaynaktan ağza doğru genişler
-      const t = pathLen > 1 ? i / (pathLen - 1) : 1;
-      const width = minWidth + (maxWidth - minWidth) * t;
+    // Genişlik hesapla
+    const maxWidth = Math.min(5.5, 0.5 + Math.sqrt(river.flux) * 0.1);
+    const minWidth = Math.max(0.4, maxWidth * 0.12);
 
-      ctx.beginPath();
-      ctx.moveTo(ca.x, ca.y);
+    // Catmull-Rom spline ile yumuşak eğri çiz
+    // Tek bir path olarak çiz (daha gerçekçi)
+    ctx.beginPath();
+    ctx.moveTo(meandered[0].x, meandered[0].y);
 
-      // Smooth bezier: sonraki segment varsa quadratic curve
-      if (i < pathLen - 2) {
-        const cc = graph.cells[river.path[i + 2]]?.center;
-        if (cc) {
-          ctx.quadraticCurveTo(cb.x, cb.y, (cb.x + cc.x) / 2, (cb.y + cc.y) / 2);
-        } else {
-          ctx.lineTo(cb.x, cb.y);
-        }
-      } else {
-        ctx.lineTo(cb.x, cb.y);
+    if (meandered.length === 2) {
+      ctx.lineTo(meandered[1].x, meandered[1].y);
+    } else {
+      // Catmull-Rom → Bezier conversion
+      for (let i = 0; i < meandered.length - 1; i++) {
+        const p0 = meandered[Math.max(0, i - 1)];
+        const p1 = meandered[i];
+        const p2 = meandered[Math.min(meandered.length - 1, i + 1)];
+        const p3 = meandered[Math.min(meandered.length - 1, i + 2)];
+
+        // Catmull-Rom to cubic bezier control points
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
       }
+    }
 
-      // Renk: küçük nehirler açık, büyük nehirler koyu
-      const alpha = 0.5 + Math.min(0.5, river.flux / 200);
-      ctx.strokeStyle = `rgba(70,140,180,${alpha})`;
-      ctx.lineWidth = width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+    // Gradient width: tek stroke ama width ortalaması
+    const avgWidth = (minWidth + maxWidth) / 2;
+    const alpha = 0.55 + Math.min(0.45, river.flux / 150);
+    ctx.strokeStyle = `rgba(60,130,175,${alpha})`;
+    ctx.lineWidth = avgWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // İkinci pass: kalın ana gövde (ağız tarafı)
+    if (meandered.length >= 4 && maxWidth > 2) {
+      const halfLen = Math.floor(meandered.length / 2);
+      ctx.beginPath();
+      ctx.moveTo(meandered[halfLen].x, meandered[halfLen].y);
+      for (let i = halfLen; i < meandered.length - 1; i++) {
+        const p0 = meandered[Math.max(0, i - 1)];
+        const p1 = meandered[i];
+        const p2 = meandered[Math.min(meandered.length - 1, i + 1)];
+        const p3 = meandered[Math.min(meandered.length - 1, i + 2)];
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+      }
+      ctx.strokeStyle = `rgba(55,120,165,${alpha * 0.7})`;
+      ctx.lineWidth = maxWidth;
       ctx.stroke();
     }
 
-    // Delta efekti: nehrin ağzında (son 2 hücre) yayılma
-    if (pathLen >= 3) {
-      const lastIdx = river.path[pathLen - 1];
-      const prevIdx = river.path[pathLen - 2];
-      const lastCell = graph.cells[lastIdx];
-      const prevCell = graph.cells[prevIdx];
-      if (lastCell && prevCell) {
-        const elev = useGameStore.getState().cellTiles[lastIdx]?.elevation;
-        if (elev !== undefined && elev < SEA_LEVEL) {
-          // Delta: nehir denize döküldüğünde fan-out
-          ctx.beginPath();
-          ctx.arc(lastCell.center.x, lastCell.center.y, maxWidth * 1.2, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(70,140,180,0.2)';
-          ctx.fill();
-        }
+    // Delta efekti: denize dökülen büyük nehirler
+    if (meandered.length >= 3 && maxWidth > 1.5) {
+      const last = meandered[meandered.length - 1];
+      const elev = useGameStore.getState().cellTiles[river.path[river.path.length - 1]]?.elevation;
+      if (elev !== undefined && elev < SEA_LEVEL) {
+        ctx.beginPath();
+        ctx.arc(last.x, last.y, maxWidth * 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(60,130,175,${alpha * 0.3})`;
+        ctx.fill();
       }
     }
   }

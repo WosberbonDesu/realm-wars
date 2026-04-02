@@ -255,8 +255,15 @@ function generateHeightmap(data: VoronoiMapData, graph: VoronoiGraph, rng: Alea,
   // Asimetrik maske: elipsin merkezi hafif kaydırılır (doğal görünüm)
   applyAsymmetricNoise(graph, heights, rng, w, h, seed);
 
-  // Su oranı garantisi: minimum %30 su (gerçekçi dünya oranı)
-  enforceWaterRatio(graph, heights, rng, 0.30, w, h);
+  // Su oranı garantisi: template'a göre farklı minimum su
+  const waterRatios: Record<string, number> = {
+    highIsland: 0.35,
+    continent: 0.25,
+    archipelago: 0.55,
+    pangaea: 0.10,  // Pangaea: çok az su, devasa kara kütlesi
+  };
+  const minWater = waterRatios[template] ?? 0.30;
+  enforceWaterRatio(graph, heights, rng, minWater, w, h);
 
   // Son smoothing (erozyon sonrası doğal geçişler)
   smoothHeights(graph, heights, 2);
@@ -493,8 +500,8 @@ function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
   addHill(graph, heights, rng, 1, rng.nextInt(95, 100),
     [w * 0.40, w * 0.60], [h * 0.40, h * 0.60], blobPower, w, h);
 
-  // Add +8 to all cells (düşürüldü: %30 su garantisi için)
-  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 8);
+  // Add +14 to all cells (Pangaea: devasa kara kütlesi)
+  for (let i = 0; i < n; i++) heights[i] = Math.min(100, heights[i] + 14);
 
   // Large supporting hills to fill out the supercontinent
   addHill(graph, heights, rng, 1, rng.nextInt(80, 95),
@@ -526,18 +533,18 @@ function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
   addRange(graph, heights, rng, 1, rng.nextInt(35, 45),
     [w * 0.40, w * 0.60], [h * 0.15, h * 0.85], linePower, w, h);
 
-  // Mask level 2 - supercontinent etrafı su
-  applyMask(graph, heights, 2, w, h);
+  // Mask level 1 - sadece kenarlar su, merkez neredeyse tamamen kara
+  applyMask(graph, heights, 1, w, h);
 
   smoothHeights(graph, heights, 3);
 
-  // Troughs for inland seas and large river valleys (daha fazla)
-  addTrough(graph, heights, rng, rng.nextInt(4, 7), rng.nextInt(25, 40),
-    [w * 0.20, w * 0.80], [h * 0.20, h * 0.80], linePower, w, h);
+  // Küçük iç deniz vadileri (az sayıda, Pangaea kara ağırlıklı)
+  addTrough(graph, heights, rng, rng.nextInt(2, 4), rng.nextInt(15, 25),
+    [w * 0.25, w * 0.75], [h * 0.25, h * 0.75], linePower, w, h);
 
-  // İç denizler (Pangaea'nın gerçekçi Tethys denizi gibi)
-  addPit(graph, heights, rng, rng.nextInt(3, 5), rng.nextInt(30, 50),
-    [w * 0.20, w * 0.80], [h * 0.20, h * 0.80], blobPower, w, h);
+  // Tek bir Tethys tarzı iç deniz
+  addPit(graph, heights, rng, 1, rng.nextInt(25, 40),
+    [w * 0.30, w * 0.70], [h * 0.35, h * 0.65], blobPower, w, h);
 
   // Ekstra büyük iç deniz
   addPit(graph, heights, rng, 1, rng.nextInt(35, 55),
@@ -553,8 +560,8 @@ function templatePangaea(graph: VoronoiGraph, heights: Float32Array, rng: Alea,
     }
   }
 
-  // Final mask level 2 (kenarlar su)
-  applyMask(graph, heights, 2, w, h);
+  // Final mask level 1 (sadece kenarlar, kara baskın kalmalı)
+  applyMask(graph, heights, 1, w, h);
 }
 
 // Su oranı garantisi: haritanın en az belirli % su içermesini sağlar
