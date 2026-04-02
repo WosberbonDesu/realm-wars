@@ -16,6 +16,8 @@ export const StateDetailPanel: React.FC = () => {
   const burgs = useGameStore(s => s.burgs);
   const cultures = useGameStore(s => s.cultures);
   const cultureMap = useGameStore(s => s.cultureMap);
+  const religions = useGameStore(s => s.religions);
+  const religionMap = useGameStore(s => s.religionMap);
 
   const data = useMemo(() => {
     if (selectedCell === null || selectedCell < 0 || selectedCell >= cellTiles.length) return null;
@@ -39,14 +41,32 @@ export const StateDetailPanel: React.FC = () => {
     const cultureId = cultureMap.get(key);
     const culture = cultureId !== undefined ? cultures.find(c => c.id === cultureId) : undefined;
 
+    // Find dominant religion in state cells
+    const religionCounts = new Map<number, number>();
+    for (const ci of state.cells) {
+      const rId = religionMap.get(cellKey(ci));
+      if (rId !== undefined && rId >= 0) {
+        religionCounts.set(rId, (religionCounts.get(rId) ?? 0) + 1);
+      }
+    }
+    let dominantReligion: typeof religions[number] | undefined;
+    if (religionCounts.size > 0) {
+      let maxCount = 0;
+      let maxId = -1;
+      for (const [rId, count] of religionCounts) {
+        if (count > maxCount) { maxCount = count; maxId = rId; }
+      }
+      dominantReligion = religions.find(r => r.id === maxId);
+    }
+
     const cellBurg = burgs.find(b => b.cellIndex === selectedCell);
 
-    return { state, stateBurgs, capitalBurg, totalPopulation, militaryPower, neighborStates, culture, cellBurg };
-  }, [selectedCell, cellTiles, stateMap, states, burgs, cultures, cultureMap]);
+    return { state, stateBurgs, capitalBurg, totalPopulation, militaryPower, neighborStates, culture, dominantReligion, cellBurg };
+  }, [selectedCell, cellTiles, stateMap, states, burgs, cultures, cultureMap, religions, religionMap]);
 
   if (!data) return null;
 
-  const { state, stateBurgs, capitalBurg, totalPopulation, militaryPower, neighborStates, culture, cellBurg } = data;
+  const { state, stateBurgs, capitalBurg, totalPopulation, militaryPower, neighborStates, culture, dominantReligion, cellBurg } = data;
 
   return (
     <View style={styles.container}>
@@ -112,6 +132,20 @@ export const StateDetailPanel: React.FC = () => {
                 <View style={[styles.neighborDot, { backgroundColor: culture.color }]} />
                 <Text style={styles.cultureText}>{culture.name}</Text>
                 <Text style={styles.cultureCells}>{culture.cells.length} hucre</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Religion */}
+          {dominantReligion && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Din</Text>
+              <View style={styles.cultureRow}>
+                <Text style={styles.cultureText}>
+                  {dominantReligion.type === 'organized' ? '⛪' : dominantReligion.type === 'folk' ? '🕯️' : dominantReligion.type === 'cult' ? '🔮' : '📿'}{' '}
+                  {dominantReligion.name}
+                </Text>
+                <Text style={styles.cultureCells}>{dominantReligion.deity}</Text>
               </View>
             </View>
           )}

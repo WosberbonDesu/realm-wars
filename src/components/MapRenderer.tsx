@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { View, Dimensions, Platform } from 'react-native';
 import { HexTile, HexTerrain } from '../types/game';
 import { Point, VoronoiGraph, VoronoiCell } from '../engine/voronoi';
-import { VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiRoute } from '../engine/voronoiMapGenerator';
+import { VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiReligion, VoronoiRoute } from '../engine/voronoiMapGenerator';
 import { cellKey } from '../engine/voronoiGrid';
 import { SEA_LEVEL } from '../engine/biomes';
 import { Alea } from '../engine/alea';
@@ -101,6 +101,9 @@ interface MapRendererProps {
   showCultures: boolean;
   cultures: VoronoiCulture[];
   cultureMap: Map<string, number>;
+  showReligion: boolean;
+  religions: VoronoiReligion[];
+  religionMap: Map<string, number>;
 }
 
 export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
@@ -109,6 +112,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
   showRelief, showEmblems, showIce, showWind, showElevation,
   showTemperature, showMoisture, showCultures, cultures, cultureMap,
+  showReligion, religions, religionMap,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -216,6 +220,9 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     // === 7e. Culture overlay ===
     if (showCultures) drawCultureOverlay(ctx, graph, cellTiles, cultureMap, cultures);
 
+    // === 7f. Religion overlay ===
+    if (showReligion) drawReligionOverlay(ctx, graph, cellTiles, religionMap, religions);
+
     // === 8. Rivers ===
     if (showRivers) drawRivers(ctx, graph, rivers);
 
@@ -265,7 +272,8 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
       showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
       showRelief, showEmblems, showIce, showWind, showElevation,
-      showTemperature, showMoisture, showCultures, cultures, cultureMap, renderBase]);
+      showTemperature, showMoisture, showCultures, cultures, cultureMap,
+      showReligion, religions, religionMap, renderBase]);
 
   // requestAnimationFrame ile çizim (smooth)
   useEffect(() => {
@@ -784,6 +792,57 @@ function drawCultureOverlay(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, 
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(80,40,20,0.5)';
     ctx.fillText(culture.name, cx, cy);
+  }
+}
+
+// ===== RELIGION OVERLAY =====
+const RELIGION_COLORS_RENDER = [
+  '#ffd700', '#ff6347', '#9370db', '#20b2aa', '#ff69b4',
+  '#00ced1', '#ff4500', '#7b68ee', '#3cb371', '#dc143c',
+  '#1e90ff', '#ff8c00',
+];
+
+function drawReligionOverlay(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], religionMap: Map<string, number>, religions: VoronoiReligion[]): void {
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile || tile.elevation < SEA_LEVEL) continue;
+    const cell = graph.cells[i];
+    if (cell.vertices.length < 3) continue;
+    const rId = religionMap.get(cellKey(i));
+    if (rId === undefined || rId < 0) continue;
+    fillCell(ctx, cell.vertices, RELIGION_COLORS_RENDER[rId % RELIGION_COLORS_RENDER.length]);
+  }
+  ctx.restore();
+
+  for (const rel of religions) {
+    if (rel.cells.length < 3) continue;
+    let cx = 0, cy = 0;
+    for (const ci of rel.cells) {
+      cx += graph.cells[ci].center.x;
+      cy += graph.cells[ci].center.y;
+    }
+    cx /= rel.cells.length;
+    cy /= rel.cells.length;
+
+    // Tapınak ikonu
+    const icon = rel.type === 'organized' ? '⛪' : rel.type === 'folk' ? '🕯️' : rel.type === 'cult' ? '🔮' : '📿';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(icon, cx, cy);
+
+    // Din adı
+    const fs = Math.min(11, Math.max(6, Math.sqrt(rel.cells.length) * 0.4));
+    ctx.font = `italic bold ${fs}px Georgia, serif`;
+    ctx.fillStyle = 'rgba(90,50,10,0.5)';
+    ctx.fillText(rel.name, cx, cy + 13);
+
+    // Tanrı adı
+    ctx.font = `italic ${Math.max(5, fs - 2)}px Georgia, serif`;
+    ctx.fillStyle = 'rgba(70,40,5,0.35)';
+    ctx.fillText('"' + rel.deity + '"', cx, cy + 22);
   }
 }
 

@@ -60,6 +60,16 @@ export interface VoronoiRoute {
   type: 'highway' | 'road' | 'trail';
 }
 
+export interface VoronoiReligion {
+  id: number;
+  name: string;
+  color: string;
+  type: 'organized' | 'folk' | 'cult' | 'heresy';
+  deity: string;
+  cells: number[];     // cell indices
+  centerCell: number;
+}
+
 export interface VoronoiMapResult {
   voronoi: VoronoiMapData;
   tiles: Map<string, HexTile>;
@@ -68,10 +78,12 @@ export interface VoronoiMapResult {
   burgs: VoronoiBurg[];
   states: VoronoiState[];
   cultures: VoronoiCulture[];
+  religions: VoronoiReligion[];
   routes: VoronoiRoute[];
   coastPaths: Point[][];
-  stateMap: Map<string, number>;    // cellKey → stateId
-  cultureMap: Map<string, number>;  // cellKey → cultureId
+  stateMap: Map<string, number>;
+  cultureMap: Map<string, number>;
+  religionMap: Map<string, number>;  // cellKey → religionId
   seed: number;
   width: number;
   height: number;
@@ -207,12 +219,19 @@ export function generateVoronoiMap(
     if (sId !== undefined) burg.stateId = sId;
   }
 
-  // --- 11. Routes ---
+  // --- 11. Religions ---
+  const religions = generateVoronoiReligions(graph, voronoiData, landCells, burgs, cultures, cultureMap, rng, nameGen);
+  const religionMap = new Map<string, number>();
+  for (const r of religions) {
+    for (const ci of r.cells) religionMap.set(cellKey(ci), r.id);
+  }
+
+  // --- 12. Routes ---
   const routes = generateVoronoiRoutes(graph, voronoiData, burgs, rng);
 
   return {
-    voronoi: voronoiData, tiles, cellTiles, rivers, burgs, states, cultures, routes,
-    coastPaths, stateMap, cultureMap, seed, width, height,
+    voronoi: voronoiData, tiles, cellTiles, rivers, burgs, states, cultures, religions, routes,
+    coastPaths, stateMap, cultureMap, religionMap, seed, width, height,
   };
 }
 
@@ -1541,6 +1560,130 @@ function generateVoronoiStates(graph: VoronoiGraph, data: VoronoiMapData, landCe
   // Burg ataması
   for (const b of burgs) { const sId = cellState[b.cellIndex]; if (sId >= 0) { b.stateId = sId; if (!states[sId].burgIds.includes(b.id)) states[sId].burgIds.push(b.id); } }
   return states;
+}
+
+// ===== Religions =====
+const RELIGION_COLORS = [
+  '#ffd700', '#ff6347', '#9370db', '#20b2aa', '#ff69b4',
+  '#00ced1', '#ff4500', '#7b68ee', '#3cb371', '#dc143c',
+  '#1e90ff', '#ff8c00',
+];
+
+const RELIGION_NAMES_PREFIX = [
+  'Kutsal', 'Kadim', 'Ilahi', 'Sonsuz', 'Gizli', 'Parlak',
+  'Yuce', 'Ezeli', 'Karanlik', 'Gokcisim',
+];
+const RELIGION_NAMES_SUFFIX = [
+  'Isik Yolu', 'Ates Tarikat', 'Gunes Dini', 'Ay Kilisesi',
+  'Toprak Inanci', 'Ruzgar Mezhebi', 'Yildiz Tapinaklari',
+  'Deniz Ibadeti', 'Dag Geleneği', 'Orman Kulturu',
+  'Gok Kilisesi', 'Alev Tarikat',
+];
+
+const DEITY_PARTS_A = ['Ulu', 'Yuce', 'Sonsuz', 'Kadim', 'Ezeli', 'Gizli', 'Parlak', 'Karanlik'];
+const DEITY_PARTS_B = ['Tanri', 'Isik', 'Gunes', 'Ay', 'Ates', 'Ruzgar', 'Toprak', 'Deniz', 'Gok', 'Yildiz', 'Dag', 'Orman'];
+
+function generateVoronoiReligions(
+  graph: VoronoiGraph, data: VoronoiMapData, landCells: number[],
+  burgs: VoronoiBurg[], cultures: VoronoiCulture[], cultureMap: Map<string, number>,
+  rng: Alea, nameGen: NameGenerator, count: number = 8,
+): VoronoiReligion[] {
+  // En kalabalık şehirlerden din doğar
+  const sortedBurgs = [...burgs].sort((a, b) => b.population - a.population);
+  const usedCultures = new Set<number>();
+  const religions: VoronoiReligion[] = [];
+
+  for (const burg of sortedBurgs) {
+    if (religions.length >= count) break;
+
+    // Aynı kültürden çok din çıkmasın
+    const cId = cultureMap.get(cellKey(burg.cellIndex));
+    if (cId !== undefined && usedCultures.has(cId) && rng.next() > 0.3) continue;
+    if (cId !== undefined) usedCultures.add(cId);
+
+    const type: VoronoiReligion['type'] =
+      religions.length < 3 ? 'organized' :
+      rng.next() > 0.6 ? 'folk' :
+      rng.next() > 0.5 ? 'cult' : 'heresy';
+
+    const deity = rng.pick(DEITY_PARTS_A) + ' ' + rng.pick(DEITY_PARTS_B);
+    const name = rng.pick(RELIGION_NAMES_PREFIX) + ' ' + rng.pick(RELIGION_NAMES_SUFFIX);
+
+    religions.push({
+      id: religions.length,
+      name,
+      color: RELIGION_COLORS[religions.length % RELIGION_COLORS.length],
+      type,
+      deity,
+      cells: [],
+      centerCell: burg.cellIndex,
+    });
+  }
+
+  if (religions.length === 0) return religions;
+
+  // Wave-front expansion (kültür gibi ama din sınırları farklı)
+  const cellReligion = new Int32Array(graph.cells.length).fill(-1);
+  const costMap = new Float32Array(graph.cells.length).fill(Infinity);
+  const pq: { ci: number; rId: number; cost: number }[] = [];
+
+  for (const rel of religions) {
+    pq.push({ ci: rel.centerCell, rId: rel.id, cost: 0 });
+    costMap[rel.centerCell] = 0;
+    cellReligion[rel.centerCell] = rel.id;
+  }
+  pq.sort((a, b) => a.cost - b.cost);
+
+  // Expansion gücü: organized > folk > cult > heresy
+  const expansionRate: Record<string, number> = {
+    organized: 1.0, folk: 0.8, cult: 0.6, heresy: 0.4,
+  };
+
+  while (pq.length > 0) {
+    const { ci, rId, cost } = pq.shift()!;
+    if (cellReligion[ci] !== -1 && cellReligion[ci] !== rId && costMap[ci] < cost) continue;
+    cellReligion[ci] = rId;
+
+    for (const ni of graph.cells[ci].neighbors) {
+      if (data.elevation[ni] < SEA_LEVEL) continue;
+
+      let mc = cost + 1;
+
+      // Dağlar din yayılmasını yavaşlatır
+      if (data.elevation[ni] > 0.7) mc += 4;
+      // Çöller de yavaşlatır
+      if (data.elevation[ni] < 0.25 && data.moisture[ni] < 0.15) mc += 2;
+
+      // Kültür sınırı: din yayılmasını zorlaştırır
+      const curCult = cultureMap.get(cellKey(ci));
+      const nCult = cultureMap.get(cellKey(ni));
+      if (curCult !== undefined && nCult !== undefined && curCult !== nCult) mc += 3;
+
+      // Expansion oranı
+      mc /= (expansionRate[religions[rId].type] ?? 0.7);
+
+      if (mc < costMap[ni]) {
+        costMap[ni] = mc;
+        cellReligion[ni] = rId;
+        // Binary search insert (sorted priority queue)
+        let lo = 0, hi = pq.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (pq[mid].cost > mc) hi = mid; else lo = mid + 1;
+        }
+        pq.splice(lo, 0, { ci: ni, rId, cost: mc });
+      }
+    }
+  }
+
+  // Hücreleri dinlere ata
+  for (let i = 0; i < graph.cells.length; i++) {
+    if (cellReligion[i] >= 0) {
+      religions[cellReligion[i]].cells.push(i);
+    }
+  }
+
+  return religions;
 }
 
 // ===== Routes =====

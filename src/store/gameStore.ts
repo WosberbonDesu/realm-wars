@@ -3,7 +3,7 @@ import {
   GameState, GamePhase, Player, HexTile, HexCoord,
   hexKey, BuildingType, UnitType, Building, Army, Unit, Resources,
 } from '../types/game';
-import { generateVoronoiMap, VoronoiMapResult, VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiRoute, MapTemplate } from '../engine/voronoiMapGenerator';
+import { generateVoronoiMap, VoronoiMapResult, VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiReligion, VoronoiRoute, MapTemplate } from '../engine/voronoiMapGenerator';
 import { VoronoiGraph, Point } from '../engine/voronoi';
 import { cellKey, findCellAtPoint } from '../engine/voronoiGrid';
 import { BattleResult } from '../engine/combat';
@@ -28,8 +28,10 @@ interface GameStore {
   routes: VoronoiRoute[];
   states: VoronoiState[];
   cultures: VoronoiCulture[];
+  religions: VoronoiReligion[];
   stateMap: Map<string, number>;
   cultureMap: Map<string, number>;
+  religionMap: Map<string, number>;
   oceanDepthMap: Map<string, number>;
   iceCells: Set<string>;
   customMarkers: { cellIndex: number; icon: string; name: string }[];
@@ -69,6 +71,7 @@ interface GameStore {
   showTemperature: boolean;
   showMoisture: boolean;
   showCultures: boolean;
+  showReligion: boolean;
   showList: boolean;
   showLegend: boolean;
   isGenerating: boolean;
@@ -92,8 +95,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   routes: [],
   states: [],
   cultures: [],
+  religions: [],
   stateMap: new Map(),
   cultureMap: new Map(),
+  religionMap: new Map(),
   oceanDepthMap: new Map(),
   iceCells: new Set(),
   customMarkers: [],
@@ -125,6 +130,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   showTemperature: false,
   showMoisture: false,
   showCultures: false,
+  showReligion: false,
   showList: false,
   showLegend: false,
   isGenerating: false,
@@ -179,8 +185,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       routes: result.routes,
       states: result.states,
       cultures: result.cultures,
+      religions: result.religions,
       stateMap: result.stateMap,
       cultureMap: result.cultureMap,
+      religionMap: result.religionMap,
       oceanDepthMap: new Map(),
       iceCells: new Set(),
       mapWidth: result.width,

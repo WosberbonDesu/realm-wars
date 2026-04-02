@@ -46,10 +46,13 @@ export const GameScreen: React.FC = () => {
   const showTemperature = useGameStore(s => s.showTemperature);
   const showMoisture = useGameStore(s => s.showMoisture);
   const showCultures = useGameStore(s => s.showCultures);
+  const showReligion = useGameStore(s => s.showReligion);
   const showList = useGameStore(s => s.showList);
   const showLegend = useGameStore(s => s.showLegend);
   const cultures = useGameStore(s => s.cultures);
   const cultureMap = useGameStore(s => s.cultureMap);
+  const religions = useGameStore(s => s.religions);
+  const religionMap = useGameStore(s => s.religionMap);
   const toggleLayer = useGameStore(s => s.toggleLayer);
   const isGenerating = useGameStore(s => s.isGenerating);
 
@@ -98,6 +101,9 @@ export const GameScreen: React.FC = () => {
           showCultures={showCultures}
           cultures={cultures}
           cultureMap={cultureMap}
+          showReligion={showReligion}
+          religions={religions}
+          religionMap={religionMap}
         />
       </GestureHandler>
 
@@ -117,6 +123,7 @@ export const GameScreen: React.FC = () => {
         <LB label="Sicaklik" on={showTemperature} p={() => toggleLayer('showTemperature')} />
         <LB label="Nem" on={showMoisture} p={() => toggleLayer('showMoisture')} />
         <LB label="Kultur" on={showCultures} p={() => toggleLayer('showCultures')} />
+        <LB label="Din" on={showReligion} p={() => toggleLayer('showReligion')} />
         <LB label="Istatistik" on={showStats} p={() => toggleLayer('showStats')} />
         <LB label="Liste" on={showList} p={() => toggleLayer('showList')} />
         <LB label="Lejand" on={showLegend} p={() => toggleLayer('showLegend')} />
