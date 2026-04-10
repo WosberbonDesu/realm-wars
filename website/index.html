@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realm Turizm - Hayalinizdeki Tatil Burada</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="container top-bar-inner">
+            <div class="top-left">
+                <span><i class="fas fa-phone"></i> +90 212 555 00 00</span>
+                <span><i class="fas fa-envelope"></i> info@realmturizm.com</span>
+            </div>
+            <div class="top-right">
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-youtube"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container header-inner">
+            <a href="#" class="logo">
+                <i class="fas fa-globe-americas"></i>
+                <span>REALM<strong>TURİZM</strong></span>
+            </a>
+            <nav class="nav" id="mainNav">
+                <a href="#anasayfa" class="active">Ana Sayfa</a>
+                <a href="#turlar">2026 Turları</a>
+                <a href="#kategoriler">Kategoriler</a>
+                <a href="#hakkimizda">Hakkımızda</a>
+                <a href="#iletisim">Bize Ulaşın</a>
+            </nav>
+            <div class="header-actions">
+                <a href="#" class="btn-outline"><i class="fas fa-user"></i> Giriş / Üye Ol</a>
+                <a href="#" class="btn-cart"><i class="fas fa-shopping-cart"></i> Sepetim</a>
+                <button class="hamburger" id="hamburger" aria-label="Menü">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Secondary Nav -->
+    <div class="secondary-nav">
+        <div class="container">
+            <a href="#turlar"><i class="fas fa-plane"></i> 2026 Turları</a>
+            <a href="#"><i class="fas fa-gem"></i> REALM VIP</a>
+            <a href="#"><i class="fas fa-file-alt"></i> Tur Talep Formu</a>
+            <a href="#iletisim"><i class="fas fa-headset"></i> Bize Ulaşın</a>
+            <a href="#"><i class="fas fa-map-marker-alt"></i> Canlı Konum Takip</a>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero" id="anasayfa">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1>Dünyayı Keşfetmeye Hazır Mısınız?</h1>
+            <p>Unutulmaz anılar biriktireceğiniz turlara hemen göz atın</p>
+            <div class="search-box">
+                <div class="search-field">
+                    <label><i class="fas fa-map-marker-alt"></i> Çıkış Yeri</label>
+                    <select>
+                        <option>İstanbul</option>
+                        <option>Ankara</option>
+                        <option>İzmir</option>
+                        <option>Antalya</option>
+                    </select>
+                </div>
+                <div class="search-field">
+                    <label><i class="fas fa-globe"></i> Tur Bölgesi</label>
+                    <select>
+                        <option>Tüm Bölgeler</option>
+                        <option>Avrupa</option>
+                        <option>Asya</option>
+                        <option>Afrika</option>
+                        <option>Güney Amerika</option>
+                    </select>
+                </div>
+                <div class="search-field">
+                    <label><i class="fas fa-calendar"></i> Ne Zaman</label>
+                    <select>
+                        <option>Tarih Seçin</option>
+                        <option>Ocak 2026</option>
+                        <option>Şubat 2026</option>
+                        <option>Mart 2026</option>
+                        <option>Nisan 2026</option>
+                        <option>Mayıs 2026</option>
+                        <option>Haziran 2026</option>
+                    </select>
+                </div>
+                <button class="search-btn"><i class="fas fa-search"></i> Tur Ara</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories Section -->
+    <section class="categories" id="kategoriler">
+        <div class="container">
+            <h2 class="section-title">Tur Kategorileri</h2>
+            <p class="section-subtitle">Hayalinizdeki destinasyonu seçin</p>
+            <div class="category-grid">
+                <div class="category-card" style="--bg: linear-gradient(135deg, #e74c3c, #c0392b)">
+                    <i class="fas fa-torii-gate"></i>
+                    <h3>Japonya &amp; Kore</h3>
+                    <p>12 Tur</p>
+                </div>
+                <div class="category-card" style="--bg: linear-gradient(135deg, #f39c12, #e67e22)">
+                    <i class="fas fa-drum"></i>
+                    <h3>Afrika</h3>
+                    <p>8 Tur</p>
+                </div>
+                <div class="category-card" style="--bg: linear-gradient(135deg, #27ae60, #2ecc71)">
+                    <i class="fas fa-mountain"></i>
+                    <h3>Güney Amerika</h3>
+                    <p>10 Tur</p>
+                </div>
+                <div class="category-card" style="--bg: linear-gradient(135deg, #3498db, #2980b9)">
+                    <i class="fas fa-gopuram"></i>
+                    <h3>Asya</h3>
+                    <p>15 Tur</p>
+                </div>
+                <div class="category-card" style="--bg: linear-gradient(135deg, #9b59b6, #8e44ad)">
+                    <i class="fas fa-landmark"></i>
+                    <h3>Avrupa</h3>
+                    <p>20 Tur</p>
+                </div>
+                <div class="category-card" style="--bg: linear-gradient(135deg, #1abc9c, #16a085)">
+                    <i class="fas fa-mosque"></i>
+                    <h3>Ortadoğu</h3>
+                    <p>6 Tur</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Tours -->
+    <section class="tours" id="turlar">
+        <div class="container">
+            <h2 class="section-title">2026 Öne Çıkan Turlar</h2>
+            <p class="section-subtitle">En popüler turlarımızı keşfedin</p>
+            <div class="tour-grid">
+
+                <div class="tour-card">
+                    <div class="tour-image" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24)">
+                        <span class="tour-badge">Popüler</span>
+                        <div class="tour-img-text"><i class="fas fa-torii-gate fa-3x"></i><br>Japonya</div>
+                    </div>
+                    <div class="tour-info">
+                        <div class="tour-meta">
+                            <span><i class="fas fa-clock"></i> 10 Gün</span>
+                            <span><i class="fas fa-plane"></i> Uçaklı</span>
+                        </div>
+                        <h3>Japonya Sakura Turu</h3>
+                        <p>Tokyo, Kyoto, Osaka - Kiraz çiçekleri eşliğinde unutulmaz bir deneyim</p>
+                        <div class="tour-footer">
+                            <span class="tour-price">₺89.900 <small>/ kişi</small></span>
+                            <a href="#" class="btn-detail">Detaylı İncele</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tour-card">
+                    <div class="tour-image" style="background: linear-gradient(135deg, #feca57, #ff9f43)">
+                        <span class="tour-badge">Yeni</span>
+                        <div class="tour-img-text"><i class="fas fa-drum fa-3x"></i><br>Kenya</div>
+                    </div>
+                    <div class="tour-info">
+                        <div class="tour-meta">
+                            <span><i class="fas fa-clock"></i> 8 Gün</span>
+                            <span><i class="fas fa-plane"></i> Uçaklı</span>
+                        </div>
+                        <h3>Kenya Safari Turu</h3>
+                        <p>Masai Mara, Nairobi - Vahşi doğayla buluşma</p>
+                        <div class="tour-footer">
+                            <span class="tour-price">₺74.500 <small>/ kişi</small></span>
+                            <a href="#" class="btn-detail">Detaylı İncele</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tour-card">
+                    <div class="tour-image" style="background: linear-gradient(135deg, #54a0ff, #2e86de)">
+                        <span class="tour-badge">VIP</span>
+                        <div class="tour-img-text"><i class="fas fa-mountain fa-3x"></i><br>Peru</div>
+                    </div>
+                    <div class="tour-info">
+                        <div class="tour-meta">
+                            <span><i class="fas fa-clock"></i> 12 Gün</span>
+                            <span><i class="fas fa-plane"></i> Uçaklı</span>
+                        </div>
+                        <h3>Peru Machu Picchu Turu</h3>
+                        <p>Lima, Cusco, Machu Picchu - İnka uygarlığının izinde</p>
+                        <div class="tour-footer">
+                            <span class="tour-price">₺112.000 <small>/ kişi</small></span>
+                            <a href="#" class="btn-detail">Detaylı İncele</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tour-card">
+                    <div class="tour-image" style="background: linear-gradient(135deg, #5f27cd, #341f97)">
+                        <span class="tour-badge">İndirimli</span>
+                        <div class="tour-img-text"><i class="fas fa-gopuram fa-3x"></i><br>Tayland</div>
+                    </div>
+                    <div class="tour-info">
+                        <div class="tour-meta">
+                            <span><i class="fas fa-clock"></i> 7 Gün</span>
+                            <span><i class="fas fa-plane"></i> Uçaklı</span>
+                        </div>
+                        <h3>Tayland Bangkok & Phuket</h3>
+                        <p>Bangkok, Phuket - Egzotik tapınaklar ve turkuaz deniz</p>
+                        <div class="tour-footer">
+                            <span class="tour-price"><del>₺62.000</del> ₺54.900 <small>/ kişi</small></span>
+                            <a href="#" class="btn-detail">Detaylı İncele</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tour-card">
+                    <div class="tour-image" style="background: linear-gradient(135deg, #10ac84, #01a3a4)">
+                        <div class="tour-img-text"><i class="fas fa-landmark fa-3x"></i><br>İtalya</div>
+                    </div>
+                    <div class="tour-info">
+                        <div class="tour-meta">
+                            <span><i class="fas fa-clock"></i> 6 Gün</span>
+                            <span><i class="fas fa-plane"></i> Uçaklı</span>
+                        </div>
+                        <h3>İtalya Klasik Turu</h3>
+                        <p>Roma, Floransa, Venedik - Sanat ve tarihin buluştuğu yer</p>
+                        <div class="tour-footer">
+                            <span class="tour-price">₺45.900 <small>/ kişi</small></span>
+                            <a href="#" class="btn-detail">Detaylı İncele</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tour-card">
+                    <div class="tour-image" style="background: linear-gradient(135deg, #ee5a24, #c0392b)">
+                        <span class="tour-badge">Son 3 Koltuk</span>
+                        <div class="tour-img-text"><i class="fas fa-mosque fa-3x"></i><br>Fas</div>
+                    </div>
+                    <div class="tour-info">
+                        <div class="tour-meta">
+                            <span><i class="fas fa-clock"></i> 5 Gün</span>
+                            <span><i class="fas fa-plane"></i> Uçaklı</span>
+                        </div>
+                        <h3>Fas Marakeş Turu</h3>
+                        <p>Marakeş, Fes, Sahara - Bin bir gece masalları diyarı</p>
+                        <div class="tour-footer">
+                            <span class="tour-price">₺38.500 <small>/ kişi</small></span>
+                            <a href="#" class="btn-detail">Detaylı İncele</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="text-center" style="margin-top:2rem">
+                <a href="#" class="btn-primary-lg">Tüm Turları Görüntüle <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </section>
+
+    <!-- VIP Section -->
+    <section class="vip-section">
+        <div class="container">
+            <div class="vip-content">
+                <div class="vip-text">
+                    <span class="vip-label"><i class="fas fa-gem"></i> REALM VIP</span>
+                    <h2>Özel Kafile Turları</h2>
+                    <p>Küçük gruplar, lüks oteller ve özel rehber eşliğinde ayrıcalıklı seyahat deneyimi. VIP turlarımızla farkı yaşayın.</p>
+                    <ul>
+                        <li><i class="fas fa-check-circle"></i> Maksimum 15 kişilik gruplar</li>
+                        <li><i class="fas fa-check-circle"></i> 5 yıldızlı otel konaklaması</li>
+                        <li><i class="fas fa-check-circle"></i> Özel Türkçe rehber</li>
+                        <li><i class="fas fa-check-circle"></i> Business class uçuş seçeneği</li>
+                    </ul>
+                    <a href="#" class="btn-vip">VIP Turları İncele <i class="fas fa-crown"></i></a>
+                </div>
+                <div class="vip-visual">
+                    <div class="vip-icon-box">
+                        <i class="fas fa-crown fa-4x"></i>
+                        <p>Premium Deneyim</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats">
+        <div class="container stats-grid">
+            <div class="stat-item">
+                <i class="fas fa-globe-americas"></i>
+                <span class="stat-number">50+</span>
+                <span class="stat-label">Destinasyon</span>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-users"></i>
+                <span class="stat-number">25.000+</span>
+                <span class="stat-label">Mutlu Müşteri</span>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-award"></i>
+                <span class="stat-number">15</span>
+                <span class="stat-label">Yıllık Deneyim</span>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-star"></i>
+                <span class="stat-number">4.8</span>
+                <span class="stat-label">Müşteri Puanı</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- About -->
+    <section class="about" id="hakkimizda">
+        <div class="container about-inner">
+            <div class="about-text">
+                <h2 class="section-title" style="text-align:left">Hakkımızda</h2>
+                <p>Realm Turizm olarak 2011 yılından bu yana dünyanın dört bir yanına tutkuyla tur düzenliyoruz. Profesyonel ekibimiz ve uzman rehberlerimizle her yolculuğu eşsiz bir deneyime dönüştürüyoruz.</p>
+                <p>TÜRSAB lisanslı acentemiz, güvenilir hizmet anlayışıyla binlerce gezginin hayallerini gerçeğe dönüştürdü.</p>
+                <div class="about-features">
+                    <div class="about-feature">
+                        <i class="fas fa-shield-alt"></i>
+                        <div>
+                            <strong>Güvenli Seyahat</strong>
+                            <p>TÜRSAB lisanslı, sigortalı turlar</p>
+                        </div>
+                    </div>
+                    <div class="about-feature">
+                        <i class="fas fa-headset"></i>
+                        <div>
+                            <strong>7/24 Destek</strong>
+                            <p>Tur öncesi, sırası ve sonrası destek</p>
+                        </div>
+                    </div>
+                    <div class="about-feature">
+                        <i class="fas fa-tags"></i>
+                        <div>
+                            <strong>En İyi Fiyat</strong>
+                            <p>Fiyat garantisi ve taksit imkanı</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="about-visual">
+                <div class="about-icon-box">
+                    <i class="fas fa-globe-americas fa-5x"></i>
+                    <p>15 Yıldır Keşfin Adresi</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="contact" id="iletisim">
+        <div class="container">
+            <h2 class="section-title">Bize Ulaşın</h2>
+            <p class="section-subtitle">Sorularınız için bize yazın, en kısa sürede dönüş yapalım</p>
+            <div class="contact-grid">
+                <div class="contact-form-wrap">
+                    <form class="contact-form" id="contactForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Ad Soyad</label>
+                                <input type="text" placeholder="Adınız Soyadınız" required>
+                            </div>
+                            <div class="form-group">
+                                <label>E-posta</label>
+                                <input type="email" placeholder="ornek@mail.com" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Telefon</label>
+                            <input type="tel" placeholder="+90 5XX XXX XX XX">
+                        </div>
+                        <div class="form-group">
+                            <label>Konu</label>
+                            <select>
+                                <option>Tur Bilgi Talebi</option>
+                                <option>Rezervasyon</option>
+                                <option>Şikayet / Öneri</option>
+                                <option>Diğer</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Mesajınız</label>
+                            <textarea rows="4" placeholder="Mesajınızı yazın..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn-submit">Gönder <i class="fas fa-paper-plane"></i></button>
+                    </form>
+                </div>
+                <div class="contact-info-wrap">
+                    <div class="contact-info-card">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <h4>Adres</h4>
+                        <p>Levent Mah. Büyükdere Cad. No:123<br>Şişli / İstanbul</p>
+                    </div>
+                    <div class="contact-info-card">
+                        <i class="fas fa-phone-alt"></i>
+                        <h4>Telefon</h4>
+                        <p>+90 212 555 00 00<br>+90 532 555 00 00</p>
+                    </div>
+                    <div class="contact-info-card">
+                        <i class="fas fa-envelope"></i>
+                        <h4>E-posta</h4>
+                        <p>info@realmturizm.com<br>destek@realmturizm.com</p>
+                    </div>
+                    <div class="contact-info-card">
+                        <i class="fas fa-clock"></i>
+                        <h4>Çalışma Saatleri</h4>
+                        <p>Hafta İçi: 09:00 - 18:00<br>Cumartesi: 10:00 - 14:00</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div class="footer-logo">
+                        <i class="fas fa-globe-americas"></i>
+                        <span>REALM<strong>TURİZM</strong></span>
+                    </div>
+                    <p>2011'den beri dünyayı keşfettiriyoruz. Güvenli, konforlu ve unutulmaz seyahat deneyimleri için doğru adrestesiniz.</p>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Popüler Turlar</h4>
+                    <ul>
+                        <li><a href="#">Japonya Turları</a></li>
+                        <li><a href="#">Afrika Safari</a></li>
+                        <li><a href="#">Peru & Bolivya</a></li>
+                        <li><a href="#">Tayland Turları</a></li>
+                        <li><a href="#">İtalya Turları</a></li>
+                        <li><a href="#">Fas Turları</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Kurumsal</h4>
+                    <ul>
+                        <li><a href="#">Hakkımızda</a></li>
+                        <li><a href="#">KVKK Aydınlatma Metni</a></li>
+                        <li><a href="#">Gizlilik Politikası</a></li>
+                        <li><a href="#">Çerez Politikası</a></li>
+                        <li><a href="#">Mesafeli Satış Sözleşmesi</a></li>
+                        <li><a href="#">İptal & İade Koşulları</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>İletişim</h4>
+                    <ul class="footer-contact">
+                        <li><i class="fas fa-map-marker-alt"></i> Şişli / İstanbul</li>
+                        <li><i class="fas fa-phone"></i> +90 212 555 00 00</li>
+                        <li><i class="fas fa-envelope"></i> info@realmturizm.com</li>
+                    </ul>
+                    <div class="footer-badges">
+                        <span class="badge"><i class="fas fa-certificate"></i> TÜRSAB</span>
+                        <span class="badge"><i class="fas fa-lock"></i> SSL</span>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Realm Turizm. Tüm hakları saklıdır.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Cookie Banner -->
+    <div class="cookie-banner" id="cookieBanner">
+        <div class="cookie-content">
+            <p><i class="fas fa-cookie-bite"></i> Bu web sitesi, deneyiminizi iyileştirmek için çerezleri kullanmaktadır.</p>
+            <div class="cookie-actions">
+                <button class="btn-cookie-accept" id="acceptCookies">Kabul Et</button>
+                <a href="#" class="btn-cookie-info">Detaylı Bilgi</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll to Top -->
+    <button class="scroll-top" id="scrollTop" aria-label="Yukarı Çık">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <script src="script.js"></script>
+</body>
+</html>
