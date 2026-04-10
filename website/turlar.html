@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 Turları - Realm Turizm</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="pages.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container header-inner">
+            <a href="index.html" class="logo">
+                <i class="fas fa-globe-americas"></i>
+                <span>REALM<strong>TURİZM</strong></span>
+            </a>
+            <nav class="nav" id="mainNav">
+                <a href="index.html">Ana Sayfa</a>
+                <a href="turlar.html" class="active">2026 Turları</a>
+                <a href="index.html#kategoriler">Kategoriler</a>
+                <a href="index.html#hakkimizda">Hakkımızda</a>
+                <a href="index.html#iletisim">Bize Ulaşın</a>
+            </nav>
+            <div class="header-actions">
+                <a href="giris.html" class="btn-outline"><i class="fas fa-user"></i> Giriş / Üye Ol</a>
+                <button class="hamburger" id="hamburger" aria-label="Menü">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="page-header-overlay"></div>
+        <div class="container page-header-content">
+            <h1>2026 Turları</h1>
+            <p>Hayalinizdeki destinasyona göz atın</p>
+            <div class="breadcrumb">
+                <a href="index.html">Ana Sayfa</a>
+                <i class="fas fa-chevron-right"></i>
+                <span>Turlar</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Filters & Tours -->
+    <section class="tours-page">
+        <div class="container">
+            <div class="tours-layout">
+
+                <!-- Sidebar Filters -->
+                <aside class="filter-sidebar">
+                    <div class="filter-card">
+                        <h3><i class="fas fa-filter"></i> Filtrele</h3>
+
+                        <div class="filter-group">
+                            <label>Tur Bölgesi</label>
+                            <select id="filterRegion">
+                                <option value="all">Tüm Bölgeler</option>
+                                <option value="asya">Asya</option>
+                                <option value="avrupa">Avrupa</option>
+                                <option value="afrika">Afrika</option>
+                                <option value="amerika">Güney Amerika</option>
+                                <option value="ortadogu">Ortadoğu</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label>Fiyat Aralığı</label>
+                            <div class="price-range">
+                                <input type="number" placeholder="Min ₺" id="priceMin">
+                                <span>-</span>
+                                <input type="number" placeholder="Max ₺" id="priceMax">
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <label>Süre</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="short"> 1-5 Gün
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="medium"> 6-10 Gün
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="long"> 11+ Gün
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <label>Ay</label>
+                            <select id="filterMonth">
+                                <option value="all">Tüm Aylar</option>
+                                <option>Ocak 2026</option>
+                                <option>Şubat 2026</option>
+                                <option>Mart 2026</option>
+                                <option>Nisan 2026</option>
+                                <option>Mayıs 2026</option>
+                                <option>Haziran 2026</option>
+                                <option>Temmuz 2026</option>
+                                <option>Ağustos 2026</option>
+                                <option>Eylül 2026</option>
+                                <option>Ekim 2026</option>
+                                <option>Kasım 2026</option>
+                                <option>Aralık 2026</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label>Tur Tipi</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="cultural"> Kültür Turu
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="nature"> Doğa & Safari
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="vip"> VIP Tur
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" value="cruise"> Cruise
+                                </label>
+                            </div>
+                        </div>
+
+                        <button class="btn-filter" id="applyFilters">Filtreleri Uygula</button>
+                        <button class="btn-filter-clear" id="clearFilters">Temizle</button>
+                    </div>
+                </aside>
+
+                <!-- Tour Listing -->
+                <div class="tour-listing">
+                    <div class="listing-header">
+                        <span class="result-count"><strong>12</strong> tur bulundu</span>
+                        <div class="sort-options">
+                            <label>Sırala:</label>
+                            <select id="sortTours">
+                                <option>Önerilen</option>
+                                <option>Fiyat (Artan)</option>
+                                <option>Fiyat (Azalan)</option>
+                                <option>Süre (Kısa)</option>
+                                <option>Süre (Uzun)</option>
+                                <option>En Yeni</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="tour-list">
+
+                        <div class="tour-list-card" data-region="asya" data-price="89900" data-days="10">
+                            <div class="tour-list-image" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24)">
+                                <span class="tour-badge">Popüler</span>
+                                <div class="tour-img-text"><i class="fas fa-torii-gate fa-2x"></i></div>
+                            </div>
+                            <div class="tour-list-info">
+                                <div class="tour-list-tags">
+                                    <span class="tag"><i class="fas fa-map-marker-alt"></i> Japonya</span>
+                                    <span class="tag"><i class="fas fa-clock"></i> 10 Gün</span>
+                                    <span class="tag"><i class="fas fa-calendar"></i> Nisan 2026</span>
+                                </div>
+                                <h3><a href="tur-detay.html">Japonya Sakura Turu</a></h3>
+                                <p>Tokyo, Kyoto, Osaka - Kiraz çiçekleri eşliğinde unutulmaz bir deneyim. Tapınaklar, geleneksel çay seremonisi ve modern şehir yaşamı.</p>
+                                <div class="tour-list-features">
+                                    <span><i class="fas fa-plane"></i> Uçak Dahil</span>
+                                    <span><i class="fas fa-hotel"></i> 4★ Otel</span>
+                                    <span><i class="fas fa-utensils"></i> Yarım Pansiyon</span>
+                                    <span><i class="fas fa-user-tie"></i> Rehberli</span>
+                                </div>
+                                <div class="tour-list-footer">
+                                    <span class="tour-price">₺89.900 <small>/ kişi</small></span>
+                                    <a href="tur-detay.html" class="btn-detail">Detaylı İncele <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tour-list-card" data-region="afrika" data-price="74500" data-days="8">
+                            <div class="tour-list-image" style="background: linear-gradient(135deg, #feca57, #ff9f43)">
+                                <span class="tour-badge">Yeni</span>
+                                <div class="tour-img-text"><i class="fas fa-drum fa-2x"></i></div>
+                            </div>
+                            <div class="tour-list-info">
+                                <div class="tour-list-tags">
+                                    <span class="tag"><i class="fas fa-map-marker-alt"></i> Kenya</span>
+                                    <span class="tag"><i class="fas fa-clock"></i> 8 Gün</span>
+                                    <span class="tag"><i class="fas fa-calendar"></i> Mayıs 2026</span>
+                                </div>
+                                <h3><a href="tur-detay.html">Kenya Safari Turu</a></h3>
+                                <p>Masai Mara, Nairobi - Vahşi doğayla buluşma. Büyük göç, yerel kabileler ve doğa harikalarıyla dolu bir macera.</p>
+                                <div class="tour-list-features">
+                                    <span><i class="fas fa-plane"></i> Uçak Dahil</span>
+                                    <span><i class="fas fa-hotel"></i> Safari Lodge</span>
+                                    <span><i class="fas fa-utensils"></i> Tam Pansiyon</span>
+                                    <span><i class="fas fa-user-tie"></i> Rehberli</span>
+                                </div>
+                                <div class="tour-list-footer">
+                                    <span class="tour-price">₺74.500 <small>/ kişi</small></span>
+                                    <a href="tur-detay.html" class="btn-detail">Detaylı İncele <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tour-list-card" data-region="amerika" data-price="112000" data-days="12">
+                            <div class="tour-list-image" style="background: linear-gradient(135deg, #54a0ff, #2e86de)">
+                                <span class="tour-badge vip">VIP</span>
+                                <div class="tour-img-text"><i class="fas fa-mountain fa-2x"></i></div>
+                            </div>
+                            <div class="tour-list-info">
+                                <div class="tour-list-tags">
+                                    <span class="tag"><i class="fas fa-map-marker-alt"></i> Peru</span>
+                                    <span class="tag"><i class="fas fa-clock"></i> 12 Gün</span>
+                                    <span class="tag"><i class="fas fa-calendar"></i> Haziran 2026</span>
+                                </div>
+                                <h3><a href="tur-detay.html">Peru Machu Picchu Turu</a></h3>
+                                <p>Lima, Cusco, Machu Picchu - İnka uygarlığının izinde eşsiz bir yolculuk. And Dağları ve kutsal vadi keşfi.</p>
+                                <div class="tour-list-features">
+                                    <span><i class="fas fa-plane"></i> Uçak Dahil</span>
+                                    <span><i class="fas fa-hotel"></i> 5★ Otel</span>
+                                    <span><i class="fas fa-utensils"></i> Tam Pansiyon</span>
+                                    <span><i class="fas fa-user-tie"></i> Özel Rehber</span>
+                                </div>
+                                <div class="tour-list-footer">
+                                    <span class="tour-price">₺112.000 <small>/ kişi</small></span>
+                                    <a href="tur-detay.html" class="btn-detail">Detaylı İncele <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tour-list-card" data-region="asya" data-price="54900" data-days="7">
+                            <div class="tour-list-image" style="background: linear-gradient(135deg, #5f27cd, #341f97)">
+                                <span class="tour-badge sale">%12 İndirim</span>
+                                <div class="tour-img-text"><i class="fas fa-gopuram fa-2x"></i></div>
+                            </div>
+                            <div class="tour-list-info">
+                                <div class="tour-list-tags">
+                                    <span class="tag"><i class="fas fa-map-marker-alt"></i> Tayland</span>
+                                    <span class="tag"><i class="fas fa-clock"></i> 7 Gün</span>
+                                    <span class="tag"><i class="fas fa-calendar"></i> Mart 2026</span>
+                                </div>
+                                <h3><a href="tur-detay.html">Tayland Bangkok & Phuket</a></h3>
+                                <p>Bangkok, Phuket - Egzotik tapınaklar, turkuaz deniz ve street food cenneti. Yüzen pazarlar ve ada turu dahil.</p>
+                                <div class="tour-list-features">
+                                    <span><i class="fas fa-plane"></i> Uçak Dahil</span>
+                                    <span><i class="fas fa-hotel"></i> 4★ Otel</span>
+                                    <span><i class="fas fa-utensils"></i> Oda Kahvaltı</span>
+                                    <span><i class="fas fa-user-tie"></i> Rehberli</span>
+                                </div>
+                                <div class="tour-list-footer">
+                                    <span class="tour-price"><del>₺62.000</del> ₺54.900 <small>/ kişi</small></span>
+                                    <a href="tur-detay.html" class="btn-detail">Detaylı İncele <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tour-list-card" data-region="avrupa" data-price="45900" data-days="6">
+                            <div class="tour-list-image" style="background: linear-gradient(135deg, #10ac84, #01a3a4)">
+                                <div class="tour-img-text"><i class="fas fa-landmark fa-2x"></i></div>
+                            </div>
+                            <div class="tour-list-info">
+                                <div class="tour-list-tags">
+                                    <span class="tag"><i class="fas fa-map-marker-alt"></i> İtalya</span>
+                                    <span class="tag"><i class="fas fa-clock"></i> 6 Gün</span>
+                                    <span class="tag"><i class="fas fa-calendar"></i> Nisan 2026</span>
+                                </div>
+                                <h3><a href="tur-detay.html">İtalya Klasik Turu</a></h3>
+                                <p>Roma, Floransa, Venedik - Sanat ve tarihin buluştuğu yer. Kolezyum, Uffizi Galerisi ve gondol turu dahil.</p>
+                                <div class="tour-list-features">
+                                    <span><i class="fas fa-plane"></i> Uçak Dahil</span>
+                                    <span><i class="fas fa-hotel"></i> 4★ Otel</span>
+                                    <span><i class="fas fa-utensils"></i> Yarım Pansiyon</span>
+                                    <span><i class="fas fa-user-tie"></i> Rehberli</span>
+                                </div>
+                                <div class="tour-list-footer">
+                                    <span class="tour-price">₺45.900 <small>/ kişi</small></span>
+                                    <a href="tur-detay.html" class="btn-detail">Detaylı İncele <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tour-list-card" data-region="ortadogu" data-price="38500" data-days="5">
+                            <div class="tour-list-image" style="background: linear-gradient(135deg, #ee5a24, #c0392b)">
+                                <span class="tour-badge">Son 3 Koltuk</span>
+                                <div class="tour-img-text"><i class="fas fa-mosque fa-2x"></i></div>
+                            </div>
+                            <div class="tour-list-info">
+                                <div class="tour-list-tags">
+                                    <span class="tag"><i class="fas fa-map-marker-alt"></i> Fas</span>
+                                    <span class="tag"><i class="fas fa-clock"></i> 5 Gün</span>
+                                    <span class="tag"><i class="fas fa-calendar"></i> Şubat 2026</span>
+                                </div>
+                                <h3><a href="tur-detay.html">Fas Marakeş Turu</a></h3>
+                                <p>Marakeş, Fes, Sahara - Bin bir gece masalları diyarı. Çöl kampı, medina turu ve yerel lezzetler.</p>
+                                <div class="tour-list-features">
+                                    <span><i class="fas fa-plane"></i> Uçak Dahil</span>
+                                    <span><i class="fas fa-hotel"></i> Riad Otel</span>
+                                    <span><i class="fas fa-utensils"></i> Tam Pansiyon</span>
+                                    <span><i class="fas fa-user-tie"></i> Rehberli</span>
+                                </div>
+                                <div class="tour-list-footer">
+                                    <span class="tour-price">₺38.500 <small>/ kişi</small></span>
+                                    <a href="tur-detay.html" class="btn-detail">Detaylı İncele <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tour-list-card" data-region="asya" data-price="68000" data-days="9">
+                            <div class="tour-list-image" style="background: linear-gradient(135deg, #0abde3, #48dbfb)">
+                                <span class="tour-badge">Yeni</span>
+                                <div class="tour-img-text"><i class="fas fa-water fa-2x"></i></div>
+                            </div>
+                            <div class="tour-list-info">
+                                <div class="tour-list-tags">
+                                    <span class="tag"><i class="fas fa-map-marker-alt"></i> Bali</span>
+                                    <span class="tag"><i class="fas fa-clock"></i> 9 Gün</span>
+                                    <span class="tag"><i class="fas fa-calendar"></i> Temmuz 2026</span>
+                                </div>
+                                <h3><a href="tur-detay.html">Bali Cennet Adası Turu</a></h3>
+                                <p>Ubud, Seminyak, Nusa Penida - Pirinç terasları, tapınaklar ve masmavi deniz. Yoga ve wellness dahil.</p>
+                                <div class="tour-list-features">
+                                    <span><i class="fas fa-plane"></i> Uçak Dahil</span>
+                                    <span><i class="fas fa-hotel"></i> Villa</span>
+                                    <span><i class="fas fa-utensils"></i> Oda Kahvaltı</span>
+                                    <span><i class="fas fa-user-tie"></i> Rehberli</span>
+                                </div>
+                                <div class="tour-list-footer">
+                                    <span class="tour-price">₺68.000 <small>/ kişi</small></span>
+                                    <a href="tur-detay.html" class="btn-detail">Detaylı İncele <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tour-list-card" data-region="avrupa" data-price="52000" data-days="7">
+                            <div class="tour-list-image" style="background: linear-gradient(135deg, #a29bfe, #6c5ce7)">
+                                <div class="tour-img-text"><i class="fas fa-church fa-2x"></i></div>
+                            </div>
+                            <div class="tour-list-info">
+                                <div class="tour-list-tags">
+                                    <span class="tag"><i class="fas fa-map-marker-alt"></i> İspanya</span>
+                                    <span class="tag"><i class="fas fa-clock"></i> 7 Gün</span>
+                                    <span class="tag"><i class="fas fa-calendar"></i> Mayıs 2026</span>
+                                </div>
+                                <h3><a href="tur-detay.html">İspanya Endülüs Turu</a></h3>
+                                <p>Madrid, Barcelona, Granada - Flamenko, Gaudi mimarisi ve Endülüs mirası. Alhambra Sarayı ziyareti dahil.</p>
+                                <div class="tour-list-features">
+                                    <span><i class="fas fa-plane"></i> Uçak Dahil</span>
+                                    <span><i class="fas fa-hotel"></i> 4★ Otel</span>
+                                    <span><i class="fas fa-utensils"></i> Yarım Pansiyon</span>
+                                    <span><i class="fas fa-user-tie"></i> Rehberli</span>
+                                </div>
+                                <div class="tour-list-footer">
+                                    <span class="tour-price">₺52.000 <small>/ kişi</small></span>
+                                    <a href="tur-detay.html" class="btn-detail">Detaylı İncele <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <a href="#" class="page-btn active">1</a>
+                        <a href="#" class="page-btn">2</a>
+                        <a href="#" class="page-btn">3</a>
+                        <a href="#" class="page-btn"><i class="fas fa-chevron-right"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div class="footer-logo">
+                        <i class="fas fa-globe-americas"></i>
+                        <span>REALM<strong>TURİZM</strong></span>
+                    </div>
+                    <p>2011'den beri dünyayı keşfettiriyoruz.</p>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>Popüler Turlar</h4>
+                    <ul>
+                        <li><a href="#">Japonya Turları</a></li>
+                        <li><a href="#">Afrika Safari</a></li>
+                        <li><a href="#">Peru & Bolivya</a></li>
+                        <li><a href="#">Tayland Turları</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Kurumsal</h4>
+                    <ul>
+                        <li><a href="#">Hakkımızda</a></li>
+                        <li><a href="#">KVKK Aydınlatma Metni</a></li>
+                        <li><a href="#">Gizlilik Politikası</a></li>
+                        <li><a href="#">İptal & İade Koşulları</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>İletişim</h4>
+                    <ul class="footer-contact">
+                        <li><i class="fas fa-map-marker-alt"></i> Şişli / İstanbul</li>
+                        <li><i class="fas fa-phone"></i> +90 212 555 00 00</li>
+                        <li><i class="fas fa-envelope"></i> info@realmturizm.com</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Realm Turizm. Tüm hakları saklıdır.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="pages.js"></script>
+</body>
+</html>

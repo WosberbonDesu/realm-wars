@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş / Üye Ol - Realm Turizm</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="pages.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container header-inner">
+            <a href="index.html" class="logo">
+                <i class="fas fa-globe-americas"></i>
+                <span>REALM<strong>TURİZM</strong></span>
+            </a>
+            <nav class="nav" id="mainNav">
+                <a href="index.html">Ana Sayfa</a>
+                <a href="turlar.html">2026 Turları</a>
+                <a href="index.html#kategoriler">Kategoriler</a>
+                <a href="index.html#hakkimizda">Hakkımızda</a>
+                <a href="index.html#iletisim">Bize Ulaşın</a>
+            </nav>
+            <div class="header-actions">
+                <a href="giris.html" class="btn-outline active"><i class="fas fa-user"></i> Giriş</a>
+                <button class="hamburger" id="hamburger" aria-label="Menü">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Auth Section -->
+    <section class="auth-section">
+        <div class="auth-container">
+            <div class="auth-card">
+                <!-- Tabs -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-auth="login">Giriş Yap</button>
+                    <button class="auth-tab" data-auth="register">Üye Ol</button>
+                </div>
+
+                <!-- Login Form -->
+                <div class="auth-form active" id="auth-login">
+                    <div class="auth-header">
+                        <i class="fas fa-globe-americas auth-icon"></i>
+                        <h2>Tekrar Hoş Geldiniz!</h2>
+                        <p>Hesabınıza giriş yaparak turlarınızı yönetin</p>
+                    </div>
+
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label><i class="fas fa-envelope"></i> E-posta</label>
+                            <input type="email" placeholder="ornek@mail.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-lock"></i> Şifre</label>
+                            <div class="password-field">
+                                <input type="password" placeholder="Şifrenizi girin" required id="loginPassword">
+                                <button type="button" class="toggle-password" aria-label="Şifreyi göster">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox"> Beni hatırla
+                            </label>
+                            <a href="#" class="forgot-link">Şifremi unuttum</a>
+                        </div>
+                        <button type="submit" class="btn-auth">
+                            Giriş Yap <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </form>
+
+                    <div class="auth-divider">
+                        <span>veya</span>
+                    </div>
+
+                    <div class="social-auth">
+                        <button class="btn-social google">
+                            <i class="fab fa-google"></i> Google ile Giriş Yap
+                        </button>
+                        <button class="btn-social facebook">
+                            <i class="fab fa-facebook-f"></i> Facebook ile Giriş Yap
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Register Form -->
+                <div class="auth-form" id="auth-register">
+                    <div class="auth-header">
+                        <i class="fas fa-user-plus auth-icon"></i>
+                        <h2>Hesap Oluşturun</h2>
+                        <p>Ücretsiz üye olun, özel fırsatlardan yararlanın</p>
+                    </div>
+
+                    <form id="registerForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> Ad</label>
+                                <input type="text" placeholder="Adınız" required>
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> Soyad</label>
+                                <input type="text" placeholder="Soyadınız" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-envelope"></i> E-posta</label>
+                            <input type="email" placeholder="ornek@mail.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-phone"></i> Telefon</label>
+                            <input type="tel" placeholder="+90 5XX XXX XX XX" required>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-lock"></i> Şifre</label>
+                            <div class="password-field">
+                                <input type="password" placeholder="Min. 8 karakter" required id="registerPassword">
+                                <button type="button" class="toggle-password" aria-label="Şifreyi göster">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="password-strength" id="passwordStrength">
+                                <div class="strength-bar"></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-lock"></i> Şifre Tekrar</label>
+                            <input type="password" placeholder="Şifrenizi tekrar girin" required>
+                        </div>
+                        <div class="form-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox" required> <a href="#">KVKK Aydınlatma Metni</a>'ni okudum, kabul ediyorum.
+                            </label>
+                        </div>
+                        <div class="form-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox"> Kampanya ve fırsat e-postaları almak istiyorum.
+                            </label>
+                        </div>
+                        <button type="submit" class="btn-auth">
+                            Üye Ol <i class="fas fa-user-plus"></i>
+                        </button>
+                    </form>
+
+                    <div class="auth-divider">
+                        <span>veya</span>
+                    </div>
+
+                    <div class="social-auth">
+                        <button class="btn-social google">
+                            <i class="fab fa-google"></i> Google ile Kayıt Ol
+                        </button>
+                        <button class="btn-social facebook">
+                            <i class="fab fa-facebook-f"></i> Facebook ile Kayıt Ol
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side Info -->
+            <div class="auth-side">
+                <div class="auth-side-content">
+                    <h2>Neden Üye Olmalısınız?</h2>
+                    <div class="auth-benefits">
+                        <div class="benefit-item">
+                            <i class="fas fa-bolt"></i>
+                            <div>
+                                <strong>Hızlı Rezervasyon</strong>
+                                <p>Bilgileriniz kayıtlı, tek tıkla rezervasyon yapın</p>
+                            </div>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-tags"></i>
+                            <div>
+                                <strong>Özel İndirimler</strong>
+                                <p>Üyelere özel %10'a varan indirimler</p>
+                            </div>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-bell"></i>
+                            <div>
+                                <strong>Erken Bildirim</strong>
+                                <p>Yeni turlardan ilk siz haberdar olun</p>
+                            </div>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-history"></i>
+                            <div>
+                                <strong>Tur Geçmişi</strong>
+                                <p>Tüm turlarınızı ve rezervasyonlarınızı takip edin</p>
+                            </div>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-heart"></i>
+                            <div>
+                                <strong>Favori Listesi</strong>
+                                <p>Beğendiğiniz turları kaydedin, karşılaştırın</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom" style="border:none;margin:0;padding:20px 0">
+                <p>&copy; 2026 Realm Turizm. Tüm hakları saklıdır.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="pages.js"></script>
+</body>
+</html>
