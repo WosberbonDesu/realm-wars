@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, Platform, Dimensions } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { SEA_LEVEL } from '../engine/biomes';
+import { COLORS, RADIUS, SHADOW } from '../constants/theme';
 
 const MINI_W = 180;
 const MINI_H = 120;
@@ -102,10 +103,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 70,
     right: 8,
-    borderRadius: 10,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: '#2A3A4A',
+    borderColor: COLORS.borderSolid,
     overflow: 'hidden',
-    backgroundColor: 'rgba(10,20,30,0.9)',
+    backgroundColor: COLORS.surfaceOverlay,
+    ...SHADOW.card,
   },
 });
