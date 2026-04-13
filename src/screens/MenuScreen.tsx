@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useGameStore } from '../store/gameStore';
-import { COLORS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONT, SHADOW, SHARED } from '../constants/theme';
 import { MapTemplate } from '../engine/voronoiMapGenerator';
 
 const TEMPLATE_OPTIONS: { key: MapTemplate; label: string; icon: string }[] = [
@@ -12,6 +14,7 @@ const TEMPLATE_OPTIONS: { key: MapTemplate; label: string; icon: string }[] = [
 ];
 
 export const MenuScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const newGame = useGameStore(s => s.newGame);
   const [seedInput, setSeedInput] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<MapTemplate>('highIsland');
@@ -26,7 +29,7 @@ export const MenuScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Title */}
       <View style={styles.titleContainer}>
         <Text style={styles.titleMain}>REALM</Text>
@@ -75,7 +78,7 @@ export const MenuScreen: React.FC = () => {
         />
       </View>
 
-      {/* Buttons */}
+      {/* Primary Buttons */}
       <TouchableOpacity style={styles.primaryButton} onPress={handleNewGame}>
         <Text style={styles.primaryButtonText}>YENI OYUN</Text>
       </TouchableOpacity>
@@ -83,6 +86,23 @@ export const MenuScreen: React.FC = () => {
       <TouchableOpacity style={styles.secondaryButton} onPress={handleRandomGame}>
         <Text style={styles.secondaryButtonText}>RASTGELE HARITA</Text>
       </TouchableOpacity>
+
+      {/* Navigation Buttons */}
+      <View style={styles.navRow}>
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => navigation.navigate('SaveLoad')}
+        >
+          <Text style={styles.navButtonText}>Kayitli Haritalar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Text style={styles.navButtonText}>Ayarlar</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Info */}
       <View style={styles.infoContainer}>
@@ -98,7 +118,7 @@ export const MenuScreen: React.FC = () => {
           <FeatureItem text="10 farkli arazi tipi" />
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -119,16 +139,16 @@ function hashSeed(str: string): number {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: SPACING.xl,
   },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 12,
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   titleMain: {
     color: COLORS.gold,
@@ -137,114 +157,136 @@ const styles = StyleSheet.create({
     letterSpacing: 6,
   },
   titleSub: {
-    color: COLORS.primaryLight,
+    color: COLORS.goldLight,
     fontSize: 48,
     fontWeight: '300',
     letterSpacing: 6,
   },
   subtitle: {
     color: COLORS.textMuted,
-    fontSize: 14,
+    ...FONT.body,
     marginBottom: 40,
     letterSpacing: 2,
   },
   templateContainer: {
     width: '100%',
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   templateRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: SPACING.sm,
   },
   templateButton: {
     flex: 1,
-    backgroundColor: COLORS.bgLight,
-    borderRadius: 10,
-    paddingVertical: 10,
+    backgroundColor: COLORS.surfaceMid,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   templateButtonActive: {
-    borderColor: COLORS.primaryLight,
-    backgroundColor: COLORS.primary,
+    borderColor: COLORS.goldLight,
+    backgroundColor: COLORS.gold,
     borderWidth: 2,
   },
   templateIcon: {
     fontSize: 20,
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   templateLabel: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    ...FONT.small,
     fontWeight: '600',
   },
   templateLabelActive: {
-    color: COLORS.textPrimary,
+    color: COLORS.textDark,
   },
   seedContainer: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   seedLabel: {
     color: COLORS.textSecondary,
-    fontSize: 12,
-    marginBottom: 6,
+    ...FONT.caption,
+    marginBottom: SPACING.xs,
   },
   seedInput: {
-    backgroundColor: COLORS.bgLight,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: COLORS.surfaceMid,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
     color: COLORS.textPrimary,
-    fontSize: 16,
+    ...FONT.body,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   primaryButton: {
     width: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
+    backgroundColor: COLORS.gold,
+    borderRadius: RADIUS.xl,
+    paddingVertical: SPACING.lg,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
     borderWidth: 2,
-    borderColor: COLORS.primaryLight,
+    borderColor: COLORS.goldLight,
+    ...SHADOW.button,
   },
   primaryButtonText: {
-    color: COLORS.textPrimary,
+    color: COLORS.textDark,
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 2,
   },
   secondaryButton: {
     width: '100%',
-    backgroundColor: COLORS.bgLight,
-    borderRadius: 16,
-    paddingVertical: 14,
+    backgroundColor: COLORS.surfaceMid,
+    borderRadius: RADIUS.xl,
+    paddingVertical: SPACING.md + 2,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 30,
+    marginBottom: SPACING.lg,
   },
   secondaryButtonText: {
     color: COLORS.textSecondary,
-    fontSize: 16,
-    fontWeight: '700',
+    ...FONT.h2,
     letterSpacing: 1,
+  },
+  navRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  navButton: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+  },
+  navButtonText: {
+    color: COLORS.gold,
+    ...FONT.caption,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   infoContainer: {
     width: '100%',
-    backgroundColor: COLORS.bgLight,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: COLORS.surfaceMid,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...SHADOW.card,
   },
   infoText: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    ...FONT.caption,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: SPACING.md,
     lineHeight: 18,
   },
   featureList: {
@@ -252,7 +294,7 @@ const styles = StyleSheet.create({
   },
   featureItem: {
     color: COLORS.textSecondary,
-    fontSize: 11,
+    ...FONT.small,
     fontFamily: 'monospace',
   },
 });

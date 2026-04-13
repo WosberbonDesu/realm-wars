@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useCallback } from 'react';
-import { View, Dimensions, Platform } from 'react-native';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { View, Text, Dimensions, Platform, ActivityIndicator } from 'react-native';
 import { HexTile, HexTerrain } from '../types/game';
 import { Point, VoronoiGraph, VoronoiCell } from '../engine/voronoi';
 import { VoronoiRiver, VoronoiBurg, VoronoiState, VoronoiCulture, VoronoiReligion, VoronoiRoute } from '../engine/voronoiMapGenerator';
@@ -8,6 +8,7 @@ import { SEA_LEVEL } from '../engine/biomes';
 import { Alea } from '../engine/alea';
 import { useGameStore } from '../store/gameStore';
 import { renderEmblemToCanvas, generateEmblems, Emblem } from '../engine/emblemGenerator';
+import { COLORS, FONT, RADIUS, SPACING } from '../constants/theme';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
