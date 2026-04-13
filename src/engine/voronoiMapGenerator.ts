@@ -121,6 +121,15 @@ export function generateVoronoiMap(
   const voronoiData = createVoronoiMap({ width, height, cellCount, seed, jitter: 0.7 });
   const graph = voronoiData.graph;
   const n = graph.cells.length;
+  if (n === 0) {
+    // Empty graph fallback
+    return {
+      voronoi: voronoiData, tiles: new Map(), cellTiles: [], rivers: [], burgs: [],
+      states: [], cultures: [], religions: [], routes: [], coastPaths: [],
+      stateMap: new Map(), cultureMap: new Map(), religionMap: new Map(),
+      seed, width, height,
+    };
+  }
 
   // --- 2. Heightmap ---
   generateHeightmap(voronoiData, graph, rng, width, height, seed, template);

@@ -9,6 +9,7 @@ import { Alea } from '../engine/alea';
 import { useGameStore } from '../store/gameStore';
 import { renderEmblemToCanvas, generateEmblems, Emblem } from '../engine/emblemGenerator';
 import { COLORS, FONT, RADIUS, SPACING } from '../constants/theme';
+import { MapRendererMobile } from './MapRendererMobile';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -190,6 +191,7 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !graph) return;
+    if (!graph.cells || graph.cells.length === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -322,8 +324,26 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     );
   }
 
-  // Native mobile fallback: show informative placeholder with map stats
-  return <MobileFallback graph={graph} cellTiles={cellTiles} states={states} burgs={burgs} />;
+  // Native mobile: use SVG-based renderer
+  return (
+      <MapRendererMobile
+        graph={graph}
+        cellTiles={cellTiles}
+        burgs={burgs}
+        rivers={rivers}
+        states={states}
+        stateMap={stateMap}
+        mapWidth={mapWidth}
+        mapHeight={mapHeight}
+        cameraX={cameraX}
+        cameraY={cameraY}
+        zoom={zoom}
+        showBiomes={showBiomes}
+        showBorders={showBorders}
+        showRivers={showRivers}
+        showBurgs={showBurgs}
+      />
+  );
 });
 
 // ===== MOBILE FALLBACK =====

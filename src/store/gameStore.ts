@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Dimensions } from 'react-native';
 import {
   GameState, GamePhase, Player, HexTile, HexCoord,
   hexKey, BuildingType, UnitType, Building, Army, Unit, Resources,
@@ -150,8 +151,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Voronoi harita üret
     // Tarayıcı pencere boyutuna göre harita boyutu
-    const mapW = typeof window !== 'undefined' ? Math.max(window.innerWidth, 1400) : 1600;
-    const mapH = typeof window !== 'undefined' ? Math.max(window.innerHeight, 900) : 1000;
+    // Harita boyutu: Dimensions API kullan (mobilde window.innerWidth NaN olabilir)
+    const dims = Dimensions.get('window');
+    const mapW = Math.max(dims.width || 1400, 1400);
+    const mapH = Math.max(dims.height || 900, 900);
     const result = generateVoronoiMap(gameSeed, mapW, mapH, 4000, mapTemplate);
 
     // Basit game state (voronoi uyumlu)
