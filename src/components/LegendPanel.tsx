@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGameStore } from '../store/gameStore';
+import { COLORS, SPACING, RADIUS, SHADOW, FONT, SHARED } from '../constants/theme';
 
 const BIOME_LEGEND = [
   { color: '#8fb8d4', label: 'Sığ Deniz' },
@@ -55,8 +56,8 @@ export const LegendPanel: React.FC = () => {
       <View style={styles.modal}>
         <View style={styles.header}>
           <Text style={styles.title}>Harita Lejandi</Text>
-          <TouchableOpacity onPress={() => toggleLayer('showLegend')}>
-            <Text style={styles.closeBtn}>✕</Text>
+          <TouchableOpacity style={SHARED.closeBtn} onPress={() => toggleLayer('showLegend')}>
+            <Text style={SHARED.closeTxt}>✕</Text>
           </TouchableOpacity>
         </View>
 
@@ -103,27 +104,27 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.bgOverlay,
   },
   modal: {
-    width: 340, backgroundColor: 'rgba(10,18,30,0.95)',
-    borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#2A3A4A',
+    width: 340, backgroundColor: COLORS.surfaceOverlay,
+    borderRadius: RADIUS.xl, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.borderSolid,
     maxHeight: '85%',
+    ...SHADOW.panel,
   },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md,
   },
-  title: { color: '#FFD700', fontSize: 18, fontWeight: '800' },
-  closeBtn: { color: '#8aa0b8', fontSize: 20, fontWeight: '700', padding: 4 },
+  title: { color: COLORS.gold, fontSize: 18, fontWeight: '800' },
   sectionTitle: {
-    color: '#FFD700', fontSize: 12, fontWeight: '700', marginTop: 10, marginBottom: 6,
-    borderBottomWidth: 1, borderBottomColor: '#2A3A4A', paddingBottom: 4,
+    color: COLORS.gold, fontSize: 12, fontWeight: '700', marginTop: 10, marginBottom: 6,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderSolid, paddingBottom: SPACING.xs,
   },
   grid: { gap: 3 },
   legendRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2,
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: 2,
   },
   colorBox: { width: 16, height: 12, borderRadius: 3, borderWidth: 1, borderColor: '#FFF2' },
   symbolIcon: { fontSize: 14, width: 18, textAlign: 'center' },
-  legendText: { color: '#CCC', fontSize: 11 },
+  legendText: { color: COLORS.textSecondary, fontSize: 11 },
 });

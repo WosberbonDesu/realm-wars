@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Modal } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { VoronoiBurg, VoronoiState } from '../engine/voronoiMapGenerator';
+import { COLORS, SPACING, RADIUS, SHADOW, FONT, SHARED } from '../constants/theme';
 
 type EditorTool = 'none' | 'addBurg' | 'addMarker' | 'rename' | 'info';
 
@@ -232,7 +233,7 @@ export const EditorPanel: React.FC = () => {
               value={newName}
               onChangeText={setNewName}
               placeholder="Yeni isim girin..."
-              placeholderTextColor="#607080"
+              placeholderTextColor={COLORS.textMuted}
               autoFocus
             />
             <View style={styles.modalButtons}>
@@ -294,68 +295,71 @@ const styles = StyleSheet.create({
     pointerEvents: 'box-none',
   },
   toolbar: {
-    position: 'absolute', bottom: 8, left: 8,
-    backgroundColor: 'rgba(15,25,40,0.92)', borderRadius: 12,
-    padding: 8, flexDirection: 'row', gap: 6, alignItems: 'center',
-    borderWidth: 1, borderColor: '#2a3a4a',
+    position: 'absolute', bottom: SPACING.sm, left: SPACING.sm,
+    backgroundColor: COLORS.surfaceOverlay, borderRadius: RADIUS.lg,
+    padding: SPACING.sm, flexDirection: 'row', gap: 6, alignItems: 'center',
+    borderWidth: 1, borderColor: COLORS.borderSolid,
+    ...SHADOW.panel,
   },
   toolbarTitle: {
-    color: '#8aa0b8', fontSize: 10, fontWeight: '700', marginRight: 4,
+    color: COLORS.textSecondary, fontSize: 10, fontWeight: '700', marginRight: 4,
   },
   toolBtn: {
-    backgroundColor: '#1a2a3a', borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 5,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.sm, paddingVertical: 5,
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderWidth: 1, borderColor: '#2a3a4a',
+    borderWidth: 1, borderColor: COLORS.borderSolid,
   },
   toolBtnActive: {
-    backgroundColor: '#2a4a6a', borderColor: '#4a90d9',
+    backgroundColor: COLORS.surfaceLight, borderColor: COLORS.gold,
   },
   toolIcon: { fontSize: 14 },
-  toolLabel: { color: '#607080', fontSize: 10, fontWeight: '600' },
-  toolLabelActive: { color: '#8ac4ff' },
+  toolLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600' },
+  toolLabelActive: { color: COLORS.goldLight },
   infoBox: {
-    position: 'absolute', bottom: 55, left: 8, right: 200,
-    backgroundColor: 'rgba(15,25,40,0.92)', borderRadius: 12,
-    padding: 10, borderWidth: 1, borderColor: '#2a3a4a',
+    position: 'absolute', bottom: 55, left: SPACING.sm, right: 200,
+    backgroundColor: COLORS.surfaceOverlay, borderRadius: RADIUS.lg,
+    padding: 10, borderWidth: 1, borderColor: COLORS.borderSolid,
+    ...SHADOW.panel,
   },
-  infoTitle: { color: '#FFD700', fontSize: 13, fontWeight: '700' },
-  infoState: { color: '#8aa0b8', fontSize: 11, fontWeight: '600' },
-  infoText: { color: '#607080', fontSize: 10 },
+  infoTitle: { color: COLORS.gold, fontSize: 13, fontWeight: '700' },
+  infoState: { color: COLORS.textSecondary, fontSize: 11, fontWeight: '600' },
+  infoText: { color: COLORS.textMuted, fontSize: 10 },
   modalOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    zIndex: 100, backgroundColor: 'rgba(0,0,0,0.6)',
+    zIndex: 100, backgroundColor: COLORS.bgOverlay,
     justifyContent: 'center', alignItems: 'center',
   },
   modal: {
-    width: 320, backgroundColor: '#1a2a3a', borderRadius: 16,
-    padding: 20, borderWidth: 1, borderColor: '#3a5a7a',
+    width: 320, backgroundColor: COLORS.surfaceMid, borderRadius: RADIUS.xl,
+    padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.surfaceLight,
+    ...SHADOW.panel,
   },
-  modalTitle: { color: '#FFD700', fontSize: 16, fontWeight: '800', marginBottom: 12 },
+  modalTitle: { color: COLORS.gold, fontSize: 16, fontWeight: '800', marginBottom: SPACING.md },
   input: {
-    backgroundColor: '#0f1f2f', borderRadius: 10, padding: 12,
-    color: '#fff', fontSize: 14, borderWidth: 1, borderColor: '#2a4a6a',
-    marginBottom: 12,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACING.md,
+    color: COLORS.textPrimary, fontSize: 14, borderWidth: 1, borderColor: COLORS.borderSolid,
+    marginBottom: SPACING.md,
   },
-  modalButtons: { flexDirection: 'row', gap: 8 },
+  modalButtons: { flexDirection: 'row', gap: SPACING.sm },
   cancelBtn: {
-    flex: 1, backgroundColor: '#2a3a4a', borderRadius: 10,
+    flex: 1, backgroundColor: COLORS.borderSolid, borderRadius: RADIUS.md,
     paddingVertical: 10, alignItems: 'center',
   },
-  cancelText: { color: '#8aa0b8', fontSize: 13, fontWeight: '600' },
+  cancelText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' },
   confirmBtn: {
-    flex: 1, backgroundColor: '#4a90d9', borderRadius: 10,
+    flex: 1, backgroundColor: COLORS.gold, borderRadius: RADIUS.md,
     paddingVertical: 10, alignItems: 'center',
   },
-  confirmText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  confirmText: { color: COLORS.textDark, fontSize: 13, fontWeight: '700' },
   markerGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12,
+    flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: SPACING.md,
   },
   markerOption: {
-    backgroundColor: '#0f1f2f', borderRadius: 8, padding: 6,
-    alignItems: 'center', width: 70, borderWidth: 1, borderColor: '#2a3a4a',
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: 6,
+    alignItems: 'center', width: 70, borderWidth: 1, borderColor: COLORS.borderSolid,
   },
-  markerOptionActive: { borderColor: '#FFD700', backgroundColor: '#1a2a4a' },
+  markerOptionActive: { borderColor: COLORS.gold, backgroundColor: COLORS.surfaceMid },
   markerIcon: { fontSize: 20 },
-  markerName: { color: '#607080', fontSize: 7, textAlign: 'center' },
+  markerName: { color: COLORS.textMuted, fontSize: 7, textAlign: 'center' },
 });

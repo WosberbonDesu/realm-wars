@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { renderFullMapToCanvas } from './MapRenderer';
+import { COLORS, SPACING, RADIUS, SHADOW, FONT, SHARED } from '../constants/theme';
 
 export const ExportButton: React.FC = () => {
   const [exporting, setExporting] = useState(false);
@@ -70,18 +71,19 @@ export const ExportButton: React.FC = () => {
 
 const styles = StyleSheet.create({
   btn: {
-    backgroundColor: 'rgba(15,25,35,0.85)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: COLORS.surfaceOverlay,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderWidth: 1,
-    borderColor: '#4A90D9',
+    borderColor: COLORS.gold,
+    ...SHADOW.button,
   },
   btnDisabled: {
     opacity: 0.5,
   },
   txt: {
-    color: '#6AADE6',
+    color: COLORS.goldLight,
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { cellKey } from '../engine/voronoiGrid';
+import { COLORS, SPACING, RADIUS, SHADOW, FONT, SHARED } from '../constants/theme';
 
 export const MapStatsPanel: React.FC = () => {
   const showStats = useGameStore(s => s.showStats);
@@ -119,8 +120,8 @@ export const MapStatsPanel: React.FC = () => {
       <View style={styles.modal}>
         <View style={styles.header}>
           <Text style={styles.title}>Dunya Istatistikleri</Text>
-          <TouchableOpacity onPress={() => toggleLayer('showStats')}>
-            <Text style={styles.closeBtn}>X</Text>
+          <TouchableOpacity style={SHARED.closeBtn} onPress={() => toggleLayer('showStats')}>
+            <Text style={SHARED.closeTxt}>X</Text>
           </TouchableOpacity>
         </View>
 
@@ -209,46 +210,46 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: COLORS.bgOverlay,
   },
   modal: {
-    backgroundColor: 'rgba(10,18,30,0.95)',
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: COLORS.surfaceOverlay,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
     width: '85%',
     maxWidth: 420,
     maxHeight: '75%',
     borderWidth: 1,
-    borderColor: '#2A3A4A',
+    borderColor: COLORS.borderSolid,
+    ...SHADOW.panel,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
-  title: { color: '#FFD700', fontSize: 18, fontWeight: '800' },
-  closeBtn: { color: '#8aa0b8', fontSize: 18, fontWeight: '700', paddingHorizontal: 8 },
+  title: { color: COLORS.gold, fontSize: 18, fontWeight: '800' },
   sectionTitle: {
-    color: '#FFD700',
+    color: COLORS.gold,
     fontSize: 12,
     fontWeight: '700',
-    marginTop: 12,
+    marginTop: SPACING.md,
     marginBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A3A4A',
-    paddingBottom: 4,
+    borderBottomColor: COLORS.borderSolid,
+    paddingBottom: SPACING.xs,
   },
   grid: { gap: 2 },
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: SPACING.xs,
     paddingHorizontal: 6,
-    backgroundColor: '#111C2A',
-    borderRadius: 6,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.sm,
   },
-  statLabel: { color: '#8aa0b8', fontSize: 11, fontWeight: '500' },
-  statValue: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+  statLabel: { color: COLORS.textSecondary, fontSize: 11, fontWeight: '500' },
+  statValue: { color: COLORS.textPrimary, fontSize: 12, fontWeight: '700' },
 });

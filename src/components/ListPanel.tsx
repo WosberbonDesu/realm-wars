@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { cellKey } from '../engine/voronoiGrid';
+import { COLORS, SPACING, RADIUS, SHADOW, FONT, SHARED } from '../constants/theme';
 
 type Tab = 'burgs' | 'states';
 
@@ -86,8 +87,8 @@ export const ListPanel: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Liste</Text>
-          <TouchableOpacity onPress={dismiss}>
-            <Text style={styles.closeBtn}>{'\u2715'}</Text>
+          <TouchableOpacity style={SHARED.closeBtn} onPress={dismiss}>
+            <Text style={SHARED.closeTxt}>{'\u2715'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -95,7 +96,7 @@ export const ListPanel: React.FC = () => {
         <TextInput
           style={styles.searchInput}
           placeholder="Ara..."
-          placeholderTextColor="#607080"
+          placeholderTextColor={COLORS.textMuted}
           value={search}
           onChangeText={setSearch}
         />
@@ -196,35 +197,35 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: COLORS.bgOverlay,
   },
   modal: {
-    backgroundColor: 'rgba(10,18,30,0.95)',
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: COLORS.surfaceOverlay,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
     width: '85%',
     maxWidth: 420,
     maxHeight: '80%',
     borderWidth: 1,
-    borderColor: '#2A3A4A',
+    borderColor: COLORS.borderSolid,
+    ...SHADOW.panel,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
-  title: { color: '#FFD700', fontSize: 18, fontWeight: '800' },
-  closeBtn: { color: '#8aa0b8', fontSize: 18, fontWeight: '700', paddingHorizontal: 8 },
+  title: { color: COLORS.gold, fontSize: 18, fontWeight: '800' },
   searchInput: {
-    backgroundColor: '#111C2A',
-    borderRadius: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: '#2A3A4A',
-    color: '#FFF',
+    borderColor: COLORS.borderSolid,
+    color: COLORS.textPrimary,
     fontSize: 13,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     marginBottom: 10,
   },
   tabRow: {
@@ -234,49 +235,49 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    backgroundColor: '#111C2A',
-    borderRadius: 8,
-    paddingVertical: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2A3A4A',
+    borderColor: COLORS.borderSolid,
   },
   tabActive: {
-    backgroundColor: 'rgba(74,144,217,0.25)',
-    borderColor: '#4A90D9',
+    backgroundColor: COLORS.goldDim,
+    borderColor: COLORS.gold,
   },
-  tabText: { color: '#607080', fontSize: 12, fontWeight: '700' },
-  tabTextActive: { color: '#6AADE6' },
+  tabText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '700' },
+  tabTextActive: { color: COLORS.goldLight },
   scrollArea: { flexGrow: 0 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111C2A',
-    borderRadius: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 4,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   rowInfo: { flex: 1, gap: 2 },
-  rowName: { color: '#FFF', fontSize: 13, fontWeight: '700' },
-  rowSub: { color: '#8aa0b8', fontSize: 10, fontWeight: '500' },
+  rowName: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700' },
+  rowSub: { color: COLORS.textSecondary, fontSize: 10, fontWeight: '500' },
   stateNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   colorDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: '#FFF4' },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   badge: {
-    backgroundColor: '#FFD70033',
+    backgroundColor: COLORS.goldDim,
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 1,
   },
-  portBadge: { backgroundColor: '#4A90D933' },
-  badgeText: { color: '#FFD700', fontSize: 9, fontWeight: '700' },
+  portBadge: { backgroundColor: 'rgba(74,127,181,0.2)' },
+  badgeText: { color: COLORS.gold, fontSize: 9, fontWeight: '700' },
   goBtn: {
-    backgroundColor: '#2A4A6A',
-    borderRadius: 6,
-    paddingHorizontal: 12,
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 6,
   },
-  goBtnText: { color: '#8ac4ff', fontSize: 11, fontWeight: '700' },
-  emptyText: { color: '#607080', fontSize: 12, textAlign: 'center', marginTop: 20 },
+  goBtnText: { color: COLORS.goldLight, fontSize: 11, fontWeight: '700' },
+  emptyText: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center', marginTop: SPACING.lg },
 });
