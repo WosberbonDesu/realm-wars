@@ -119,6 +119,8 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const baseCacheKeyRef = useRef<string>('');
   const rafRef = useRef<number>(0);
+  const timeRef = useRef(0);
+  const lastFrameRef = useRef(0);
 
   // Base harita cache key: sadece harita verisi + layer toggle değiştiğinde yeniden çiz
   const baseCacheKey = `${graph?.cells.length}_${showBiomes}_${showBorders}_${showPopulation}_${showGrid}_${showIce}_${burgs.length}_${states.length}`;
@@ -209,6 +211,9 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       ctx.drawImage(base, 0, 0);
     }
 
+    // === ANIMATED WAVES ===
+    drawOceanWaves(ctx, graph, cellTiles, mapWidth, mapHeight, timeRef.current);
+
     // === 7b. Elevation heatmap overlay ===
     if (showElevation) drawElevationHeatmap(ctx, graph, cellTiles);
 
@@ -269,6 +274,15 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
     }
 
     ctx.restore();
+
+    // === PARALLAX CLOUDS ===
+    drawClouds(ctx, w, h, timeRef.current, zoom);
+
+    // === PARCHMENT EDGE VIGNETTE ===
+    drawParchmentEdge(ctx, w, h);
+
+    // === COMPASS ROSE ===
+    drawCompassRose(ctx, w, h);
   }, [graph, cellTiles, rivers, burgs, routes, states, stateMap,
       mapWidth, mapHeight, cameraX, cameraY, zoom, selectedCell,
       showBiomes, showRivers, showBorders, showRoutes, showBurgs, showGrid, showPopulation,
@@ -276,10 +290,18 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       showTemperature, showMoisture, showCultures, cultures, cultureMap,
       showReligion, religions, religionMap, renderBase]);
 
-  // requestAnimationFrame ile çizim (smooth)
+  // Continuous animation loop for visual effects (~30fps)
   useEffect(() => {
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(draw);
+    const animate = (timestamp: number) => {
+      timeRef.current = timestamp;
+      // Only redraw if enough time passed (target ~30fps for effects, save CPU)
+      if (timestamp - lastFrameRef.current > 33) {
+        lastFrameRef.current = timestamp;
+        draw();
+      }
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafRef.current);
   }, [draw]);
 
@@ -388,6 +410,191 @@ const MiniStat: React.FC<{ label: string; value: number; color: string }> = ({ l
     <Text style={{ color: COLORS.textPrimary, ...FONT.h2 }}>{value}</Text>
   </View>
 );
+
+// ===== ANIMATED VISUAL EFFECTS =====
+
+function drawOceanWaves(ctx: CanvasRenderingContext2D, graph: VoronoiGraph, tiles: HexTile[], w: number, h: number, time: number): void {
+  // Only draw waves near coastlines
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  ctx.strokeStyle = '#a0d4e8';
+  ctx.lineWidth = 0.8;
+
+  const waveSpeed = time * 0.001;
+
+  for (let i = 0; i < graph.cells.length; i++) {
+    const tile = tiles[i];
+    if (!tile || tile.elevation >= SEA_LEVEL) continue;
+
+    // Check if this water cell is adjacent to land (coastal water)
+    let isCoastalWater = false;
+    for (const ni of graph.cells[i].neighbors) {
+      if (tiles[ni]?.elevation >= SEA_LEVEL) { isCoastalWater = true; break; }
+    }
+    if (!isCoastalWater) continue;
+
+    const c = graph.cells[i].center;
+
+    // Draw 2-3 small wave arcs
+    for (let wv = 0; wv < 2; wv++) {
+      const phase = waveSpeed + c.x * 0.02 + c.y * 0.015 + wv * 1.5;
+      const waveX = c.x + Math.sin(phase) * 4;
+      const waveY = c.y + Math.cos(phase * 0.7) * 3;
+      const radius = 3 + Math.sin(phase * 0.5) * 1.5;
+
+      ctx.beginPath();
+      ctx.arc(waveX, waveY, radius, 0, Math.PI);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawClouds(ctx: CanvasRenderingContext2D, w: number, h: number, time: number, zoom: number): void {
+  ctx.save();
+  ctx.globalAlpha = 0.06; // very subtle
+
+  const cloudSpeed = time * 0.00003;
+
+  // Several large cloud blobs floating slowly
+  for (let i = 0; i < 8; i++) {
+    const baseX = (i * 237 + cloudSpeed * (200 + i * 50)) % (w + 300) - 150;
+    const baseY = (i * 173 + Math.sin(cloudSpeed * 3 + i) * 60) % (h + 200) - 100;
+
+    // Cloud shape: cluster of overlapping circles
+    ctx.fillStyle = '#ffffff';
+    for (let j = 0; j < 5; j++) {
+      const cx = baseX + Math.sin(j * 1.3) * 40;
+      const cy = baseY + Math.cos(j * 1.7) * 20;
+      const r = 30 + Math.sin(j * 2.1 + time * 0.0001) * 10;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawParchmentEdge(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  // Radial gradient vignette - dark edges like an old map
+  const gradient = ctx.createRadialGradient(w/2, h/2, Math.min(w, h) * 0.35, w/2, h/2, Math.max(w, h) * 0.75);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(0.7, 'rgba(0,0,0,0)');
+  gradient.addColorStop(1, 'rgba(10,15,25,0.4)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+
+  // Thin decorative border
+  ctx.strokeStyle = 'rgba(212,168,67,0.12)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(8, 8, w - 16, h - 16);
+
+  // Corner ornaments (small L-shapes)
+  const ornSize = 20;
+  ctx.strokeStyle = 'rgba(212,168,67,0.2)';
+  ctx.lineWidth = 1.5;
+
+  // Top-left
+  ctx.beginPath();
+  ctx.moveTo(12, 12 + ornSize);
+  ctx.lineTo(12, 12);
+  ctx.lineTo(12 + ornSize, 12);
+  ctx.stroke();
+
+  // Top-right
+  ctx.beginPath();
+  ctx.moveTo(w - 12 - ornSize, 12);
+  ctx.lineTo(w - 12, 12);
+  ctx.lineTo(w - 12, 12 + ornSize);
+  ctx.stroke();
+
+  // Bottom-left
+  ctx.beginPath();
+  ctx.moveTo(12, h - 12 - ornSize);
+  ctx.lineTo(12, h - 12);
+  ctx.lineTo(12 + ornSize, h - 12);
+  ctx.stroke();
+
+  // Bottom-right
+  ctx.beginPath();
+  ctx.moveTo(w - 12 - ornSize, h - 12);
+  ctx.lineTo(w - 12, h - 12);
+  ctx.lineTo(w - 12, h - 12 - ornSize);
+  ctx.stroke();
+}
+
+function drawCompassRose(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const cx = 50;
+  const cy = h - 60;
+  const size = 25;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.globalAlpha = 0.5;
+
+  // Outer circle
+  ctx.beginPath();
+  ctx.arc(0, 0, size, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(212,168,67,0.4)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 4 main points (N/S/E/W)
+  const directions = [
+    { angle: -Math.PI/2, label: 'K', len: size * 0.9, main: true },  // North
+    { angle: Math.PI/2, label: 'G', len: size * 0.7, main: false },  // South
+    { angle: 0, label: 'D', len: size * 0.7, main: false },          // East
+    { angle: Math.PI, label: 'B', len: size * 0.7, main: false },    // West
+  ];
+
+  for (const dir of directions) {
+    // Arrow
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(dir.angle) * dir.len, Math.sin(dir.angle) * dir.len);
+    ctx.strokeStyle = dir.main ? 'rgba(212,168,67,0.7)' : 'rgba(212,168,67,0.35)';
+    ctx.lineWidth = dir.main ? 2 : 1;
+    ctx.stroke();
+
+    // Arrowhead
+    const tx = Math.cos(dir.angle) * dir.len;
+    const ty = Math.sin(dir.angle) * dir.len;
+    const headLen = 5;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx - Math.cos(dir.angle - 0.4) * headLen, ty - Math.sin(dir.angle - 0.4) * headLen);
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx - Math.cos(dir.angle + 0.4) * headLen, ty - Math.sin(dir.angle + 0.4) * headLen);
+    ctx.stroke();
+
+    // Label
+    const labelDist = dir.len + 10;
+    ctx.font = dir.main ? 'bold 10px Georgia, serif' : '8px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = dir.main ? 'rgba(212,168,67,0.8)' : 'rgba(212,168,67,0.5)';
+    ctx.fillText(dir.label, Math.cos(dir.angle) * labelDist, Math.sin(dir.angle) * labelDist);
+  }
+
+  // 4 diagonal short lines (NE/NW/SE/SW)
+  for (let i = 0; i < 4; i++) {
+    const angle = -Math.PI/4 + i * Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(angle) * size * 0.45, Math.sin(angle) * size * 0.45);
+    ctx.strokeStyle = 'rgba(212,168,67,0.2)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(212,168,67,0.6)';
+  ctx.fill();
+
+  ctx.restore();
+}
 
 // ===== ÇİZİM FONKSİYONLARI =====
 
