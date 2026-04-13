@@ -299,8 +299,95 @@ export const MapRenderer: React.FC<MapRendererProps> = React.memo(({
       </View>
     );
   }
-  return <View style={{ flex: 1, backgroundColor: '#0f2840' }} />;
+
+  // Native mobile fallback: show informative placeholder with map stats
+  return <MobileFallback graph={graph} cellTiles={cellTiles} states={states} burgs={burgs} />;
 });
+
+// ===== MOBILE FALLBACK =====
+const MobileFallback: React.FC<{
+  graph: VoronoiGraph | null;
+  cellTiles: HexTile[];
+  states: VoronoiState[];
+  burgs: VoronoiBurg[];
+}> = ({ graph, cellTiles, states, burgs }) => {
+  const landCount = cellTiles.filter(t => t.elevation >= SEA_LEVEL).length;
+  const waterCount = cellTiles.length - landCount;
+
+  return (
+    <View style={{
+      flex: 1,
+      backgroundColor: COLORS.mapBg,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.xl,
+    }}>
+      {/* Decorative compass */}
+      <Text style={{ fontSize: 48, marginBottom: SPACING.lg }}>{'🧭'}</Text>
+
+      <Text style={{
+        color: COLORS.gold,
+        ...FONT.h1,
+        textAlign: 'center',
+        marginBottom: SPACING.sm,
+      }}>
+        Harita Olusturuldu
+      </Text>
+
+      <Text style={{
+        color: COLORS.textSecondary,
+        ...FONT.body,
+        textAlign: 'center',
+        marginBottom: SPACING.xl,
+        lineHeight: 20,
+      }}>
+        Harita goruntuleme icin web surumunu kullanin.{'\n'}
+        Expo web uzerinden tam harita destegi mevcuttur.
+      </Text>
+
+      {/* Mini stat cards */}
+      {graph && (
+        <View style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: SPACING.sm,
+        }}>
+          <MiniStat label="Hucre" value={cellTiles.length} color={COLORS.textSecondary} />
+          <MiniStat label="Kara" value={landCount} color="#8BC34A" />
+          <MiniStat label="Su" value={waterCount} color="#4A90D9" />
+          <MiniStat label="Devlet" value={states.length} color="#D94A4A" />
+          <MiniStat label="Sehir" value={burgs.length} color={COLORS.gold} />
+        </View>
+      )}
+
+      {!graph && (
+        <View style={{ alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.gold} />
+          <Text style={{ color: COLORS.textMuted, ...FONT.caption, marginTop: SPACING.sm }}>
+            Harita yukleniyor...
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const MiniStat: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
+  <View style={{
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+    minWidth: 60,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  }}>
+    <Text style={{ color, ...FONT.caption }}>{label}</Text>
+    <Text style={{ color: COLORS.textPrimary, ...FONT.h2 }}>{value}</Text>
+  </View>
+);
 
 // ===== ÇİZİM FONKSİYONLARI =====
 
