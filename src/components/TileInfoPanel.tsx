@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { TERRAIN_ICONS } from '../constants/game';
 import { TERRAIN_NAMES } from '../constants/terrain';
-import { COLORS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, SHADOW } from '../constants/theme';
 import { cellKey } from '../engine/voronoiGrid';
 
 export const TileInfoPanel: React.FC = () => {
@@ -67,10 +67,10 @@ const Res: React.FC<{ icon: string; val: number; color: string }> = ({ icon, val
 );
 
 const styles = StyleSheet.create({
-  container: { position: 'absolute', bottom: 100, left: 8, right: 8, pointerEvents: 'box-none' },
-  panel: { backgroundColor: 'rgba(26,35,50,0.9)', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#2A3A4A' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  closeBtn: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#2A3A4A', justifyContent: 'center', alignItems: 'center' },
+  container: { position: 'absolute', bottom: 100, left: SPACING.sm, right: SPACING.sm, pointerEvents: 'box-none' },
+  panel: { backgroundColor: COLORS.surfaceOverlay, borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, borderColor: COLORS.border, ...SHADOW.panel },
+  header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
+  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.surfaceLight, justifyContent: 'center', alignItems: 'center' },
   closeTxt: { color: '#8aa0b8', fontSize: 14, fontWeight: '700' },
   icon: { fontSize: 28 },
   title: { color: '#FFF', fontSize: 16, fontWeight: '700' },

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useGameStore } from '../store/gameStore';
+import { COLORS, SPACING, RADIUS, SHADOW, FONT } from '../constants/theme';
 
 export const HUD: React.FC = () => {
   const cellTiles = useGameStore(s => s.cellTiles);
@@ -18,12 +19,12 @@ export const HUD: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.topBar}>
         <View style={styles.infoRow}>
-          <Badge label="Hucre" value={String(cellTiles.length)} color="#A0B0C0" />
-          <Badge label="Kara" value={String(landCount)} color="#8BC34A" />
-          <Badge label="Su" value={String(waterCount)} color="#4A90D9" />
-          <Badge label="Nehir" value={String(rivers.length)} color="#3A7BD5" />
-          <Badge label="Sehir" value={String(burgs.length)} color="#FFD700" />
-          <Badge label="Devlet" value={String(states.length)} color="#D94A4A" />
+          <Badge label="Hucre" value={String(cellTiles.length)} color={COLORS.textSecondary} />
+          <Badge label="Kara" value={String(landCount)} color={COLORS.success} />
+          <Badge label="Su" value={String(waterCount)} color={COLORS.info} />
+          <Badge label="Nehir" value={String(rivers.length)} color="#5A9BD5" />
+          <Badge label="Sehir" value={String(burgs.length)} color={COLORS.gold} />
+          <Badge label="Devlet" value={String(states.length)} color={COLORS.danger} />
         </View>
         <View style={styles.rightGroup}>
           <Text style={styles.seedText}>Seed: {seed}</Text>
@@ -47,16 +48,47 @@ const Badge: React.FC<{ label: string; value: string; color: string }> = ({ labe
 );
 
 const styles = StyleSheet.create({
-  container: { position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'box-none' },
-  topBar: { position: 'absolute', top: 10, left: 8, right: 8, backgroundColor: 'rgba(15,25,35,0.92)', borderRadius: 12, padding: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#2A3A4A' },
-  infoRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
-  badge: { backgroundColor: '#1A2332', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2, alignItems: 'center' },
-  badgeLabel: { fontSize: 8 },
-  badgeValue: { color: '#FFF', fontSize: 11, fontWeight: '600' },
-  rightGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  seedText: { color: '#607080', fontSize: 9 },
-  regenBtn: { backgroundColor: '#4A90D9', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  regenText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
-  menuBtn: { backgroundColor: '#2A3A4A', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
-  menuText: { color: '#A0B0C0', fontSize: 10, fontWeight: '600' },
+  container: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    pointerEvents: 'box-none',
+  },
+  topBar: {
+    position: 'absolute', top: SPACING.sm, left: SPACING.sm, right: SPACING.sm,
+    backgroundColor: COLORS.surfaceOverlay,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOW.panel,
+  },
+  infoRow: { flexDirection: 'row', gap: SPACING.xs, flexWrap: 'wrap' },
+  badge: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    alignItems: 'center',
+  },
+  badgeLabel: { ...FONT.small },
+  badgeValue: { color: COLORS.textPrimary, ...FONT.caption, fontWeight: '700' },
+  rightGroup: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  seedText: { color: COLORS.textMuted, ...FONT.small },
+  regenBtn: {
+    backgroundColor: COLORS.gold,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+    ...SHADOW.button,
+  },
+  regenText: { color: COLORS.textDark, ...FONT.caption, fontWeight: '700' },
+  menuBtn: {
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+  },
+  menuText: { color: COLORS.textSecondary, ...FONT.caption, fontWeight: '600' },
 });
